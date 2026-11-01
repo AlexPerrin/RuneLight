@@ -5,16 +5,16 @@
 #                     main one, re/devtools-build and re/host/plugins-extra), host build, ninja and the repack with OPENRUNE=1
 #                     LOCAL_AUTH=1 in the build copy; the APK is kept only when its repack log passes check-log; cached by T
 #                     (evidence/<slug>/<T>.apk and <T>.devtools.jar, the jar boot pushes)
-#   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) with no
-#                     hostname resolving (checked on Jagex, RuneScape, RuneLite and Google hosts), installs the APK once no
-#                     install of the app is pending, logs
+#   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
+#                     allowlist (check-blocked), installs the APK once no install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              removes devtools, clears the debug props, checks the plugins dir (when up made one) is the three defaults;
 #                     stops the emulator
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
-#   check-blocked     the running mobile resolves none of the Jagex, RuneScape, RuneLite and Google hosts and connects to no
-#                     public address (the Windows Firewall group osrs-harness); up runs it
+#   check-blocked     the running mobile gets a TLS answer from api.runelite.net and static.runelite.net (resolved to the
+#                     relay of tools/allow.py), resolves none of the Jagex, RuneScape, telemetry and Google hosts and connects
+#                     to no public address (the Windows Firewall group osrs-harness); up runs it
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   ship TCOMMIT      pushes the merge commit of base and head to origin main
 #   measure GOAL [TCOMMIT]  build and up at the target (origin/HEAD by default), the API probe; state/<goal>/measure.json
@@ -23,6 +23,7 @@
 # Windows locations, run through WSL interop (override in the environment):
 #   ANDROID_SDK       /mnt/c/Users/Alex/AppData/Local/Android/Sdk   platform-tools/adb.exe (ADB overrides adb alone), emulator/emulator.exe
 #   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe
+#   DOCKER            docker                                       the allowlist container (mobile-allow)
 set -euo pipefail
 verb=$1; slug=${2:-${SLUG:-}}; arg=${3:-}   # a contract row passes no slug: hd exports SLUG
 self=$(cd "$(dirname "$0")" && pwd)
@@ -35,8 +36,10 @@ dev=$repo/.worktrees/$slug; copy=$repo/.worktrees/$slug-build
 sdk=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}; sys32=${WINDOWS_SYSTEM32:-/mnt/c/Windows/System32}; adb=${ADB:-$sdk/platform-tools/adb.exe}
 need() { [ -x "$1" ] || { echo "$1 not found: set $2" >&2; exit 2; }; }   # need <program> <the variable that locates it>
 pkg=com.jagex.oldscape.android; files=/sdcard/Android/data/$pkg/files; defaults="grounditems.jar opponentinfo.jar quest-helper.jar"
-addrs="8.8.8.8 1.1.1.1 142.250.80.46"   # public addresses (Google DNS, Cloudflare DNS, google.com): none connects
-hosts="legal.jagex.com auth.jagex.com oldschool.runescape.com www.runescape.com api.runelite.net static.runelite.net google.com connectivitycheck.gstatic.com"
+addrs="8.8.8.8 1.1.1.1 142.250.80.46 104.26.8.233"   # public addresses (Google DNS, Cloudflare DNS, google.com, runelite.net): none connects
+allowed="api.runelite.net static.runelite.net"   # tools/allow.py: these resolve to its relay, which reaches them on 443
+hosts="legal.jagex.com auth.jagex.com oldschool.runescape.com www.runescape.com sdk.iad-01.braze.com cdn.cookielaw.org app-measurement.com firebaseinstallations.googleapis.com sdk-api-v1.singular.net google.com connectivitycheck.gstatic.com"
+docker=${DOCKER:-docker}
 ndk=${ANDROID_NDK:-$HOME/Android/Sdk/ndk/android-ndk-r27d}
 record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" > "$state/$2.json"; }
 serial() { cat "$state/serial" 2>/dev/null || { echo "no mobile for $slug: run up"; return 1; }; }
@@ -85,8 +88,11 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   # local network, the change's own devtools jar and the three default plugins pushed; the serial goes to state/<slug>/serial as the emulator starts
   need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32
   exec 9> "$root/state/emulator-port.lock"; flock 9   # one boot at a time picks a port, until adb sees its emulator there
+  # the mobile's resolver and relay on the Windows loopback (tools/allow.py), one container for every mobile, outliving the run
+  [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" = true ] || $docker run -d --rm --name mobile-allow \
+    -p 127.0.0.1:53:53/udp -p 127.0.0.1:443:443 -v "$self/allow.py:/allow.py:ro" python:3.13-alpine python /allow.py >/dev/null
   port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
-  (cd /mnt/c && setsid "$sdk/emulator/emulator.exe" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" < /dev/null > "$state/emulator.log" 2>&1 &) 9>&-   # the lock is not inherited; no console window: its log is a file, down is the only stop
+  (cd /mnt/c && setsid "$sdk/emulator/emulator.exe" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" -dns-server 127.0.0.1 < /dev/null > "$state/emulator.log" 2>&1 &) 9>&-   # the lock is not inherited; no console window: its log is a file, down is the only stop
   echo "$s" > "$state/serial"
   "$adb" -s "$s" wait-for-device; exec 9>&-
   until [ "$(A shell getprop sys.boot_completed)" = 1 ]; do sleep 2; done
@@ -96,8 +102,8 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   path=$(A shell pm path "$pkg"); path=${path#package:}
   [ "$(A shell "unzip -l $path | grep -c libosrsrl")" = 1 ] || { echo "the APK carries no libosrsrl" >&2; return 1; }
   A shell pm grant com.android.chrome android.permission.ACCESS_LOCAL_NETWORK >/dev/null
-  A shell settings put global private_dns_mode hostname >/dev/null   # Private DNS strict on a name that never resolves:
-  A shell settings put global private_dns_specifier blocked.invalid >/dev/null   # no hostname resolves; 10.0.2.2 is an address
+  A shell svc wifi disable >/dev/null   # the wifi path (netsimd) resolves through Windows; the cellular one asks -dns-server
+  cell='ni\{MOBILE[^ ]* CONNECTED'; until c=$(A shell dumpsys connectivity); [[ $c =~ $cell && $c != *"ni{WIFI"* ]]; do sleep 1; done
   A shell settings put secure immersive_mode_confirmations confirmed >/dev/null   # SystemUI's "Viewing full screen" prompt never shows: no tap
   blocked >&2 || return 1
   A shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null   # a first start creates files/
@@ -109,12 +115,22 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   A shell setprop debug.osrsrl.devtools 1 >/dev/null
 }
 check_blocked() { s=$(serial) && need "$adb" ANDROID_SDK && blocked; }
-blocked() {  # every host must fail to resolve on the mobile; a connect by name needs a resolve first
-  until [[ $(A shell dumpsys connectivity) == *"PrivateDnsServerName: blocked.invalid"* ]]; do sleep 1; done   # the setting applied
-  local out no; out=$(A shell "for h in $hosts; do nc -w 15 \$h 443 </dev/null & done; wait")
+blocked() {  # each allowed host answers a TLS ClientHello with a handshake record (0x16); every other host fails to resolve
+  local out no h fail=0   # (a connect by name needs a resolve first) and no public address connects
+  for h in $allowed; do
+    python3 -c 'import ssl,sys;o=ssl.MemoryBIO();t=ssl.create_default_context().wrap_bio(ssl.MemoryBIO(),o,server_hostname=sys.argv[1])
+try: t.do_handshake()
+except ssl.SSLWantReadError: sys.stdout.buffer.write(o.read())' "$h" > "$state/hello-$h"
+    A push "$(win "$state/hello-$h")" "/data/local/tmp/hello-$h" >/dev/null
+  done
+  out=$(A shell "for h in $allowed; do echo \"\$h \$(nc -q 10 -w 15 \$h 443 < /data/local/tmp/hello-\$h | head -c 1 | od -An -tx1)\" & done; wait")
+  no=$(for h in $allowed; do grep -qE "^$h +16$" <<< "$out" || echo "$h"; done)
+  [ -z "$no" ] || { echo "NOT REACHED (no TLS answer on 443):" $no; fail=1; }
+  out=$(A shell "for h in $hosts; do nc -w 15 \$h 443 </dev/null & done; wait")
   no=$(for h in $hosts; do grep -q "$h:443: No address associated with hostname" <<< "$out" || echo "$h"; done)
   no+=$(A shell "for a in $addrs; do nc -w 5 \$a 443 </dev/null 2>/dev/null && echo \" \$a\" & done; wait")   # by address, no lookup
-  [ -z "$no" ] && echo "blocked: $hosts $addrs" || { echo "NOT BLOCKED (resolves or connects):" $no; return 1; }
+  [ -z "$no" ] || { echo "NOT BLOCKED (resolves or connects):" $no; fail=1; }
+  [ $fail = 0 ] && echo "allowed: $allowed; blocked: $hosts $addrs"
 }
 down() {  # judges what the harness put on the mobile (the default plugins, the debug props) against its baseline; the
   # app's own writes (settings.properties, cache) are not checked: they differ after any login and the read-only AVD drops them

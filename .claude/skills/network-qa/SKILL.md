@@ -10,7 +10,7 @@ and prints the distinct remote addresses and names; `check-log` checks the repac
 
 ## Judgment
 - Allowed, exactly: the test server (10.0.2.2:43594, :8080), `api.runelite.net` and `static.runelite.net` (plugin
-  data); nothing else.
+  data, through the allowlist relay at 10.0.2.2:443); nothing else.
 - Any other host is a FAIL: stop and report at once. Telemetry above all: Braze, OneTrust, Google (analytics,
   Firebase, FCM), `app-measurement.com`, `singular.net`, any `jagex.com` or `runescape.com` host, `*.x.invalid`,
   ConsentSync or Singular log lines.

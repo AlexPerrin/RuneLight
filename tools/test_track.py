@@ -62,14 +62,16 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
   *"dumpsys package"*) n=$(cat "$PENDING" 2>/dev/null || echo 0); [ "$n" = 0 ] || {{ echo $((n - 1)) > "$PENDING"; [ "$n" -gt 2 ] && exit 0; }}
     printf 'Active install sessions:\\n'; [ "$n" = 0 ] || printf '  Session 1:\\n    mAppPackageName=com.jagex.oldscape.andro\\n    id\\n'; printf 'Finalized install sessions:\\n' ;;
   *" install "*) echo "${{INSTALL:-Failure [INSTALL_FAILED_DUPLICATE_PACKAGE]}}" ;; *libosrsrl*) echo 1 ;;
-  *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;;
+  *dumpsys*) echo '  NetworkAgentInfo{{network{{101}}  ni{{MOBILE[NR] CONNECTED extra: }}' ;;
+  *"hello-"*) [ -z "$BOOTS" ] || for h in api.runelite.net static.runelite.net; do echo "$h  16"; done ;;
   *"nc -w 15"*) [ -z "$BOOTS" ] || for h in {HOSTS}; do echo "nc: $h:443: No address associated with hostname"; done ;;
   *"echo y"*) [ -z "$BOOTS" ] || echo y ;; *"ls -1"*) printf 'grounditems.jar\\nopponentinfo.jar\\nquest-helper.jar\\n' ;; esac""",
                  sdk / "emulator/emulator.exe": f'echo "emulator $*" >> {log}; echo "emulator: booting on $PWD"',
                  sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}"}
         for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
         (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
-        s.env.update(ANDROID_SDK=str(sdk), WINDOWS_SYSTEM32=str(sys32)); s.env.pop("ADB", None)
+        docker = s.ev / "docker"; docker.write_text(f'#!/bin/sh\necho "docker $*" >> {log}\n'); docker.chmod(0o755)
+        s.env.update(ANDROID_SDK=str(sdk), WINDOWS_SYSTEM32=str(sys32), DOCKER=str(docker)); s.env.pop("ADB", None)
         return log
 
     def test_a_failed_up_stops_its_emulator(s):  # the serial is known from the start, and down runs on the failure
@@ -122,22 +124,55 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         r = subprocess.run(["flock", "-n", str(Path(s.env["HD_ROOT"]) / "state/emulator-port.lock"), "true"])
         s.assertEqual(r.returncode, 0)
 
-    def test_check_blocked(s):  # up's check: every Jagex, RuneScape, RuneLite and Google host fails to resolve, no public address connects
+    def test_check_blocked(s):  # up's check: the two RuneLite hosts answer TLS, every other host fails to resolve, no public address connects
         st = Path(s.env["HD_ROOT"]) / "state/x"; st.mkdir(parents=True); (st / "serial").write_text("emulator-5560\n")
-        hosts = re.search(r'^hosts="([^"]+)"', TRACK.read_text(), re.M).group(1).split()
-        s.assertTrue({"legal.jagex.com", "oldschool.runescape.com", "api.runelite.net", "google.com"} <= set(hosts))
+        src = TRACK.read_text(); var = lambda n: re.search(rf'^{n}="([^"]+)"', src, re.M).group(1).split()
+        hosts, allowed = var("hosts"), var("allowed")
+        s.assertEqual(set(allowed), {"api.runelite.net", "static.runelite.net"})
+        s.assertTrue({"legal.jagex.com", "oldschool.runescape.com", "sdk.iad-01.braze.com", "cdn.cookielaw.org", "app-measurement.com", "sdk-api-v1.singular.net", "google.com"} <= set(hosts))
         adb = s.ev / "adb.exe"
         adb.write_text(f"""#!/bin/sh
-case "$*" in *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;;
+case "$*" in *push*) ;;
+  *"hello-"*) for h in {" ".join(allowed)}; do [ "$h" = "$SHUT" ] && echo "$h " || echo "$h  16"; done ;;
   *"8.8.8.8"*) [ -z "$OPEN_ADDR" ] || echo " $OPEN_ADDR" ;;
   *"nc -w"*) for h in {" ".join(hosts)}; do [ "$h" = "$OPEN" ] || echo "nc: $h:443: No address associated with hostname"; done ;; esac
 """)
         adb.chmod(0o755); s.env["ADB"] = str(adb)
-        rc, out = s.row("check-blocked"); s.assertEqual(rc, 0, out); s.assertIn("blocked:", out)
-        s.env["OPEN"] = "api.runelite.net"
-        rc, out = s.row("check-blocked"); s.assertEqual(rc, 1); s.assertIn("NOT BLOCKED (resolves or connects): api.runelite.net", out)
+        rc, out = s.row("check-blocked"); s.assertEqual(rc, 0, out); s.assertIn("allowed: api.runelite.net static.runelite.net; blocked:", out)
+        s.assertEqual((st / "hello-api.runelite.net").read_bytes()[:1], b"\x16")   # a real ClientHello is pushed
+        s.env["SHUT"] = "static.runelite.net"
+        rc, out = s.row("check-blocked"); s.assertEqual(rc, 1); s.assertIn("NOT REACHED (no TLS answer on 443): static.runelite.net", out)
+        s.env.pop("SHUT"); s.env["OPEN"] = "auth.jagex.com"
+        rc, out = s.row("check-blocked"); s.assertEqual(rc, 1); s.assertIn("NOT BLOCKED (resolves or connects): auth.jagex.com", out)
         s.env.pop("OPEN"); s.env["OPEN_ADDR"] = "8.8.8.8"   # a public address connects with no lookup
         rc, out = s.row("check-blocked"); s.assertEqual(rc, 1); s.assertIn("NOT BLOCKED (resolves or connects): 8.8.8.8", out)
+
+    def test_up_puts_the_mobile_on_the_allowlist(s):  # the allowlist container, the emulator asking it, the wifi path off
+        log = s.fake_windows(); s.env["INSTALL"] = "Success"; s.row("up")
+        calls = log.read_text()
+        s.assertIn("docker run -d --rm --name mobile-allow -p 127.0.0.1:53:53/udp -p 127.0.0.1:443:443", calls)
+        s.assertIn("-dns-server 127.0.0.1", calls); s.assertIn("shell svc wifi disable", calls)
+        s.assertNotIn("private_dns", TRACK.read_text())
+
+    def test_allow_answers_only_the_allowed_names(s):  # tools/allow.py: DNS and the TLS relay admit api/static.runelite.net alone
+        import ssl, struct, sys; sys.path.insert(0, str(TRACK.parent)); import allow
+        q = lambda n, t=1: b"\x12\x34\x01\x00\x00\x01\0\0\0\0\0\0" + b"".join(bytes([len(p)]) + p.encode() for p in n.split(".")) + b"\0" + struct.pack(">HH", t, 1)
+        a = allow.answer(q("Static.RuneLite.net")); s.assertEqual((a[:2], a[3] & 15, a[7], a[-4:]), (b"\x12\x34", 0, 1, bytes([10, 0, 2, 2])))
+        a = allow.answer(q("api.runelite.net", 28)); s.assertEqual((a[3] & 15, a[7]), (0, 0))   # no AAAA: IPv4 alone reaches the relay
+        for n in ("auth.jagex.com", "sdk.iad-01.braze.com", "app-measurement.com", "runelite.net", "x.api.runelite.net"):
+            a = allow.answer(q(n)); s.assertEqual((a[3] & 15, a[7]), (3, 0), n)   # NXDOMAIN
+        def hello(n):
+            o = ssl.MemoryBIO(); t = ssl.create_default_context().wrap_bio(ssl.MemoryBIO(), o, server_hostname=n)
+            try: t.do_handshake()
+            except ssl.SSLWantReadError: return o.read()
+        s.assertEqual(allow.sni(hello("api.runelite.net")), "api.runelite.net"); s.assertEqual(allow.sni(hello("auth.jagex.com")), "auth.jagex.com")
+        s.assertIsNone(allow.sni(b"GET / HTTP/1.1\r\n")); s.assertIsNone(allow.sni(hello("api.runelite.net")[:40]))
+        import socket; x, y = socket.socketpair(); h = hello("static.runelite.net"); x.sendall(h[:100])
+        threading = __import__("threading"); threading.Timer(0.2, x.sendall, (h[100:],)).start()
+        s.assertEqual(allow.record(y), h); x.close(); y.close()   # a hello split across segments is read whole
+        l = socket.create_server(("127.0.0.1", 0)); c = socket.create_connection(l.getsockname())
+        t = threading.Thread(target=allow.relay, args=(l.accept()[0],)); t.start()
+        c.sendall(hello("auth.jagex.com")); s.assertEqual(c.recv(5), b""); t.join(); c.close(); l.close()   # closed with no connect out
 
     def test_network_qa_allows_three_hosts(s):  # the skill's allowed list: the local server and the two RuneLite hosts, nothing else
         skill = (TRACK.parent.parent / ".claude/skills/network-qa/SKILL.md").read_text()
