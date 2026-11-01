@@ -11,7 +11,7 @@
 #   check-blocked     the running mobile gets a TLS answer from api.runelite.net and static.runelite.net (resolved to the
 #                     relay of tools/allow.py), resolves none of the Jagex, RuneScape, telemetry and Google hosts and connects
 #                     to no public address (the Windows Firewall group osrs-harness); up runs it
-#   ship TCOMMIT      pushes the merge commit of base and head to origin main
+#   ship TCOMMIT      pushes the batch's merge commit (base and its heads) to origin main
 #   measure GOAL [TCOMMIT]  build and up at the target (origin/HEAD by default), the API probe; state/<goal>/measure.json
 #   log <slug> PATTERN  logcat since the run's marker, filtered
 #   netqa start|stop  samples the app's sockets and DNS between the two calls
@@ -25,7 +25,7 @@ verb=$1; slug=${2:-${SLUG:-}}; arg=${3:-}   # a contract row passes no slug: hd 
 self=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$(git -C "$self" rev-parse --path-format=absolute --git-common-dir)")  # the main checkout (re/ lives there), also when run from a worktree
 root=${HD_ROOT:-$HOME/osrs-harness}
-[ -f "$root/harness/changes/$slug.md" ] || [ -f "$root/harness/goals/$slug.md" ] || case $slug in live|integration) ;; *) echo "no change or goal \"$slug\": tools/track.sh <verb> <slug> [arg]" >&2; exit 2 ;; esac
+[ -f "$root/harness/changes/$slug.md" ] || [ -f "$root/harness/goals/$slug.md" ] || case $slug in live|integration|ship-client) ;; *) echo "no change or goal \"$slug\": tools/track.sh <verb> <slug> [arg]" >&2; exit 2 ;; esac
 state=$root/state/$slug; mkdir -p "$state"
 ev=${EVIDENCE:-$root/evidence/$slug}; mkdir -p "$ev"
 copy=$repo/.worktrees/$slug-build   # measure probes in it
@@ -134,7 +134,7 @@ down() {  # judges what the harness put on the mobile (the default plugins, the 
   A emu kill >/dev/null; rm -f "$state/serial"
   [ ${#bad[@]} = 0 ] || { (IFS=';'; echo "RESTORE FAILED: ${bad[*]}"); return 1; }; echo restored
 }
-ship() { git -C "$repo" push -q origin "$arg:refs/heads/main" && echo "main at ${arg:0:9}"; }
+ship() { git -C "$repo" push -q origin "$arg:refs/heads/main" && echo "main at ${arg:0:9}"; rm -f "$state"/gate-*.json; }   # the kept gates were of trees on the old main
 measure() {
   tc=$(git -C "$repo" rev-parse "${arg:-origin/HEAD}^{commit}"); arg=$tc; T=$(git -C "$repo" rev-parse "$tc^{tree}"); T=$T "$self/gate/gate.sh" build "$slug" "$tc"; up
   (cd "$copy" && ANDROID_SERIAL=$(serial) tools/api-probe.sh "$ev")

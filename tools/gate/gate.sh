@@ -7,7 +7,8 @@
 #                     LOCAL_AUTH=1 in the build copy; the APK is kept only when its repack log passes check-log; cached by T
 #                     (evidence/<slug>/<T>.apk, <T>.devtools.jar, the jar boot pushes, and <T>.devtools-desktop.jar, its
 #                     classes before dexing, the jar the server track's desktops load from the build of slug live)
-#   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
+#   gate TCOMMIT      the build, then every check: and gate: row of the contracts of NAMES (the batch's changes) from the
+#                     build copy (`hd rows`); state/<slug>/gate.json, kept as gate-<T>.json
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   tree              prints TCOMMIT and T (a dev: the working copy snapshotted)
 set -euo pipefail
@@ -15,7 +16,7 @@ verb=$1; slug=${2:-${SLUG:-}}; arg=${3:-}   # a contract row passes no slug: hd 
 self=$(cd "$(dirname "$0")" && pwd)   # tools/gate
 repo=$(dirname "$(git -C "$self" rev-parse --path-format=absolute --git-common-dir)")  # the main checkout (re/ lives there), also when run from a worktree
 root=${HD_ROOT:-$HOME/osrs-harness}
-[ -f "$root/harness/changes/$slug.md" ] || [ -f "$root/harness/goals/$slug.md" ] || case $slug in live|integration) ;; *) echo "no change or goal \"$slug\": tools/track.sh <verb> <slug> [arg]" >&2; exit 2 ;; esac
+[ -f "$root/harness/changes/$slug.md" ] || [ -f "$root/harness/goals/$slug.md" ] || case $slug in live|integration|ship-client) ;; *) echo "no change or goal \"$slug\": tools/track.sh <verb> <slug> [arg]" >&2; exit 2 ;; esac
 state=$root/state/$slug; mkdir -p "$state"
 ev=${EVIDENCE:-$root/evidence/$slug}; mkdir -p "$ev"
 dev=$repo/.worktrees/$slug; copy=$repo/.worktrees/$slug-build
@@ -47,8 +48,11 @@ build() {
   EVIDENCE=$ev check_log >/dev/null || { record false build <<< "repack log fails the privacy check: $log"; rm -f "$copy/re/out/osrs-runelite.apk"; return 1; }
   cp "$copy/re/host/plugins-extra/devtools.jar" "$ev/$T.devtools.jar"; cp "$copy/re/devtools-build/devtools.jar" "$ev/$T.devtools-desktop.jar"; cp "$copy/re/out/osrs-runelite.apk" "$ev/$T.apk"; record true build < "$log"; echo "built $ev/$T.apk"
 }
-gate() { tc=$arg; build; git -C "$copy" reset -q --hard "$tc"
-  if out=$(HD_ROOT=$root python3 "$root/hd.py" rows "$slug" "$tc" "$copy" 2>&1); then record true gate <<< "$out"; else record false gate <<< "$out"; fi; }
+gate() { tc=$arg  # hd gates the client's batch as ship-client, NAMES its changes; kept by T as gate-<T>
+  if ! "$self/gate.sh" build "$slug" "$tc"; then record false gate <<< "build failed at $T: $ev/repack-$T.log"
+  else git -C "$copy" reset -q --hard "$tc"
+    if out=$(HD_ROOT=$root python3 "$root/hd.py" rows "${NAMES:-$slug}" "$tc" "$copy" 2>&1); then record true gate <<< "$out"; else record false gate <<< "$out"; fi
+  fi; cp "$state/gate.json" "$state/.gate.$$.tmp"; mv -f "$state/.gate.$$.tmp" "$state/gate-$T.json"; }
 check_log() {
   l=$(ls -t "$ev"/repack*.log 2>/dev/null | head -1 || true); [ -n "$l" ] || { echo "no repack log in $ev"; return 1; }
   [ "$(grep -c '^telemetry:' "$l")" = 7 ] && grep -q '^patched RSA modulus' "$l" && grep -q '^patched /jav_config\.ws' "$l" && grep -qE '^patched \S*/net/openid/appauth/' "$l" \
