@@ -1,5 +1,5 @@
 """The client track's check rows against fixture evidence: python3 -m unittest tools/test_track.py"""
-import re, os, shutil, subprocess, tempfile, unittest
+import re, os, shutil, subprocess, tempfile, time, unittest
 from pathlib import Path
 
 TRACK = Path(__file__).resolve().parent / "track.sh"
@@ -96,6 +96,25 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         s.assertEqual(len(pushes), 1); s.assertIn("t.devtools.jar", pushes[0]); s.assertNotIn("plugins-extra", pushes[0])
         (s.ev / "t.devtools.jar").unlink()
         rc, out = s.row("up"); s.assertEqual(rc, 1); s.assertIn("no APK or devtools jar for t", out)
+
+    def test_down_stops_the_login_of_a_killed_up(s):  # up's caller died mid-login: down leaves no mobile_login.py alive
+        s.fake_windows(); s.env.update(INSTALL="Success", BOOTS="1")
+        m = Path(tempfile.mkdtemp()); (m / "tools").mkdir(); shutil.copy(TRACK, m / "tools/track.sh")
+        (m / "tools/mobile_login.py").write_text("import time\ntime.sleep(600)\n"); subprocess.run(["git", "init", "-q", str(m)], check=True)
+        pid = Path(s.env["HD_ROOT"]) / "state/x/login.pid"
+        up = subprocess.Popen([str(m / "tools/track.sh"), "up", "x"], env=s.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        alive = lambda p: Path(f"/proc/{p}/stat").exists() and Path(f"/proc/{p}/stat").read_text().split(") ")[1][0] != "Z"
+        for _ in range(600):
+            if pid.exists() and pid.read_text().strip(): break
+            time.sleep(0.05)
+        p = int(pid.read_text()); s.assertTrue(alive(p))
+        up.kill(); up.wait(); s.assertTrue(alive(p))   # the killed shell ran no trap: the login outlives it
+        subprocess.run([str(m / "tools/track.sh"), "down", "x"], env=s.env, capture_output=True)
+        for _ in range(200):
+            if not alive(p): break
+            time.sleep(0.05)
+        s.assertFalse(alive(p)); s.assertFalse(pid.exists())
+        shutil.rmtree(m, ignore_errors=True)
 
     def test_emulator_has_no_console_window(s):  # started directly, not through cmd's start; its output is the run's log
         log = s.fake_windows(); s.row("up")
