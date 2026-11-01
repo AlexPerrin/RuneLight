@@ -3,6 +3,8 @@ import re, os, shutil, subprocess, tempfile, time, unittest
 from pathlib import Path
 
 TRACK = Path(__file__).resolve().parent / "track.sh"
+GATE = TRACK.parent / "gate/gate.sh"   # the code a build or gate runs
+place = lambda tools: (shutil.copy(TRACK, tools / "track.sh"), shutil.copytree(GATE.parent, tools / "gate"))   # the track script with its gate dir
 GOOD = "".join(f"telemetry: line {i}\n" for i in range(7)) + "patched RSA modulus at file offset 0x1\npatched /jav_config.ws at file offset 0x2\npatched smali/net/openid/appauth/X.smali\n"
 
 
@@ -91,7 +93,7 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
 
     def test_boot_pushes_the_changes_own_devtools_jar(s):  # built with the APK, kept beside it by T; never the main checkout's
         log = s.fake_windows(); s.env.update(INSTALL="Success", BOOTS="1")
-        m = Path(tempfile.mkdtemp()); (m / "tools").mkdir(); shutil.copy(TRACK, m / "tools/track.sh")   # a stub login: never the real adb
+        m = Path(tempfile.mkdtemp()); (m / "tools").mkdir(); place(m / "tools")   # a stub login: never the real adb
         (m / "tools/mobile_login.py").write_text("raise SystemExit(1)\n"); subprocess.run(["git", "init", "-q", str(m)], check=True)
         subprocess.run([str(m / "tools/track.sh"), "up", "x"], env=s.env, capture_output=True)
         pushes = [c for c in log.read_text().splitlines() if "push" in c and "devtools.jar" in c]
@@ -101,7 +103,7 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
 
     def test_down_stops_the_login_of_a_killed_up(s):  # up's caller died mid-login: down leaves no mobile_login.py alive
         s.fake_windows(); s.env.update(INSTALL="Success", BOOTS="1")
-        m = Path(tempfile.mkdtemp()); (m / "tools").mkdir(); shutil.copy(TRACK, m / "tools/track.sh")
+        m = Path(tempfile.mkdtemp()); (m / "tools").mkdir(); place(m / "tools")
         (m / "tools/mobile_login.py").write_text("import time\ntime.sleep(600)\n"); subprocess.run(["git", "init", "-q", str(m)], check=True)
         pid = Path(s.env["HD_ROOT"]) / "state/x/login.pid"
         up = subprocess.Popen([str(m / "tools/track.sh"), "up", "x"], env=s.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -119,7 +121,7 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         shutil.rmtree(m, ignore_errors=True)
 
     def test_build_keeps_the_desktop_devtools_jar(s):  # the classes jar before dexing: the server track's desktops load it
-        b = TRACK.read_text().split("\nbuild() {")[1].split("\n}")[0]
+        b = GATE.read_text().split("\nbuild() {")[1].split("\n}")[0]
         s.assertIn('[ -f "$ev/$T.devtools-desktop.jar" ]', b)
         s.assertIn('cp "$copy/re/devtools-build/devtools.jar" "$ev/$T.devtools-desktop.jar"', b)
 
@@ -240,7 +242,7 @@ case "$*" in *push*) ;;
         g = lambda *a, c=m: subprocess.run(["git", "-C", str(c), *a], check=True, capture_output=True)
         g("init", "-q"); g("config", "user.name", "t"); g("config", "user.email", "t@t"); g("commit", "-q", "--allow-empty", "-m", "c")
         g("update-ref", "refs/remotes/origin/HEAD", "HEAD"); g("worktree", "add", "-q", "--detach", str(w))
-        (w / "tools").mkdir(); shutil.copy(TRACK, w / "tools" / "track.sh")
+        (w / "tools").mkdir(); place(w / "tools")
         Path(s.env["HD_ROOT"], "hd.py").write_text("print('HEAD t')\n"); (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "t.devtools-desktop.jar").write_text("")
         r = subprocess.run([str(w / "tools" / "track.sh"), "build", "x"], env=s.env, capture_output=True, text=True)
         s.assertIn("cached", r.stdout, r.stderr)

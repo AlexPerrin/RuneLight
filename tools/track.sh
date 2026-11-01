@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
 # tools/track.sh <verb> <slug> [arg]: the client track (docs/ARCHITECTURE.md of osrs-harness). Env from hd: SLUG HEAD T
-# TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. Verbs:
-#   build [TCOMMIT]   the devtools plugin (host/plugins/devtools/build.sh on the copy's own re/devtools, a shared clone of the
-#                     main one, re/devtools-build and re/host/plugins-extra), host build, ninja and the repack with OPENRUNE=1
-#                     LOCAL_AUTH=1 in the build copy; the APK is kept only when its repack log passes check-log; cached by T
-#                     (evidence/<slug>/<T>.apk, <T>.devtools.jar, the jar boot pushes, and <T>.devtools-desktop.jar, its
-#                     classes before dexing, the jar the server track's desktops load from the build of slug live)
+# TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. build, gate,
+# the check-* rows but check-blocked, and tree are tools/gate/gate.sh's (the code a build or gate runs, its own files). Verbs:
 #   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
 #                     allowlist (answering DNS on the Windows loopback first, check-blocked after), installs the APK once no install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              stops the login up started (state/<slug>/login.pid), removes devtools, clears the debug props, checks the plugins dir (when up made one) is the three defaults;
 #                     stops the emulator
-#   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
 #   check-blocked     the running mobile gets a TLS answer from api.runelite.net and static.runelite.net (resolved to the
 #                     relay of tools/allow.py), resolves none of the Jagex, RuneScape, telemetry and Google hosts and connects
 #                     to no public address (the Windows Firewall group osrs-harness); up runs it
-#   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   ship TCOMMIT      pushes the merge commit of base and head to origin main
 #   measure GOAL [TCOMMIT]  build and up at the target (origin/HEAD by default), the API probe; state/<goal>/measure.json
 #   log <slug> PATTERN  logcat since the run's marker, filtered
@@ -25,6 +19,7 @@
 #   ANDROID_SDK       /mnt/c/Users/Alex/AppData/Local/Android/Sdk   platform-tools/adb.exe (ADB overrides adb alone), emulator/emulator.exe
 #   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe, nslookup.exe, tasklist.exe
 #   DOCKER            docker                                       the allowlist container (mobile-allow)
+case ${1:-} in build|gate|check-log|check-evidence|check-probe|check-netqa|check-state-doc|tree) exec "$(dirname "$0")/gate/gate.sh" "$@" ;; esac
 set -euo pipefail
 verb=$1; slug=${2:-${SLUG:-}}; arg=${3:-}   # a contract row passes no slug: hd exports SLUG
 self=$(cd "$(dirname "$0")" && pwd)
@@ -33,7 +28,7 @@ root=${HD_ROOT:-$HOME/osrs-harness}
 [ -f "$root/harness/changes/$slug.md" ] || [ -f "$root/harness/goals/$slug.md" ] || case $slug in live|integration) ;; *) echo "no change or goal \"$slug\": tools/track.sh <verb> <slug> [arg]" >&2; exit 2 ;; esac
 state=$root/state/$slug; mkdir -p "$state"
 ev=${EVIDENCE:-$root/evidence/$slug}; mkdir -p "$ev"
-dev=$repo/.worktrees/$slug; copy=$repo/.worktrees/$slug-build
+copy=$repo/.worktrees/$slug-build   # measure probes in it
 sdk=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}; sys32=${WINDOWS_SYSTEM32:-/mnt/c/Windows/System32}; adb=${ADB:-$sdk/platform-tools/adb.exe}
 need() { [ -x "$1" ] || { echo "$1 not found: set $2" >&2; exit 2; }; }   # need <program> <the variable that locates it>
 pkg=com.jagex.oldscape.android; files=/sdcard/Android/data/$pkg/files; defaults="grounditems.jar opponentinfo.jar quest-helper.jar"
@@ -41,9 +36,7 @@ addrs="8.8.8.8 1.1.1.1 142.250.80.46 104.26.8.233"   # public addresses (Google 
 allowed="api.runelite.net static.runelite.net"   # tools/allow.py: these resolve to its relay, which reaches them on 443
 hosts="legal.jagex.com auth.jagex.com oldschool.runescape.com www.runescape.com sdk.iad-01.braze.com cdn.cookielaw.org app-measurement.com firebaseinstallations.googleapis.com sdk-api-v1.singular.net google.com connectivitycheck.gstatic.com"
 docker=${DOCKER:-docker}
-ndk=${ANDROID_NDK:-$HOME/Android/Sdk/ndk/android-ndk-r27d}
 atomic() { cat > "$1.$$.tmp"; if [ -s "$1.$$.tmp" ]; then mv -f "$1.$$.tmp" "$1"; else rm -f "$1.$$.tmp"; return 1; fi; }   # a state record whole or not at all: hd reads it at any moment
-record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" | atomic "$state/$2.json"; }
 serial() { cat "$state/serial" 2>/dev/null || { echo "no mobile for $slug: run up"; return 1; }; }
 win() { wslpath -w "$1"; }
 A() { { "$adb" -s "$s" "$@" 2>&1 || true; } | tr -d '\r'; }   # adb on the run's mobile ($s); callers judge its output
@@ -53,34 +46,10 @@ pm_idle() {  # the package manager is up (its dump lists the install sessions) a
 }
 listening() { "$sys32/netstat.exe" -anp TCP | tr -d '\r' | awk '$4=="LISTENING"{n=split($2,a,":");print a[n]}'; }   # the Windows listening ports
 
-tree() {
-  if [ -n "$arg" ]; then tc=$arg; T=${T:-$(git -C "$repo" rev-parse "$tc^{tree}")}; return; fi
-  [ -d "$dev" ] || git -C "$repo" worktree add -q "$dev" -B "client/$slug" "$(git -C "$repo" rev-parse -q --verify "origin/client/$slug" || echo origin/HEAD)"
-  idx=$(git -C "$dev" rev-parse --git-path snapshot-index); rm -f "$idx"
-  GIT_INDEX_FILE=$idx git -C "$dev" add -A . && snap=$(git -C "$dev" commit-tree "$(GIT_INDEX_FILE=$idx git -C "$dev" write-tree)" -p HEAD -m snapshot)
-  read -r tc T < <(HD_ROOT=$root python3 "$root/hd.py" tree "$slug" "$snap")
-}
-build() {
-  tree
-  if [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ] && [ -f "$ev/$T.devtools-desktop.jar" ]; then echo "cached $ev/$T.apk"; record true build <<< "cached"; return; fi
-  if [ -d "$copy" ]; then git -C "$copy" reset -q --hard "$tc" && git -C "$copy" clean -fdq; else git -C "$repo" worktree add -q --detach "$copy" "$tc"; fi
-  mkdir -p "$copy/re/host"; for f in base.apk split_config.arm64_v8a.apk; do ln -sfn "$repo/$f" "$copy/$f"; done  # the ignored store APKs
-  for e in "$repo"/re/*; do n=$(basename "$e"); case $n in host|build|out|devtools|devtools-build) ;; *) ln -sfn "$e" "$copy/re/$n" ;; esac; done
-  for n in devtools devtools-build; do [ -L "$copy/re/$n" ] && rm "$copy/re/$n"; done   # a copy made before the change's own devtools linked them
-  [ -d "$copy/re/devtools/.git" ] || git clone -q --shared "$repo/re/devtools" "$copy/re/devtools"   # its own checkout; the objects stay shared
-  mkdir -p "$copy/re/devtools-build"; ln -sfn "$repo/re/devtools-build/lombok-1.18.30.jar" "$copy/re/devtools-build/lombok-1.18.30.jar"
-  [ -d "$copy/re/host/plugins-extra" ] || cp -a "$repo/re/host/plugins-extra" "$copy/re/host/"
-  [ -f "$copy/re/build/build.ninja" ] || cmake -S "$copy/native" -B "$copy/re/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_TOOLCHAIN_FILE="$ndk/build/cmake/android.toolchain.cmake" -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 >/dev/null
-  log=$ev/repack-$T.log
-  (cd "$copy" && host/plugins/devtools/build.sh && host/build.sh && ninja -C re/build && OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh) > "$log" 2>&1 || { record false build < "$log"; echo "build failed: $log"; return 1; }
-  EVIDENCE=$ev check_log >/dev/null || { record false build <<< "repack log fails the privacy check: $log"; rm -f "$copy/re/out/osrs-runelite.apk"; return 1; }
-  cp "$copy/re/host/plugins-extra/devtools.jar" "$ev/$T.devtools.jar"; cp "$copy/re/devtools-build/devtools.jar" "$ev/$T.devtools-desktop.jar"; cp "$copy/re/out/osrs-runelite.apk" "$ev/$T.apk"; record true build < "$log"; echo "built $ev/$T.apk"
-}
 up() {
   T=${T:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["T"])' "$state/build.json")}
   [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ] || { echo "no APK or devtools jar for $T: build first"; return 1; }
-  EVIDENCE=$ev check_log >/dev/null
+  EVIDENCE=$ev "$self/gate/gate.sh" check-log "$slug" >/dev/null
   boot
   ANDROID_SERIAL=$(serial) python3 "$self/mobile_login.py" & echo $! > "$state/login.pid"; wait $!   # down stops it when up's caller died
   rm -f "$state/login.pid"
@@ -165,26 +134,9 @@ down() {  # judges what the harness put on the mobile (the default plugins, the 
   A emu kill >/dev/null; rm -f "$state/serial"
   [ ${#bad[@]} = 0 ] || { (IFS=';'; echo "RESTORE FAILED: ${bad[*]}"); return 1; }; echo restored
 }
-gate() { tc=$arg; build; git -C "$copy" reset -q --hard "$tc"
-  if out=$(HD_ROOT=$root python3 "$root/hd.py" rows "$slug" "$tc" "$copy" 2>&1); then record true gate <<< "$out"; else record false gate <<< "$out"; fi; }
-check_log() {
-  l=$(ls -t "$ev"/repack*.log 2>/dev/null | head -1 || true); [ -n "$l" ] || { echo "no repack log in $ev"; return 1; }
-  [ "$(grep -c '^telemetry:' "$l")" = 7 ] && grep -q '^patched RSA modulus' "$l" && grep -q '^patched /jav_config\.ws' "$l" && grep -qE '^patched \S*/net/openid/appauth/' "$l" \
-    && echo "repack log: 7 telemetry lines, RSA modulus, jav_config and appauth patched" || { echo "$l: the APK talks to Jagex (OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh)"; return 1; }
-}
-check_evidence() { for p in "$ev"/*logcat*.txt "$ev"/*.dump.* "$ev"/*devtools*.json; do [ -e "$p" ] && { echo "mobile evidence: $(basename "$p")"; return 0; }; done; echo "no logcat extract, dump or devtools JSON in $ev"; return 1; }
-check_probe() {
-  f=$ev/api-probe.tsv; [ -f "$f" ] || { echo "no api-probe.tsv in $ev"; return 1; }
-  b=$(grep -oE '^# build: \S*-g[0-9a-f]+' "$f" | grep -oE '[0-9a-f]+$' || true); [ -n "$b" ] || { echo "$f has no '# build:' line"; return 1; }
-  case $HEAD in "$b"*) echo "probe built at $HEAD"; return 0 ;; esac
-  d=$(git -C "$repo" diff --name-only "$b" "$HEAD" | grep -v '^docs/' || true); [ -z "$d" ] && echo "probe at $b, only docs differ" || { echo "probe built at $b, not $HEAD: rerun it"; return 1; }
-}
-check_netqa() { grep -qE '^network: true' "$root/harness/changes/$slug.md" 2>/dev/null || { echo "no network QA needed"; return 0; }
-  grep -lq 'PASS' "$ev"/netqa*.md 2>/dev/null && echo "network QA PASS" || { echo "network: true and no netqa*.md with PASS in $ev"; return 1; }; }
-check_state_doc() { r=$(grep -oE '^# result: pass [0-9]+ / [0-9]+ = [0-9.]+%' "$ev/api-probe.tsv" 2>/dev/null | grep -oE '[0-9.]+%$' || true); [ -n "$r" ] || { echo "no probe result"; return 1; }; grep -q "$r" "${BUILD:-.}/docs/client-state.md" && echo "client-state.md carries the probe's $r" || { echo "docs/client-state.md does not carry the probe's result $r"; return 1; }; }
 ship() { git -C "$repo" push -q origin "$arg:refs/heads/main" && echo "main at ${arg:0:9}"; }
 measure() {
-  tc=$(git -C "$repo" rev-parse "${arg:-origin/HEAD}^{commit}"); arg=$tc; T=$(git -C "$repo" rev-parse "$tc^{tree}"); build; up
+  tc=$(git -C "$repo" rev-parse "${arg:-origin/HEAD}^{commit}"); arg=$tc; T=$(git -C "$repo" rev-parse "$tc^{tree}"); T=$T "$self/gate/gate.sh" build "$slug" "$tc"; up
   (cd "$copy" && ANDROID_SERIAL=$(serial) tools/api-probe.sh "$ev")
   v=$(grep -oE '^# result: pass [0-9]+ / [0-9]+ = [0-9.]+%' "$ev/api-probe.tsv" | grep -oE '[0-9.]+%$' | tr -d %)
   python3 -c 'import json,sys;print(json.dumps({"tree":sys.argv[1],"value":float(sys.argv[2]),"report":sys.argv[3]}))' "${TREE:-$T}" "$v" "$ev/api-probe.tsv" | atomic "$state/measure.json"
@@ -209,5 +161,5 @@ print("\n".join(sorted(seen)))'
 }
 
 case $verb in up|measure) trap '[ $? = 0 ] || down >&2 || true' EXIT ;; esac   # a failed boot leaves no mobile behind
-case $verb in build|up|down|gate|check-blocked|check-log|check-evidence|check-probe|check-netqa|check-state-doc|ship|measure|log|netqa) "${verb//-/_}" ;;
-  *) echo "verbs: build up down gate check-blocked check-log check-evidence check-probe check-netqa check-state-doc ship measure log netqa" >&2; exit 2 ;; esac
+case $verb in up|down|check-blocked|ship|measure|log|netqa) "${verb//-/_}" ;;
+  *) echo "verbs: build up down gate check-blocked check-log check-evidence check-probe check-netqa check-state-doc tree ship measure log netqa" >&2; exit 2 ;; esac
