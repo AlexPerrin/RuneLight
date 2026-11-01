@@ -7,7 +7,7 @@
 #                     (evidence/<slug>/<T>.apk, <T>.devtools.jar, the jar boot pushes, and <T>.devtools-desktop.jar, its
 #                     classes before dexing, the jar the server track's desktops load from the build of slug live)
 #   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
-#                     allowlist (check-blocked), installs the APK once no install of the app is pending, logs
+#                     allowlist (answering DNS on the Windows loopback first, check-blocked after), installs the APK once no install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              stops the login up started (state/<slug>/login.pid), removes devtools, clears the debug props, checks the plugins dir (when up made one) is the three defaults;
@@ -23,7 +23,7 @@
 #   netqa start|stop  samples the app's sockets and DNS between the two calls
 # Windows locations, run through WSL interop (override in the environment):
 #   ANDROID_SDK       /mnt/c/Users/Alex/AppData/Local/Android/Sdk   platform-tools/adb.exe (ADB overrides adb alone), emulator/emulator.exe
-#   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe
+#   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe, nslookup.exe, tasklist.exe
 #   DOCKER            docker                                       the allowlist container (mobile-allow)
 set -euo pipefail
 verb=$1; slug=${2:-${SLUG:-}}; arg=${3:-}   # a contract row passes no slug: hd exports SLUG
@@ -87,13 +87,27 @@ up() {
   date -u +%FT%T.000 > "$state/log-mark"
   echo "LOGGED_IN $(serial) 7780"
 }
+allow() {  # the mobile's resolver and relay on the Windows loopback (tools/allow.py), one container for every mobile, outliving
+  # the run; it must answer a Windows DNS query (the emulator asks from Windows), else it is replaced once, else the holder of udp 53 is named
+  local n p h
+  for n in 1 2; do
+    if [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" != true ]; then
+      $docker run -d --rm --name mobile-allow -p 127.0.0.1:53:53/udp -p 127.0.0.1:443:443 -v "$self/allow.py:/allow.py:ro" python:3.13-alpine python /allow.py >/dev/null
+      until $docker logs mobile-allow 2>&1 | grep -q '^listening'; do [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" = true ] || break; sleep 1; done
+    fi
+    "$sys32/nslookup.exe" api.runelite.net 127.0.0.1 2>/dev/null | tr -d '\r' | grep -q '10\.0\.2\.2' && return 0
+    [ $n = 2 ] || $docker rm -f mobile-allow >/dev/null 2>&1 || true
+  done
+  h=$(for p in $("$sys32/netstat.exe" -anop UDP | tr -d '\r' | awk '$1=="UDP" && $2 ~ /:53$/ {print $NF}' | sort -u); do
+    "$sys32/tasklist.exe" /SVC /FO CSV /NH /FI "PID eq $p" | tr -d '\r"' | awk -F, '{printf "%s (pid %s, %s) ", $1, $2, $3}'; done)
+  echo "mobile-allow does not answer DNS on the Windows loopback (nslookup api.runelite.net 127.0.0.1); Windows udp 53 held by: ${h:-none}" >&2
+  return 1
+}
 boot() {  # an Agent_Phone emulator on a free even console port, the APK in place of the official app, Chrome granted the
   # local network, the change's own devtools jar and the three default plugins pushed; the serial goes to state/<slug>/serial as the emulator starts
-  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32
+  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/nslookup.exe" WINDOWS_SYSTEM32
   exec 9> "$root/state/emulator-port.lock"; flock 9   # one boot at a time picks a port, until adb sees its emulator there
-  # the mobile's resolver and relay on the Windows loopback (tools/allow.py), one container for every mobile, outliving the run
-  [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" = true ] || $docker run -d --rm --name mobile-allow \
-    -p 127.0.0.1:53:53/udp -p 127.0.0.1:443:443 -v "$self/allow.py:/allow.py:ro" python:3.13-alpine python /allow.py >/dev/null
+  allow || return 1
   port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
   (cd /mnt/c && setsid "$sdk/emulator/emulator.exe" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" -dns-server 127.0.0.1 < /dev/null > "$state/emulator.log" 2>&1 &) 9>&-   # the lock is not inherited; no console window: its log is a file, down is the only stop
   echo "$s" > "$state/serial"

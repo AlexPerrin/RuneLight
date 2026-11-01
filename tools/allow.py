@@ -60,6 +60,7 @@ def main(dns=53, tls=443):
     d = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); d.bind(("0.0.0.0", dns))
     l = socket.create_server(("0.0.0.0", tls))
     threading.Thread(target=lambda: [threading.Thread(target=relay, args=(l.accept()[0],), daemon=True).start() for _ in iter(int, 1)], daemon=True).start()
+    print("listening", flush=True)   # track.sh waits on this line before its DNS check
     while True:
         q, peer = d.recvfrom(512)
         try: d.sendto(answer(q), peer)

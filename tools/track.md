@@ -18,9 +18,12 @@ the repro, as a dep of yours; never work around it. Push `origin/client/<slug>`,
 
 The mobile side is Windows programs run from bash through WSL interop by absolute path, located by `ANDROID_SDK`
 (default `/mnt/c/Users/Alex/AppData/Local/Android/Sdk`: adb.exe, emulator.exe) and `WINDOWS_SYSTEM32` (default
-`/mnt/c/Windows/System32`: netstat.exe); a missing program fails naming its variable. The emulator runs with no
+`/mnt/c/Windows/System32`: netstat.exe, nslookup.exe, tasklist.exe); a missing program fails naming its variable. The emulator runs with no
 console window, its log in `state/<slug>/emulator.log`; `down` is the only stop. `DOCKER` (default `docker`) runs the
-allowlist container `mobile-allow`, one for every mobile, left running.
+allowlist container `mobile-allow`, one for every mobile, left running. Before booting, `up` proves it answers
+`nslookup api.runelite.net 127.0.0.1` from Windows (where the emulator resolves); when it does not, `up` replaces it
+once, then fails naming the Windows holder of udp 53 (Internet Connection Sharing, SharedAccess, takes 0.0.0.0:53 and
+starves the mirrored loopback).
 
 ## The reviewer (releases only)
 Full QA on the client's live tip at the exact commit, every finding at once: mobile regression of core and pinned

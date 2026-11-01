@@ -67,10 +67,12 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
   *"nc -w 15"*) [ -z "$BOOTS" ] || for h in {HOSTS}; do echo "nc: $h:443: No address associated with hostname"; done ;;
   *"echo y"*) [ -z "$BOOTS" ] || echo y ;; *"ls -1"*) printf 'grounditems.jar\\nopponentinfo.jar\\nquest-helper.jar\\n' ;; esac""",
                  sdk / "emulator/emulator.exe": f'echo "emulator $*" >> {log}; echo "emulator: booting on $PWD"',
-                 sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}"}
+                 sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}; echo '  UDP    0.0.0.0:53             *:*                                    3860'",
+                 sys32 / "nslookup.exe": f'echo "nslookup $*" >> {log}; [ -n "$NODNS" ] || printf "Name:    api.runelite.net\\r\\nAddress:  10.0.2.2\\r\\n"',
+                 sys32 / "tasklist.exe": 'case "$*" in *"PID eq 3860"*) printf \'"svchost.exe","3860","SharedAccess"\\r\\n\' ;; esac'}
         for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
         (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
-        docker = s.ev / "docker"; docker.write_text(f'#!/bin/sh\necho "docker $*" >> {log}\n'); docker.chmod(0o755)
+        docker = s.ev / "docker"; docker.write_text(f'#!/bin/sh\necho "docker $*" >> {log}\ncase "$1" in logs) echo listening ;; esac\n'); docker.chmod(0o755)
         s.env.update(ANDROID_SDK=str(sdk), WINDOWS_SYSTEM32=str(sys32), DOCKER=str(docker)); s.env.pop("ADB", None)
         return log
 
@@ -177,6 +179,15 @@ case "$*" in *push*) ;;
         s.assertIn("docker run -d --rm --name mobile-allow -p 127.0.0.1:53:53/udp -p 127.0.0.1:443:443", calls)
         s.assertIn("-dns-server 127.0.0.1", calls); s.assertIn("shell svc wifi disable", calls)
         s.assertNotIn("private_dns", TRACK.read_text())
+
+    def test_up_proves_the_allowlist_answers_on_the_windows_loopback(s):  # the emulator resolves from Windows: no answer there, the container is replaced once, then the port's holder is named
+        log = s.fake_windows(); s.env.update(INSTALL="Success", NODNS="1")
+        rc, out = s.row("up"); calls = log.read_text()
+        s.assertEqual(rc, 1); s.assertIn("Windows udp 53 held by: svchost.exe (pid 3860, SharedAccess)", out)
+        s.assertEqual((calls.count("docker run -d --rm --name mobile-allow"), calls.count("docker rm -f mobile-allow"), calls.count("nslookup api.runelite.net 127.0.0.1")), (2, 1, 2))
+        s.assertNotIn("emulator -avd", calls)
+        s.env.pop("NODNS"); log.write_text(""); s.row("up"); calls = log.read_text()
+        s.assertLess(calls.index("nslookup api.runelite.net 127.0.0.1"), calls.index("emulator -avd")); s.assertNotIn("docker rm", calls)
 
     def test_allow_answers_only_the_allowed_names(s):  # tools/allow.py: DNS and the TLS relay admit api/static.runelite.net alone
         import ssl, struct, sys; sys.path.insert(0, str(TRACK.parent)); import allow
