@@ -1,6 +1,8 @@
 """The client track's check rows against fixture evidence: python3 -m unittest tools/test_track.py"""
 import re, os, shutil, subprocess, tempfile, time, unittest
 from pathlib import Path
+SUITE_TMP = tempfile.TemporaryDirectory(prefix="tools-suite-", ignore_cleanup_errors=True)   # every temp dir of these tests and of each process they
+tempfile.tempdir = os.environ["TMPDIR"] = SUITE_TMP.name                          # start (mktemp) is under it, removed at the end, a failed test's too
 
 TRACK = Path(__file__).resolve().parent / "track.sh"
 GATE = TRACK.parent / "gate/gate.sh"   # the code a build or gate runs
