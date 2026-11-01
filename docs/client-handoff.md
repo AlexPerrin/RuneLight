@@ -9,7 +9,7 @@ session; its notes are in `docs/android-protocol.md`.
 ## Where things stand (2026-10-14)
 
 - The official OSRS Android APK (build 241.4) is repacked to load `libosrsrl.so`, and can be
-  pointed at the test server (`SERVER=…`). Target device: the Agent_Phone emulator (x86_64 API 37,
+  pointed at the test server (`OPENRUNE_ENDPOINT=…`). Target device: the Agent_Phone emulator (x86_64 API 37,
   arm64 translated).
 - `libosrsrl.so` provides:
   - an ImGui overlay drawn from the `eglSwapBuffers` GOT hook;

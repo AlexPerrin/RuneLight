@@ -8,9 +8,11 @@ Rewrites, in place and at equal length:
     contains "jagex.com" because the client only trusts a live config (param 15 = 0) whose URL
     contains jagex.com or runescape.com (checked by a substring search).
 
-Usage: patch_server.py IN.so OUT.so --server HOST:PORT --modulus HEX
+Usage: patch_server.py IN.so OUT.so --endpoint SCHEME://HOST:PORT --modulus HEX
+(the endpoint is $OPENRUNE_ENDPOINT, our server's HTTP front; a Jagex, RuneScape or Google host is refused)
 """
 import argparse
+import re
 import sys
 
 ORIG_MODULUS = (
@@ -24,8 +26,16 @@ URLS = {
 }
 
 
-def padded_url(server: str, path: str, length: int) -> bytes:
-    url = f"http://{server}{path}&p=jagex.com"
+FOREIGN = re.compile(r"(?:^|\.)(?:jagex|runescape|google[a-z]*)\.[a-z]{2,}$", re.I)
+
+
+def padded_url(endpoint: str, path: str, length: int) -> bytes:
+    m = re.fullmatch(r"(https?)://([^/:\s]+):(\d+)", endpoint)
+    if not m:
+        sys.exit(f"endpoint must be SCHEME://HOST:PORT: {endpoint!r}")
+    if FOREIGN.search(m.group(2)):
+        sys.exit(f"endpoint {endpoint!r} is a Jagex, RuneScape or Google host")
+    url = f"{endpoint}{path}&p=jagex.com"
     if len(url) > length:
         sys.exit(f"server address too long: {url!r} exceeds {length} chars")
     return (url + "x" * (length - len(url))).encode()
@@ -45,7 +55,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("input")
     ap.add_argument("output")
-    ap.add_argument("--server", required=True, help="HOST:PORT of the test server's HTTP endpoint")
+    ap.add_argument("--endpoint", required=True, help="SCHEME://HOST:PORT of the test server's HTTP front ($OPENRUNE_ENDPOINT)")
     ap.add_argument("--modulus", required=True, help="server RSA modulus, hex")
     args = ap.parse_args()
 
@@ -56,7 +66,7 @@ def main() -> None:
     data = bytearray(open(args.input, "rb").read())
     replace_once(data, ORIG_MODULUS, modulus, "RSA modulus")
     for old, path in URLS.items():
-        replace_once(data, old + b"\0", padded_url(args.server, path, len(old)) + b"\0", path.split("?")[0])
+        replace_once(data, old + b"\0", padded_url(args.endpoint, path, len(old)) + b"\0", path.split("?")[0])
     open(args.output, "wb").write(data)
 
 

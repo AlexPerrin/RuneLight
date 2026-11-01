@@ -4,19 +4,21 @@
 #                                 the split pair re/out/{base,split}.apk, all signed with re/debug.keystore
 #   tools/repack.sh --install  -> also replaces the app on the connected device (the single APK, `adb install -r`)
 #   tools/repack.sh --install-split -> the same with the split pair (`adb install-multiple -r`)
-#   SERVER=10.0.2.2:8080 tools/repack.sh
-#                              -> also points the game at the test server (config URLs +
-#                                 login RSA modulus from $SERVER_TOOLS/sidecar/data/rsa.properties, or $MODULUS)
-#   LOCAL_AUTH=1 SERVER=... tools/repack.sh
+#   OPENRUNE_ENDPOINT=http://10.0.2.2:8080 tools/repack.sh
+#                              -> also points the game at our server: the jav_config.ws and slr.ws (world list) URLs
+#                                 the game library holds become $OPENRUNE_ENDPOINT/..., and the served jav_config
+#                                 names every other endpoint (params 11 and 22: sign-in and game session); login RSA
+#                                 modulus from $SERVER_TOOLS/sidecar/data/rsa.properties, or $MODULUS
+#   LOCAL_AUTH=1 OPENRUNE_ENDPOINT=... tools/repack.sh
 #                              -> also lets the app sign in against the server's local OpenID
 #                                 provider (server LOCAL_AUTH=true) instead of a Jagex account
-#   GAME_PORT=40255 SERVER=... tools/repack.sh
+#   GAME_PORT=40255 OPENRUNE_ENDPOINT=... tools/repack.sh
 #                              -> also patches the game port the client connects to (it ignores
 #                                 jav_config for that; tools/openrune/patch_port.py)
 #   OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh
 #                              -> the build for OpenRune ($SERVER_TOOLS, the fork's local/server-tools):
-#                                 SERVER=10.0.2.2:8080 (its jav_config sidecar), GAME_PORT=43594 and
-#                                 the modulus from `$SERVER_TOOLS/scripts/openrune.sh modulus`, unless set explicitly
+#                                 OPENRUNE_ENDPOINT=http://10.0.2.2:8080 (its jav_config sidecar), GAME_PORT=43594
+#                                 and the modulus from `$SERVER_TOOLS/scripts/openrune.sh modulus`, unless set explicitly
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -30,7 +32,7 @@ KS_PASS=android
 [[ -f $HOOK_SO ]] || { echo "build native/ first (missing $HOOK_SO)"; exit 1; }
 
 if [[ -n ${OPENRUNE:-} ]]; then
-    SERVER=${SERVER:-10.0.2.2:8080}
+    OPENRUNE_ENDPOINT=${OPENRUNE_ENDPOINT:-http://10.0.2.2:8080}
     GAME_PORT=${GAME_PORT:-43594}
     MODULUS=${MODULUS:-$("${SERVER_TOOLS:-$HOME/src/openrune-work/server-tools}/scripts/openrune.sh" modulus)}
 fi
@@ -91,10 +93,10 @@ GAME_SO=$OUT/liblibs.hal.system.osclient.so
 unzip -p "$ROOT/split_config.arm64_v8a.apk" lib/arm64-v8a/liblibs.hal.system.osclient.so > "$GAME_SO.orig"
 python3 -I "$ROOT/tools/patch_telemetry.py" --native "$GAME_SO.orig" "$GAME_SO"
 rm "$GAME_SO.orig"
-if [[ -n ${SERVER:-} ]]; then
+if [[ -n ${OPENRUNE_ENDPOINT:-} ]]; then
     MODULUS=${MODULUS:-$(grep '^modulus=' "${SERVER_TOOLS:-$HOME/src/openrune-work/server-tools}/sidecar/data/rsa.properties" | cut -d= -f2)}
     mv "$GAME_SO" "$GAME_SO.orig"
-    python3 -I "$ROOT/tools/patch_server.py" "$GAME_SO.orig" "$GAME_SO" --server "$SERVER" --modulus "$MODULUS"
+    python3 -I "$ROOT/tools/patch_server.py" "$GAME_SO.orig" "$GAME_SO" --endpoint "$OPENRUNE_ENDPOINT" --modulus "$MODULUS"
     rm "$GAME_SO.orig"
     if [[ -n ${GAME_PORT:-} ]]; then
         python3 -I "$ROOT/tools/openrune/patch_port.py" "$GAME_SO" "$GAME_SO.port" "$GAME_PORT"

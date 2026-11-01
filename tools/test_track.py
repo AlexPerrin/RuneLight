@@ -237,5 +237,18 @@ case "$*" in *push*) ;;
         shutil.rmtree(m, ignore_errors=True)
 
 
+class Endpoint(unittest.TestCase):
+    def test_the_apk_takes_every_jagex_url_from_openrune_endpoint(s):  # the user's word: one variable points every Jagex endpoint at our server
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("patch_server", TRACK.parent / "patch_server.py"); ps = importlib.util.module_from_spec(spec); spec.loader.exec_module(ps)
+        old = next(iter(ps.URLS)); url = ps.padded_url("http://10.0.2.2:8080", "/jav_config.ws?m=0", len(old))
+        s.assertTrue(url.startswith(b"http://10.0.2.2:8080/jav_config.ws?m=0&p=jagex.com")); s.assertEqual(len(url), len(old))
+        for bad in ("https://oldschool.config.runescape.com:443", "http://auth.jagex.com:80", "10.0.2.2:8080"):
+            with s.assertRaises(SystemExit): ps.padded_url(bad, "/slr.ws?order=LPWM", len(old))
+        src = (TRACK.parent / "repack.sh").read_text()
+        s.assertIn("OPENRUNE_ENDPOINT=${OPENRUNE_ENDPOINT:-http://10.0.2.2:8080}", src); s.assertIn('--endpoint "$OPENRUNE_ENDPOINT"', src)
+        s.assertNotRegex(src, r"\$\{?SERVER\b")
+
+
 if __name__ == "__main__":
     unittest.main()

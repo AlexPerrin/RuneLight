@@ -266,7 +266,7 @@ ones. Same status words as the core table. 2026-10-16: all 17 built ones start t
 ```
 host/build.sh                       # re/host/host.jar (runelite-api 1.13.1 + guice/guava + host + shim)
 ninja -C re/build                   # embeds host.jar into libosrsrl.so (host_blob.S)
-SERVER=10.0.2.2:8080 tools/repack.sh --install
+OPENRUNE_ENDPOINT=http://10.0.2.2:8080 tools/repack.sh --install
 tools/dex-plugin.sh plugin.jar out.jar   # any RuneLite plugin jar → dex + plugin-classes.txt
 adb push out.jar /sdcard/Android/data/com.jagex.oldscape.android/files/plugins/
 ```

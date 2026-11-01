@@ -165,7 +165,7 @@ Requirements:
   `local/server-tools` branch); upstream OpenRune does not provide the Android protocol on its own. The APK from a
   test server build points the game at `10.0.2.2:43594` (game) and `10.0.2.2:8080` (config), which is the Android
   emulator's alias for the host machine's loopback; on a phone or another address the config host has to be set at
-  repack time (`SERVER=`), so build it yourself. The APK cannot sign in to Jagex: the test server is also the sign-in
+  repack time (`OPENRUNE_ENDPOINT=`), so build it yourself. The APK cannot sign in to Jagex: the test server is also the sign-in
   provider ("Sign in with Email / Username"), and no Jagex account is needed.
 - **The official app uninstalled first.** The APK has the same package name as the official app
   (`com.jagex.oldscape.android`) but a different signing key, so Android refuses to install it over the official app

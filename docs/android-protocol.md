@@ -490,7 +490,7 @@ NPC adds near the view edge and runtime spawns (2026-10-16, device):
 
 ## Local sign-in (no Jagex account)
 
-With `LOCAL_AUTH=true` (server) and a client built with `LOCAL_AUTH=1 SERVER=... tools/repack.sh`,
+With `LOCAL_AUTH=true` (server) and a client built with `LOCAL_AUTH=1 OPENRUNE_ENDPOINT=... tools/repack.sh`,
 the test server replaces Jagex's sign-in:
 
 - jav_config params 11, 20, 22 and 28 (auth.jagex.com, social.auth.jagex.com,
