@@ -9,7 +9,7 @@
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              removes devtools, clears the debug props, checks the plugins dir is the three defaults; stops the emulator
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
-#   check-blocked     the running device resolves none of the Jagex, RuneScape, RuneLite and Google hosts and connects to no
+#   check-blocked     the running mobile resolves none of the Jagex, RuneScape, RuneLite and Google hosts and connects to no
 #                     public address (the Windows Firewall group osrs-harness); up runs it
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   ship TCOMMIT      pushes the merge commit of base and head to origin main
@@ -35,9 +35,9 @@ addrs="8.8.8.8 1.1.1.1 142.250.80.46"   # public addresses (Google DNS, Cloudfla
 hosts="legal.jagex.com auth.jagex.com oldschool.runescape.com www.runescape.com api.runelite.net static.runelite.net google.com connectivitycheck.gstatic.com"
 ndk=${ANDROID_NDK:-$HOME/Android/Sdk/ndk/android-ndk-r27d}
 record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" > "$state/$2.json"; }
-serial() { cat "$state/serial" 2>/dev/null || { echo "no device for $slug: run up"; return 1; }; }
+serial() { cat "$state/serial" 2>/dev/null || { echo "no mobile for $slug: run up"; return 1; }; }
 win() { wslpath -w "$1"; }
-A() { { "$adb" -s "$s" "$@" 2>&1 || true; } | tr -d '\r'; }   # adb on the run's device ($s); callers judge its output
+A() { { "$adb" -s "$s" "$@" 2>&1 || true; } | tr -d '\r'; }   # adb on the run's mobile ($s); callers judge its output
 listening() { "$sys32/netstat.exe" -anp TCP | tr -d '\r' | awk '$4=="LISTENING"{n=split($2,a,":");print a[n]}'; }   # the Windows listening ports
 
 tree() {
@@ -66,7 +66,7 @@ up() {
   [ -f "$ev/$T.apk" ] || { echo "no APK for $T: build first"; return 1; }
   EVIDENCE=$ev check_log >/dev/null
   boot
-  ANDROID_SERIAL=$(serial) python3 "$self/device_login.py"
+  ANDROID_SERIAL=$(serial) python3 "$self/mobile_login.py"
   date -u +%FT%T.000 > "$state/log-mark"
   echo "LOGGED_IN $(serial) 7780"
 }
@@ -97,14 +97,14 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   A shell setprop debug.osrsrl.devtools 1 >/dev/null
 }
 check_blocked() { s=$(serial) && need "$adb" ANDROID_SDK && blocked; }
-blocked() {  # every host must fail to resolve on the device; a connect by name needs a resolve first
+blocked() {  # every host must fail to resolve on the mobile; a connect by name needs a resolve first
   until [[ $(A shell dumpsys connectivity) == *"PrivateDnsServerName: blocked.invalid"* ]]; do sleep 1; done   # the setting applied
   local out no; out=$(A shell "for h in $hosts; do nc -w 15 \$h 443 </dev/null & done; wait")
   no=$(for h in $hosts; do grep -q "$h:443: No address associated with hostname" <<< "$out" || echo "$h"; done)
   no+=$(A shell "for a in $addrs; do nc -w 5 \$a 443 </dev/null 2>/dev/null && echo \" \$a\" & done; wait")   # by address, no lookup
   [ -z "$no" ] && echo "blocked: $hosts $addrs" || { echo "NOT BLOCKED (resolves or connects):" $no; return 1; }
 }
-down() {  # judges what the harness put on the device (the default plugins, the debug props) against its baseline; the
+down() {  # judges what the harness put on the mobile (the default plugins, the debug props) against its baseline; the
   # app's own writes (settings.properties, cache) are not checked: they differ after any login and the read-only AVD drops them
   s=$(serial) || return 0; need "$adb" ANDROID_SDK
   bad=()
@@ -124,7 +124,7 @@ check_log() {
   [ "$(grep -c '^telemetry:' "$l")" = 7 ] && grep -q '^patched RSA modulus' "$l" && grep -q '^patched /jav_config\.ws' "$l" && grep -qE '^patched \S*/net/openid/appauth/' "$l" \
     && echo "repack log: 7 telemetry lines, RSA modulus, jav_config and appauth patched" || { echo "$l: the APK talks to Jagex (OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh)"; return 1; }
 }
-check_evidence() { for p in "$ev"/*logcat*.txt "$ev"/*.dump.* "$ev"/*devtools*.json; do [ -e "$p" ] && { echo "device evidence: $(basename "$p")"; return 0; }; done; echo "no logcat extract, dump or devtools JSON in $ev"; return 1; }
+check_evidence() { for p in "$ev"/*logcat*.txt "$ev"/*.dump.* "$ev"/*devtools*.json; do [ -e "$p" ] && { echo "mobile evidence: $(basename "$p")"; return 0; }; done; echo "no logcat extract, dump or devtools JSON in $ev"; return 1; }
 check_probe() {
   f=$ev/api-probe.tsv; [ -f "$f" ] || { echo "no api-probe.tsv in $ev"; return 1; }
   b=$(grep -oE '^# build: \S*-g[0-9a-f]+' "$f" | grep -oE '[0-9a-f]+$' || true); [ -n "$b" ] || { echo "$f has no '# build:' line"; return 1; }
@@ -143,7 +143,7 @@ measure() {
   down; echo "client-api: $v"
 }
 log() { "$adb" -s "$(serial)" logcat -d -v threadtime -T "$(cat "$state/log-mark" 2>/dev/null || echo 1)" 2>/dev/null | tr -d '\r' | grep -E "${arg:-.}" || true; }
-netqa() {  # start: a sampler on the device; stop: the distinct remote addresses (app uid 10071) and the DNS lookups
+netqa() {  # start: a sampler on the mobile; stop: the distinct remote addresses (app uid 10071) and the DNS lookups
   s=$(serial); f=/sdcard/Download/netqa-$slug.txt
   if [ "$arg" = start ]; then "$adb" -s "$s" logcat -c; "$adb" -s "$s" shell "nohup sh -c 'while :; do date +%s; cat /proc/net/tcp /proc/net/tcp6; sleep 0.5; done' > $f 2>/dev/null &"; echo "sampling"
   else "$adb" -s "$s" shell pkill -f "/proc/net/tcp" || true
@@ -160,6 +160,6 @@ print("\n".join(sorted(seen)))'
   fi
 }
 
-case $verb in up|measure) trap '[ $? = 0 ] || down >&2 || true' EXIT ;; esac   # a failed boot leaves no emulator behind
+case $verb in up|measure) trap '[ $? = 0 ] || down >&2 || true' EXIT ;; esac   # a failed boot leaves no mobile behind
 case $verb in build|up|down|gate|check-blocked|check-log|check-evidence|check-probe|check-netqa|check-state-doc|ship|measure|log|netqa) "${verb//-/_}" ;;
   *) echo "verbs: build up down gate check-blocked check-log check-evidence check-probe check-netqa check-state-doc ship measure log netqa" >&2; exit 2 ;; esac

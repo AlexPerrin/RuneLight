@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""device_login.py: launches the app on $ANDROID_SERIAL and signs in through LOCAL_AUTH; prints LOGGED_IN or FAILED: <screen>.
-Every wait is on a fact read from the device (the host's GameStateChanged line, the focused window, the view labels).
+"""mobile_login.py: launches the app on $ANDROID_SERIAL and signs in through LOCAL_AUTH; prints LOGGED_IN or FAILED: <screen>.
+Every wait is on a fact read from the mobile (the host's GameStateChanged line, the focused window, the view labels).
 """
 import os, re, subprocess, sys, time
 

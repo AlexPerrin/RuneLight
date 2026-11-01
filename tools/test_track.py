@@ -81,7 +81,7 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" inst
         calls = log.read_text()
         s.assertIn("shell settings put secure immersive_mode_confirmations confirmed", calls)
         s.assertNotIn("monkey", calls)
-        s.assertNotIn('"Got it"', (TRACK.parent / "device_login.py").read_text())
+        s.assertNotIn('"Got it"', (TRACK.parent / "mobile_login.py").read_text())
 
     def test_concurrent_boots_take_distinct_ports(s):
         log = s.fake_windows(); (Path(s.env["HD_ROOT"]) / "harness/changes/y.md").write_text("")

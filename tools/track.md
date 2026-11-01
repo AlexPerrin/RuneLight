@@ -16,13 +16,13 @@ emulator with no hostname resolving (checked), installs the APK, logs in and pri
 only where the emulator refuses injected events. Blocked by the server: file the blocker as a server change with
 the repro, as a dep of yours; never work around it. Push `origin/client/<slug>`, then `hd handover <slug>`.
 
-The device side is Windows programs run from bash through WSL interop by absolute path, located by `ANDROID_SDK`
+The mobile side is Windows programs run from bash through WSL interop by absolute path, located by `ANDROID_SDK`
 (default `/mnt/c/Users/Alex/AppData/Local/Android/Sdk`: adb.exe, emulator.exe) and `WINDOWS_SYSTEM32` (default
 `/mnt/c/Windows/System32`: netstat.exe); a missing program fails naming its variable. The emulator runs with no
 console window, its log in `state/<slug>/emulator.log`; `down` is the only stop.
 
 ## The reviewer (releases only)
-Full QA on the client's live tip at the exact commit, every finding at once: device regression of core and pinned
+Full QA on the client's live tip at the exact commit, every finding at once: mobile regression of core and pinned
 hub plugins, network QA, sign-in, the privacy patches in the repack log, native claims against Ghidra, the release
 notes, the single universal APK (`apksigner verify`, `zipalign -c`, arm64-v8a only, the notices embedded equal to the
 committed file), no secrets or personal data. Copy `osrs-runelite.apk`, `THIRD_PARTY_NOTICES.md` and the repack log
@@ -41,12 +41,12 @@ prints `jav_config local only`. Report as `netqa*.md`.
 
 ## Never
 Connect anything to Jagex or RuneScape servers (a new outbound host: stop and report at once); restart or edit the
-server; touch another agent's emulator or Medium_Phone (it has the official app); read `C:\Users\Alex\.runelite`;
+server; touch another agent's mobile or Medium_Phone (it has the official app); read `C:\Users\Alex\.runelite`;
 send keyevent BACK in game; push any ref but `client/<slug>`; tag, release or deploy.
 
 ## Seed rows
 - repack-log | the repack log has the 7 telemetry lines, patched RSA modulus, patched /jav_config.ws, the appauth line | check: tools/track.sh check-log
-- device-evidence | a logcat extract, dump or devtools JSON in the evidence dir | check: tools/track.sh check-evidence
+- mobile-evidence | a logcat extract, dump or devtools JSON in the evidence dir | check: tools/track.sh check-evidence
 - probe | the probe report is built at HEAD (docs-only differences allowed) | check: tools/track.sh check-probe
 - network-qa | netqa*.md present and PASS when the change has network: true | check: tools/track.sh check-netqa
 - state-doc | docs/client-state.md rewritten from the probe report | gate: tools/track.sh check-state-doc

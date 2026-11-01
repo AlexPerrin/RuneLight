@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """stdio <-> HTTP bridge for OpenRune-Developer-Tools' MCP server running in the Android plugin host.
 
-The server binds the device's 127.0.0.1 only and needs a per-process token, which the host writes
+The server binds the mobile's 127.0.0.1 only and needs a per-process token, which the host writes
 to logcat ("httpserver token <hex> port <n>"). Each JSON-RPC line from stdin is POSTed to /mcp
 through `adb shell -T nc 127.0.0.1 <port>` (a Windows `adb forward` isn't reachable from WSL), and
 the response is written to stdout as one line. Notifications (202, no body) print nothing.
 
-Enable on the device first: push the devtools plugin jar, `adb shell setprop debug.osrsrl.devtools 1`,
+Enable on the mobile first: push the devtools plugin jar, `adb shell setprop debug.osrsrl.devtools 1`,
 restart the game (docs/plugin-host.md). Env: ADB, ANDROID_SERIAL (required, as tools/agent.py).
   tools/devtools-mcp.sh                       # MCP stdio server (registered in the harness repo's .mcp.json)
   tools/devtools_mcp.py --call tools/list     # one request, for testing
@@ -51,7 +51,7 @@ def auth(refresh=False):
         _raw(b"{}", "", PORT)  # 401 -> the server re-logs its token
         found = _from_logcat()
     if not found:
-        raise RuntimeError("no devtools server on the device (push the plugin, setprop debug.osrsrl.devtools 1, "
+        raise RuntimeError("no devtools server on the mobile (push the plugin, setprop debug.osrsrl.devtools 1, "
                            "restart the game)")
     _auth = found
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
