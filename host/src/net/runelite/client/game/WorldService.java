@@ -50,6 +50,8 @@ public class WorldService
 	private final CompletableFuture<WorldResult> firstRunFuture = new CompletableFuture<>();
 
 	private WorldResult worlds;
+	// Set by a failed fetch (NetGuard refuses api.runelite.net off-server): the timer fetches no more, no retry.
+	private volatile boolean failed;
 	// The last merged result, reused while neither the fetched list nor the current world changed.
 	private WorldResult merged;
 	private WorldResult mergedFrom;
@@ -73,7 +75,7 @@ public class WorldService
 	{
 		try
 		{
-			if (worlds == null || client.getGameState() == GameState.LOGGED_IN)
+			if (!failed && (worlds == null || client.getGameState() == GameState.LOGGED_IN))
 			{
 				fetch();
 			}
@@ -96,6 +98,7 @@ public class WorldService
 		}
 		catch (IOException ex)
 		{
+			failed = true;
 			log.warn("Error looking up worlds", ex);
 		}
 	}

@@ -275,8 +275,9 @@ Always, even without QA: every build goes through `tools/repack.sh` (with `patch
 3. DNS: `adb logcat -d | grep -i "asked for"` (netd lookups; this doesn't list every lookup, which is why
    the socket sampler is needed).
 4. Expected hosts, and nothing else:
-   - `10.0.2.2` (43594 game server, 8080 sidecar: jav_config, auth, digest, payments param 2);
-   - `api.runelite.net`, `static.runelite.net` (Cloudflare, e.g. 104.26.8.233 / 104.26.9.233 / 172.67.74.139): the host's read-only GETs;
+   - `10.0.2.2` (43594 game server, 8080 sidecar: jav_config, auth, digest, payments param 2), and nothing else from
+     the host: NetGuard refuses every request off the local network before any lookup (`blocked (off-server
+     api.runelite.net)`), and RuneLite's price and world fetches fail once with no retry;
    - `sdk.fra-01.braze.eu` (104.18.35.7 / 172.64.152.249): Braze, left on by the user's decision;
    - `mobile-data.onetrust.io` / `cdn-ukwest.onetrust.com` (172.64.155.231, 104.18.32.25): the consent banner GET;
    - one Google 443 address (e.g. 172.217.116.4): most likely FCM for Braze's push token;

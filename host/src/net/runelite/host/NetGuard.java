@@ -10,7 +10,9 @@ import android.util.Log;
  *   submissions are POSTs);
  * - GETs that trigger a remote write: an `xp/update` path on any host (XP Tracker asks RuneLite to
  *   refresh the hiscores of the logged-out player's name).
- * Read-only GETs (static.runelite.net data, prices, hiscore lookups, the wiki) pass.
+ * - every request to a host off the local network (the OpenRune build contacts the test server at
+ *   10.0.2.2 only: RuneLite's api/static data, prices, hiscores and the wiki fail at once, unresolved).
+ * Read-only GETs to a local address pass.
  * `setprop debug.osrsrl.netwrite 1` (read per request) lets everything through;
  * `setprop debug.osrsrl.netlog 1` logs every request (tag osrsrl-net).
  */
@@ -34,11 +36,18 @@ final class NetGuard implements okhttp3.Interceptor {
         String m = req.method();
         if (!"GET".equals(m) && !"HEAD".equals(m)) return "upload " + m;
         okhttp3.HttpUrl u = req.url();
+        if (!local(u.host())) return "off-server " + u.host();
         java.util.List<String> seg = u.pathSegments();
         // Matched on the path whatever the host (a mirror or proxy of the API would be the same write).
         for (int i = 0; i + 1 < seg.size(); i++)
             if ("xp".equals(seg.get(i)) && "update".equals(seg.get(i + 1))) return "xp update";
         return null;
+    }
+
+    /** Loopback or a private IPv4 literal (the emulator's 10.0.2.2): reached without a DNS lookup. */
+    static boolean local(String host) {
+        return host.equals("localhost")
+                || host.matches("(127|10)(\\.\\d{1,3}){3}|192\\.168(\\.\\d{1,3}){2}|172\\.(1[6-9]|2\\d|3[01])(\\.\\d{1,3}){2}");
     }
 
     private static String prop(String name) {

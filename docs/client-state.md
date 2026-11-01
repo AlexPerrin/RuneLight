@@ -170,7 +170,7 @@ from this file). Tasks and blockers: `python3 ~/osrs-harness/hd.py status`. Last
   Drop Sounds' pin is dropped (its download URL 404s upstream).
 - **ConfigManager.getRSProfiles()**: one profile `rsprofile.default` gets displayName/type/accountHash at each login
   (`Host.postGameState`, before RuneScapeProfileChanged).
-- **Worlds**: the host's WorldService (same api.runelite.net fetch as 1.13.1) adds the current world from the game's
+- **Worlds**: the host's WorldService (1.13.1's api.runelite.net fetch, which NetGuard refuses off-server: one failure at start, no retry) adds the current world from the game's
   slr.ws world list when the fetched list lacks it. The game rebuilds that list on the game thread whenever the
   login-screen world switcher opens, so off-thread `Native.worldEntry` returns a copy made in after_cycle
   (`client_thread::world_entry`; logcat `world list: N entries at 0x...` per reload). offsets.md "World list".

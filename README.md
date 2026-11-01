@@ -126,13 +126,11 @@ flowchart LR
 **Privacy patches.** The official app ships analytics and consent SDKs. Every build of this project goes through
 `tools/patch_telemetry.py`, which prints seven `telemetry:` lines when it applies: it stops the Singular attribution
 SDK from starting, disables the consent-sync request to Jagex's account service, turns off Firebase Analytics and
-Crashlytics collection in the manifest, and blanks the consent-sync, group-score and web-link hosts. A network review
-on 2026-10-24 found these remote addresses for the app: the test server, `api.runelite.net` and `static.runelite.net`
-(prices and NPC data fetched by plugins), Braze, OneTrust and Google (push and consent services of the official app,
-which are not switched off), and no Jagex or RuneScape address. That review could not read the emulator's DNS log; it
-did record that the game's own lookups were only the test server. Plugins you add can make their own requests: the
-host's network guard only refuses requests that would write to a remote service, and a plugin such as Hiscore, for
-example, queries the public hiscores when you use it. The full analysis is in
+Crashlytics collection in the manifest, and blanks the consent-sync, group-score and web-link hosts. The app's remote
+addresses are the test server, Braze, OneTrust and Google (push and consent
+services of the official app, which are not switched off), and no Jagex or RuneScape address. The plugin host contacts
+the test server (10.0.2.2) only: its network guard refuses every request off the local network and every upload, so
+RuneLite's prices, world list and NPC data and lookups such as Hiscore fail at once, without a retry. The full analysis is in
 [docs/app-telemetry.md](docs/app-telemetry.md).
 
 A developer tool, OpenRune-Developer-Tools, can be loaded as a plugin. It lets a program drive the client over an
@@ -225,7 +223,7 @@ app, and sign in. Plugin Hub plugins keep their authors' licences, listed under 
   claim that it is safe, undetectable or ban-proof. It is software that modifies a game client, shared as research.
 - **What the build does on the network.** The repack points the game at the test server and switches off the
   attribution and analytics SDKs listed above, but it does not make the app silent: the official app's consent,
-  push and engagement services and the hosts that plugins use are described under [How it works](#how-it-works) and
+  push and engagement services are described under [How it works](#how-it-works) and
   in [docs/app-telemetry.md](docs/app-telemetry.md). Read them before you decide to use it.
 - **The test server login is not your Jagex login.** The test server's local sign-in accepts a fixed test
   account. Never enter real credentials into a build of this project.

@@ -14,9 +14,8 @@ import net.runelite.client.util.AsyncBufferedImage;
 /**
  * Replaces RuneLite's ItemManager (same name). Definitions come from the client; images are the
  * game's own item icons. Prices come from RuneLite's price API like desktop's (ItemClient's
- * read-only GET of `<api base>/item/prices.js`, refreshed every 30 minutes; NetGuard lets GETs
- * through). Until the first download succeeds (offline, or right after start) an item's store
- * value stands in, so value thresholds still order items sensibly.
+ * read-only GET of `<api base>/item/prices.js`, refreshed every 30 minutes). In the OpenRune build
+ * NetGuard refuses it (off-server): one failed fetch, no retry, and an item's store value stands in, so value thresholds still order items sensibly.
  */
 @javax.inject.Singleton
 public class ItemManager {
@@ -46,10 +45,10 @@ public class ItemManager {
             priceFetchStarted = true;
         }
         Thread t = new Thread(() -> {
-            for (;;) {
-                boolean ok = fetchPrices(http, apiBase, gson);
+            // Desktop refreshes every 30 min; a failure (NetGuard refuses runelite.net off-server) ends the thread: no retry.
+            while (fetchPrices(http, apiBase, gson)) {
                 try {
-                    Thread.sleep(ok ? 30 * 60_000L : 60_000L);  // desktop refreshes every 30 min; retry a failure after 1 min
+                    Thread.sleep(30 * 60_000L);
                 } catch (InterruptedException e) {
                     return;
                 }
