@@ -36,6 +36,18 @@ class Rows(unittest.TestCase):
         (s.ev / "api-probe.tsv").write_text("# result: pass 1 / 2 = 50.0%\n")
         rc, out = s.row("check-probe"); s.assertEqual((rc, "no '# build:' line" in out), (1, True))
 
+    def test_repo_from_worktree(s):  # run from a worktree, the script's repo is the main checkout
+        m = Path(tempfile.mkdtemp()); w = m / ".worktrees" / "tools-wt"
+        g = lambda *a, c=m: subprocess.run(["git", "-C", str(c), *a], check=True, capture_output=True)
+        g("init", "-q"); g("config", "user.name", "t"); g("config", "user.email", "t@t"); g("commit", "-q", "--allow-empty", "-m", "c")
+        g("update-ref", "refs/remotes/origin/HEAD", "HEAD"); g("worktree", "add", "-q", "--detach", str(w))
+        (w / "tools").mkdir(); shutil.copy(TRACK, w / "tools" / "track.sh")
+        Path(s.env["HD_ROOT"], "hd.py").write_text("print('HEAD t')\n"); (s.ev / "t.apk").write_text("")
+        r = subprocess.run([str(w / "tools" / "track.sh"), "build", "x"], env=s.env, capture_output=True, text=True)
+        s.assertIn("cached", r.stdout, r.stderr)
+        s.assertTrue((m / ".worktrees" / "x").is_dir()); s.assertFalse((w / ".worktrees").exists())
+        shutil.rmtree(m, ignore_errors=True)
+
 
 if __name__ == "__main__":
     unittest.main()

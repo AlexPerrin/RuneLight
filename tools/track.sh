@@ -8,12 +8,13 @@
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   ship TCOMMIT      pushes the merge commit of base and head to origin main
-#   measure GOAL      build and up at the target, the API probe; state/<goal>/measure.json
+#   measure GOAL [TCOMMIT]  build and up at the target (origin/HEAD by default), the API probe; state/<goal>/measure.json
 #   log PATTERN       logcat since the run's marker, filtered
 #   netqa start|stop  samples the app's sockets and DNS between the two calls
 set -euo pipefail
 verb=$1; slug=${2:-}; arg=${3:-}
-self=$(cd "$(dirname "$0")" && pwd); repo=$(dirname "$self")
+self=$(cd "$(dirname "$0")" && pwd)
+repo=$(dirname "$(git -C "$self" rev-parse --path-format=absolute --git-common-dir)")  # the main checkout (re/ lives there), also when run from a worktree
 root=${HD_ROOT:-$HOME/osrs-harness}; state=$root/state/$slug; mkdir -p "$state"
 ev=${EVIDENCE:-$root/evidence/$slug}; mkdir -p "$ev"
 dev=$repo/.worktrees/$slug; copy=$repo/.worktrees/$slug-build
@@ -34,7 +35,7 @@ build() {
   tree
   if [ -f "$ev/$T.apk" ]; then echo "cached $ev/$T.apk"; record true build <<< "cached"; return; fi
   if [ -d "$copy" ]; then git -C "$copy" reset -q --hard "$tc" && git -C "$copy" clean -fdq; else git -C "$repo" worktree add -q --detach "$copy" "$tc"; fi
-  mkdir -p "$copy/re/host"
+  mkdir -p "$copy/re/host"; for f in base.apk split_config.arm64_v8a.apk; do ln -sfn "$repo/$f" "$copy/$f"; done  # the ignored store APKs
   for e in "$repo"/re/*; do n=$(basename "$e"); case $n in host|build|out) ;; *) ln -sfn "$e" "$copy/re/$n" ;; esac; done
   [ -d "$copy/re/host/plugins-extra" ] || cp -a "$repo/re/host/plugins-extra" "$copy/re/host/"
   [ -f "$copy/re/build/build.ninja" ] || cmake -S "$copy/native" -B "$copy/re/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
@@ -78,8 +79,7 @@ check_netqa() { grep -qE '^network: true' "$root/harness/changes/$slug.md" 2>/de
 check_state_doc() { r=$(grep -oE '^# result: pass [0-9]+ / [0-9]+ = [0-9.]+%' "$ev/api-probe.tsv" 2>/dev/null | grep -oE '[0-9.]+%$' || true); [ -n "$r" ] || { echo "no probe result"; return 1; }; grep -q "$r" "${BUILD:-.}/docs/client-state.md" && echo "client-state.md carries the probe's $r" || { echo "docs/client-state.md does not carry the probe's result $r"; return 1; }; }
 ship() { git -C "$repo" push -q origin "$arg:refs/heads/main" && echo "main at ${arg:0:9}"; }
 measure() {
-  slug=$arg; state=$root/state/$arg; ev=$root/evidence/$arg; mkdir -p "$state" "$ev"; copy=$repo/.worktrees/$arg-build
-  tc=$(git -C "$repo" rev-parse origin/HEAD); arg=$tc; T=$(git -C "$repo" rev-parse "$tc^{tree}"); build; up
+  tc=$(git -C "$repo" rev-parse "${arg:-origin/HEAD}^{commit}"); arg=$tc; T=$(git -C "$repo" rev-parse "$tc^{tree}"); build; up
   (cd "$copy" && ANDROID_SERIAL=$(serial) tools/api-probe.sh "$ev")
   v=$(grep -oE '^# result: pass [0-9]+ / [0-9]+ = [0-9.]+%' "$ev/api-probe.tsv" | grep -oE '[0-9.]+%$' | tr -d %)
   python3 -c 'import json,sys;json.dump({"tree":sys.argv[1],"value":float(sys.argv[2]),"report":sys.argv[3]},open(sys.argv[4],"w"))' "${TREE:-$T}" "$v" "$ev/api-probe.tsv" "$state/measure.json"
