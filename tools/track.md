@@ -27,7 +27,9 @@ into the evidence dir. Releases are `vX.Y.Z`; autonomous builds are 0.1.x; a maj
 Sample the app's ESTABLISHED sockets every 0.5 s through the sign-out, LOCAL_AUTH sign-in, play, `::drop` relog and
 restart sequence; DNS from logcat's "asked for" lines. Allowed: 10.0.2.2:43594 and :8080, api/static.runelite.net,
 sdk.fra-01.braze.eu, the onetrust hosts, one Google 443 (FCM). Must not appear: any `jagex.com`, `runescape.com`,
-`singular.net`, `app-measurement.com`, `*.x.invalid`, ConsentSync or Singular log lines. Report as `netqa*.md`.
+`singular.net`, `app-measurement.com`, `*.x.invalid`, ConsentSync or Singular log lines. First the jav_config the app loads names
+local hosts only: `python3 ~/src/OpenRune-Server/.worktrees/harness/tools/server/javcheck.py http://127.0.0.1:8080/jav_config.ws 10.0.2.2`
+prints `jav_config local only`. Report as `netqa*.md`.
 
 ## Never
 Connect anything to Jagex or RuneScape servers (a new outbound host: stop and report at once); restart or edit the
