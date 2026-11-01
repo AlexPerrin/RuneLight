@@ -9,7 +9,8 @@
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              removes devtools, clears the debug props, checks the plugins dir is the three defaults; stops the emulator
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
-#   check-blocked     the running device resolves none of the Jagex, RuneScape, RuneLite and Google hosts (up runs it)
+#   check-blocked     the running device resolves none of the Jagex, RuneScape, RuneLite and Google hosts and connects to no
+#                     public address (the Windows Firewall group osrs-harness); up runs it
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   ship TCOMMIT      pushes the merge commit of base and head to origin main
 #   measure GOAL [TCOMMIT]  build and up at the target (origin/HEAD by default), the API probe; state/<goal>/measure.json
@@ -30,6 +31,7 @@ dev=$repo/.worktrees/$slug; copy=$repo/.worktrees/$slug-build
 sdk=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}; sys32=${WINDOWS_SYSTEM32:-/mnt/c/Windows/System32}; adb=${ADB:-$sdk/platform-tools/adb.exe}
 need() { [ -x "$1" ] || { echo "$1 not found: set $2" >&2; exit 2; }; }   # need <program> <the variable that locates it>
 pkg=com.jagex.oldscape.android; files=/sdcard/Android/data/$pkg/files; defaults="grounditems.jar opponentinfo.jar quest-helper.jar"
+addrs="8.8.8.8 1.1.1.1 142.250.80.46"   # public addresses (Google DNS, Cloudflare DNS, google.com): none connects
 hosts="legal.jagex.com auth.jagex.com oldschool.runescape.com www.runescape.com api.runelite.net static.runelite.net google.com connectivitycheck.gstatic.com"
 ndk=${ANDROID_NDK:-$HOME/Android/Sdk/ndk/android-ndk-r27d}
 record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" > "$state/$2.json"; }
@@ -99,7 +101,8 @@ blocked() {  # every host must fail to resolve on the device; a connect by name 
   until [[ $(A shell dumpsys connectivity) == *"PrivateDnsServerName: blocked.invalid"* ]]; do sleep 1; done   # the setting applied
   local out no; out=$(A shell "for h in $hosts; do nc -w 15 \$h 443 </dev/null & done; wait")
   no=$(for h in $hosts; do grep -q "$h:443: No address associated with hostname" <<< "$out" || echo "$h"; done)
-  [ -z "$no" ] && echo "blocked: $hosts" || { echo "NOT BLOCKED (resolves or connects):" $no; return 1; }
+  no+=$(A shell "for a in $addrs; do nc -w 5 \$a 443 </dev/null 2>/dev/null && echo \" \$a\" & done; wait")   # by address, no lookup
+  [ -z "$no" ] && echo "blocked: $hosts $addrs" || { echo "NOT BLOCKED (resolves or connects):" $no; return 1; }
 }
 down() {  # judges what the harness put on the device (the default plugins, the debug props) against its baseline; the
   # app's own writes (settings.properties, cache) are not checked: they differ after any login and the read-only AVD drops them

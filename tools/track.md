@@ -32,7 +32,9 @@ into the evidence dir. Releases are `vX.Y.Z`; autonomous builds are 0.1.x; a maj
 Sample the app's ESTABLISHED sockets every 0.5 s through the sign-out, LOCAL_AUTH sign-in, play, `::drop` relog and
 restart sequence; DNS from logcat's "asked for" lines. Allowed sockets: 10.0.2.2:43594 and :8080 only (`up` sets
 Private DNS strict to `blocked.invalid`, so no hostname resolves, and `check-blocked` proves it on Jagex, RuneScape,
-RuneLite and Google hosts). Must not appear, even as a lookup: any `jagex.com`, `runescape.com`,
+RuneLite and Google hosts; the Windows Firewall rules of group `osrs-harness` block the emulator's qemu-system-x86_64.exe
+and netsimd.exe from every address but loopback and the LAN, and `check-blocked` proves no public address connects).
+Must not appear, even as a lookup: any `jagex.com`, `runescape.com`,
 `singular.net`, `app-measurement.com`, `*.x.invalid`, ConsentSync or Singular log lines. First the jav_config the app loads names
 local hosts only: `python3 ~/src/OpenRune-Server/.worktrees/harness/tools/server/javcheck.py http://127.0.0.1:8080/jav_config.ws 10.0.2.2`
 prints `jav_config local only`. Report as `netqa*.md`.
