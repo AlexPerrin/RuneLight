@@ -44,6 +44,9 @@ pm_idle() {  # the package manager is up (its dump lists the install sessions) a
   local d; d=$(A shell "dumpsys package | sed -n '/^Active install sessions:/,/^Finalized install sessions:/p;/^Legacy install sessions:/,+1p'" | tr -d ' \n')
   [[ $d == "Activeinstallsessions:"* && $d != *"$pkg"* ]]   # the dump wraps long lines: joined, the package name is whole
 }
+# a Windows process a run started through WSL interop outlives the run's Linux processes: each is recorded, its Windows pid
+# and image, under the run's systemd slice (osrs-harness R5: hd ends them with the run); down drops the record
+winpid() { local sl; sl=$(grep -o 'hd-[^/]*\.slice' /proc/self/cgroup) || return 0; mkdir -p "$root/state/winpids/$sl" && echo "$2" > "$root/state/winpids/$sl/$1"; }
 listening() { "$sys32/netstat.exe" -anp TCP | tr -d '\r' | awk '$4=="LISTENING"{n=split($2,a,":");print a[n]}'; }   # the Windows listening ports
 
 up() {
@@ -74,13 +77,16 @@ allow() {  # the mobile's resolver and relay on the Windows loopback (tools/allo
 }
 boot() {  # an Agent_Phone emulator on a free even console port, the APK in place of the official app, Chrome granted the
   # local network, the change's own devtools jar and the three default plugins pushed; the serial goes to state/<slug>/serial as the emulator starts
-  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/nslookup.exe" WINDOWS_SYSTEM32
+  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/nslookup.exe" WINDOWS_SYSTEM32; need "$sys32/tasklist.exe" WINDOWS_SYSTEM32
   exec 9> "$root/state/emulator-port.lock"; flock 9   # one boot at a time picks a port, until adb sees its emulator there
   allow || return 1
   port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
   (cd /mnt/c && setsid "$sdk/emulator/emulator.exe" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" -dns-server 127.0.0.1 < /dev/null > "$state/emulator.log" 2>&1 &) 9>&-   # the lock is not inherited; no console window: its log is a file, down is the only stop
   echo "$s" > "$state/serial"
   "$adb" -s "$s" wait-for-device; exec 9>&-
+  w=$("$sys32/netstat.exe" -ano -p TCP | tr -d '\r' | awk -v p="$port" '$4=="LISTENING"{n=split($2,a,":"); if (a[n]==p) {print $5; exit}}' || true)   # the emulator's Windows pid: its console port's holder
+  img=$([ -z "$w" ] || "$sys32/tasklist.exe" /FO CSV /NH /FI "PID eq $w" | tr -d '\r"' | awk -F, -v p="$w" '$2==p{print $1}' || true)
+  [ -z "$img" ] || { winpid "$w" "$img"; echo "$w" > "$state/emulator.winpid"; }
   until [ "$(A shell getprop sys.boot_completed)" = 1 ]; do sleep 2; done
   A uninstall "$pkg" >/dev/null
   until pm_idle; do sleep 1; done   # an install while one of $pkg is pending fails INSTALL_FAILED_DUPLICATE_PACKAGE
@@ -132,6 +138,7 @@ down() {  # judges what the harness put on the mobile (the default plugins, the 
     v=$(A shell getprop "debug.osrsrl.$p" | tr -d '[:space:]'); [ -z "$v" ] || [ "$v" = 0 ] || bad+=("prop debug.osrsrl.$p = $v")
   done
   A emu kill >/dev/null; rm -f "$state/serial"
+  if w=$(cat "$state/emulator.winpid" 2>/dev/null); then rm -f "$root"/state/winpids/*/"$w" "$state/emulator.winpid"; fi
   [ ${#bad[@]} = 0 ] || { (IFS=';'; echo "RESTORE FAILED: ${bad[*]}"); return 1; }; echo restored
 }
 ship() { git -C "$repo" push -q origin "$arg:refs/heads/main" && echo "main at ${arg:0:9}"; rm -f "$state"/gate-*.json; }   # the kept gates were of trees on the old main

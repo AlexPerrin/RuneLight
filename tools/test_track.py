@@ -69,9 +69,9 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
   *"nc -w 15"*) [ -z "$BOOTS" ] || for h in {HOSTS}; do echo "nc: $h:443: No address associated with hostname"; done ;;
   *"echo y"*) [ -z "$BOOTS" ] || echo y ;; *"ls -1"*) printf 'grounditems.jar\\nopponentinfo.jar\\nquest-helper.jar\\n' ;; esac""",
                  sdk / "emulator/emulator.exe": f'echo "emulator $*" >> {log}; echo "emulator: booting on $PWD"',
-                 sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}; echo '  UDP    0.0.0.0:53             *:*                                    3860'",
+                 sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING 7300/p' {log}; echo '  UDP    0.0.0.0:53             *:*                                    3860'",
                  sys32 / "nslookup.exe": f'echo "nslookup $*" >> {log}; [ -n "$NODNS" ] || printf "Name:    api.runelite.net\\r\\nAddress:  10.0.2.2\\r\\n"',
-                 sys32 / "tasklist.exe": 'case "$*" in *"PID eq 3860"*) printf \'"svchost.exe","3860","SharedAccess"\\r\\n\' ;; esac'}
+                 sys32 / "tasklist.exe": 'case "$*" in *"PID eq 3860"*) printf \'"svchost.exe","3860","SharedAccess"\\r\\n\' ;; *"PID eq 7300"*) printf \'"qemu-system-x86_64.exe","7300","Console"\\r\\n\' ;; esac'}
         for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
         (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
         docker = s.ev / "docker"; docker.write_text(f'#!/bin/sh\necho "docker $*" >> {log}\ncase "$1" in logs) echo listening ;; esac\n'); docker.chmod(0o755)
@@ -83,6 +83,15 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         rc, out = s.row("up"); s.assertNotEqual(rc, 0); s.assertIn("install failed", out)
         s.assertIn("adb -s emulator-5560 emu kill", log.read_text())
         s.assertFalse((Path(s.env["HD_ROOT"]) / "state/x/serial").exists())
+
+    @unittest.skipUnless(shutil.which("systemd-run") and subprocess.run(["systemctl", "--user", "is-system-running"], capture_output=True).stdout.strip() in (b"running", b"degraded"), "no systemd user manager")
+    def test_the_emulator_is_recorded_under_the_runs_slice_until_down(s):  # osrs-harness R5: a run's end stops its Linux processes; the Windows emulator outlives them
+        s.fake_windows(); sl = f"hd-t{os.getpid()}.slice"; rec = Path(s.env["HD_ROOT"]) / "state/winpids" / sl / "7300"
+        adb = s.ev / "sdk/platform-tools/adb.exe"; adb.write_text(adb.read_text() + f'case "$*" in *" install "*) cat {rec} > {s.ev}/seen ;; esac\n')
+        subprocess.run(["systemd-run", "--user", "--scope", "-q", f"--slice={sl}", str(TRACK), "up", "x"], env=s.env, capture_output=True)
+        subprocess.run(["systemctl", "--user", "stop", sl])
+        s.assertEqual((s.ev / "seen").read_text(), "qemu-system-x86_64.exe\n")   # recorded once adb saw the emulator
+        s.assertFalse(rec.exists())                                              # up failed at its install and its down dropped the record
 
     def test_install_waits_for_a_pending_install(s):  # INSTALL_FAILED_DUPLICATE_PACKAGE: install once the dump shows no session of the app
         log = s.fake_windows(); s.env["INSTALL"] = "Success"
