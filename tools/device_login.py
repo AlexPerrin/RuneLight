@@ -7,7 +7,7 @@ import os, re, subprocess, sys, time
 ADB = os.environ.get("ADB", "/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platform-tools/adb.exe")
 PKG = "com.jagex.oldscape.android"
 TAPS = {"SIGN_IN": (1200, 617), "ACCEPT": (1032, 645), "PLAY_NOW": (1197, 540), "TRY_AGAIN": (1197, 620)}   # canvas points, 2400x1080 landscape
-LABELS = ("Got it", "Stay signed out", "Close", "Accept", "No thanks")
+LABELS = ("Stay signed out", "Close", "Accept", "No thanks")
 
 
 def adb(*a, retries=5):

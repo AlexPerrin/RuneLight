@@ -84,6 +84,7 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   A shell pm grant com.android.chrome android.permission.ACCESS_LOCAL_NETWORK >/dev/null
   A shell settings put global private_dns_mode hostname >/dev/null   # Private DNS strict on a name that never resolves:
   A shell settings put global private_dns_specifier blocked.invalid >/dev/null   # no hostname resolves; 10.0.2.2 is an address
+  A shell settings put secure immersive_mode_confirmations confirmed >/dev/null   # SystemUI's "Viewing full screen" prompt never shows: no tap
   blocked >&2 || return 1
   A shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null   # a first start creates files/
   until [ "$(A shell "[ -d $files ] && echo y")" = y ]; do sleep 1; done; A shell am force-stop "$pkg" >/dev/null

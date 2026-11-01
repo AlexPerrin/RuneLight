@@ -55,7 +55,8 @@ case "$*" in *"ls -1"*) printf 'quest-helper.jar\\r\\ngrounditems.jar\\r\\noppon
         sdk = s.ev / "sdk"; sys32 = s.ev / "sys32"; log = s.ev / "win.log"
         for d in (sdk / "platform-tools", sdk / "emulator", sys32): d.mkdir(parents=True)
         progs = {sdk / "platform-tools/adb.exe": f"""echo "adb $*" >> {log}
-case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" install "*) echo "Failure [INSTALL_FAILED_DUPLICATE_PACKAGE]" ;; esac""",
+case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" install "*) echo "${{INSTALL:-Failure [INSTALL_FAILED_DUPLICATE_PACKAGE]}}" ;; *libosrsrl*) echo 1 ;;
+  *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;; esac""",
                  sdk / "emulator/emulator.exe": f'echo "emulator $*" >> {log}; echo "emulator: booting on $PWD"',
                  sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}"}
         for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
@@ -74,6 +75,13 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" inst
         s.assertNotIn("cmd.exe", TRACK.read_text())
         s.assertIn("emulator -avd Agent_Phone", log.read_text())
         s.assertIn("emulator: booting", (Path(s.env["HD_ROOT"]) / "state/x/emulator.log").read_text())
+
+    def test_immersive_prompt_confirmed_before_launch(s):  # the setting replaces a "Got it" tap: no tap, no wait
+        log = s.fake_windows(); s.env["INSTALL"] = "Success"; s.row("up")   # fails at blocked (nc fakes nothing), before any launch
+        calls = log.read_text()
+        s.assertIn("shell settings put secure immersive_mode_confirmations confirmed", calls)
+        s.assertNotIn("monkey", calls)
+        s.assertNotIn('"Got it"', (TRACK.parent / "device_login.py").read_text())
 
     def test_concurrent_boots_take_distinct_ports(s):
         log = s.fake_windows(); (Path(s.env["HD_ROOT"]) / "harness/changes/y.md").write_text("")
