@@ -42,7 +42,8 @@ allowed="api.runelite.net static.runelite.net"   # tools/allow.py: these resolve
 hosts="legal.jagex.com auth.jagex.com oldschool.runescape.com www.runescape.com sdk.iad-01.braze.com cdn.cookielaw.org app-measurement.com firebaseinstallations.googleapis.com sdk-api-v1.singular.net google.com connectivitycheck.gstatic.com"
 docker=${DOCKER:-docker}
 ndk=${ANDROID_NDK:-$HOME/Android/Sdk/ndk/android-ndk-r27d}
-record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" > "$state/$2.json"; }
+atomic() { cat > "$1.$$.tmp"; if [ -s "$1.$$.tmp" ]; then mv -f "$1.$$.tmp" "$1"; else rm -f "$1.$$.tmp"; return 1; fi; }   # a state record whole or not at all: hd reads it at any moment
+record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" | atomic "$state/$2.json"; }
 serial() { cat "$state/serial" 2>/dev/null || { echo "no mobile for $slug: run up"; return 1; }; }
 win() { wslpath -w "$1"; }
 A() { { "$adb" -s "$s" "$@" 2>&1 || true; } | tr -d '\r'; }   # adb on the run's mobile ($s); callers judge its output
@@ -172,7 +173,7 @@ measure() {
   tc=$(git -C "$repo" rev-parse "${arg:-origin/HEAD}^{commit}"); arg=$tc; T=$(git -C "$repo" rev-parse "$tc^{tree}"); build; up
   (cd "$copy" && ANDROID_SERIAL=$(serial) tools/api-probe.sh "$ev")
   v=$(grep -oE '^# result: pass [0-9]+ / [0-9]+ = [0-9.]+%' "$ev/api-probe.tsv" | grep -oE '[0-9.]+%$' | tr -d %)
-  python3 -c 'import json,sys;json.dump({"tree":sys.argv[1],"value":float(sys.argv[2]),"report":sys.argv[3]},open(sys.argv[4],"w"))' "${TREE:-$T}" "$v" "$ev/api-probe.tsv" "$state/measure.json"
+  python3 -c 'import json,sys;print(json.dumps({"tree":sys.argv[1],"value":float(sys.argv[2]),"report":sys.argv[3]}))' "${TREE:-$T}" "$v" "$ev/api-probe.tsv" | atomic "$state/measure.json"
   down; echo "client-api: $v"
 }
 log() { "$adb" -s "$(serial)" logcat -d -v threadtime -T "$(cat "$state/log-mark" 2>/dev/null || echo 1)" 2>/dev/null | tr -d '\r' | grep -E "${arg:-.}" || true; }
