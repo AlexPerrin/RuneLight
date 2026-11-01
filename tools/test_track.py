@@ -82,6 +82,20 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" inst
         s.assertEqual(sorted(re.findall(r"-port (\d+)", log.read_text())), ["5560", "5562"])
         s.assertEqual(log.read_text().count("emu kill"), 2)
 
+    def test_check_blocked(s):  # up's check: every Jagex, RuneScape, RuneLite and Google host fails to resolve on the device
+        st = Path(s.env["HD_ROOT"]) / "state/x"; st.mkdir(parents=True); (st / "serial").write_text("emulator-5560\n")
+        hosts = re.search(r'^hosts="([^"]+)"', TRACK.read_text(), re.M).group(1).split()
+        s.assertTrue({"legal.jagex.com", "oldschool.runescape.com", "api.runelite.net", "google.com"} <= set(hosts))
+        adb = s.ev / "adb.exe"
+        adb.write_text(f"""#!/bin/sh
+case "$*" in *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;;
+  *"nc -w"*) for h in {" ".join(hosts)}; do [ "$h" = "$OPEN" ] || echo "nc: $h:443: No address associated with hostname"; done ;; esac
+""")
+        adb.chmod(0o755); s.env["ADB"] = str(adb)
+        rc, out = s.row("check-blocked"); s.assertEqual(rc, 0, out); s.assertIn("blocked:", out)
+        s.env["OPEN"] = "api.runelite.net"
+        rc, out = s.row("check-blocked"); s.assertEqual(rc, 1); s.assertIn("NOT BLOCKED (resolves or connects): api.runelite.net", out)
+
     def test_windows_programs_by_absolute_path(s):  # no .ps1 (Windows refuses it from the UNC path); no bare .exe (a lost PATH)
         s.assertEqual(list(TRACK.parent.glob("*.ps1")), [])
         src = "\n".join(l for l in TRACK.read_text().splitlines() if not l.lstrip().startswith("#"))

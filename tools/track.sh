@@ -3,11 +3,13 @@
 # TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. Verbs:
 #   build [TCOMMIT]   host build, ninja and the repack with OPENRUNE=1 LOCAL_AUTH=1 in the build copy; the APK is kept only
 #                     when its repack log passes check-log; cached by T (evidence/<slug>/<T>.apk)
-#   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log), installs the
-#                     APK, logs in; prints LOGGED_IN <serial> <devtools port>;
+#   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) with no
+#                     hostname resolving (checked on Jagex, RuneScape, RuneLite and Google hosts), installs the APK, logs
+#                     in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              removes devtools, clears the debug props, checks the plugins dir is the three defaults; stops the emulator
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
+#   check-blocked     the running device resolves none of the Jagex, RuneScape, RuneLite and Google hosts (up runs it)
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   ship TCOMMIT      pushes the merge commit of base and head to origin main
 #   measure GOAL [TCOMMIT]  build and up at the target (origin/HEAD by default), the API probe; state/<goal>/measure.json
@@ -28,6 +30,7 @@ dev=$repo/.worktrees/$slug; copy=$repo/.worktrees/$slug-build
 sdk=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}; sys32=${WINDOWS_SYSTEM32:-/mnt/c/Windows/System32}; adb=${ADB:-$sdk/platform-tools/adb.exe}
 need() { [ -x "$1" ] || { echo "$1 not found: set $2" >&2; exit 2; }; }   # need <program> <the variable that locates it>
 pkg=com.jagex.oldscape.android; files=/sdcard/Android/data/$pkg/files; defaults="grounditems.jar opponentinfo.jar quest-helper.jar"
+hosts="legal.jagex.com auth.jagex.com oldschool.runescape.com www.runescape.com api.runelite.net static.runelite.net google.com connectivitycheck.gstatic.com"
 ndk=${ANDROID_NDK:-$HOME/Android/Sdk/ndk/android-ndk-r27d}
 record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" > "$state/$2.json"; }
 serial() { cat "$state/serial" 2>/dev/null || { echo "no device for $slug: run up"; return 1; }; }
@@ -79,6 +82,9 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   path=$(A shell pm path "$pkg"); path=${path#package:}
   [ "$(A shell "unzip -l $path | grep -c libosrsrl")" = 1 ] || { echo "the APK carries no libosrsrl" >&2; return 1; }
   A shell pm grant com.android.chrome android.permission.ACCESS_LOCAL_NETWORK >/dev/null
+  A shell settings put global private_dns_mode hostname >/dev/null   # Private DNS strict on a name that never resolves:
+  A shell settings put global private_dns_specifier blocked.invalid >/dev/null   # no hostname resolves; 10.0.2.2 is an address
+  blocked >&2 || return 1
   A shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null   # a first start creates files/
   until [ "$(A shell "[ -d $files ] && echo y")" = y ]; do sleep 1; done; A shell am force-stop "$pkg" >/dev/null
   A shell mkdir -p "$files/plugins" >/dev/null; A shell chmod 777 "$files/plugins" >/dev/null
@@ -86,6 +92,13 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   [ "$(A shell ls -1 "$files/plugins" | LC_ALL=C sort | paste -sd' ')" = "$defaults" ] || { echo "the three default plugins are not in place" >&2; return 1; }
   A push "$(win "$repo/re/host/plugins-extra/devtools.jar")" "$files/plugins/devtools.jar" >/dev/null
   A shell setprop debug.osrsrl.devtools 1 >/dev/null
+}
+check_blocked() { s=$(serial) && need "$adb" ANDROID_SDK && blocked; }
+blocked() {  # every host must fail to resolve on the device; a connect by name needs a resolve first
+  until [[ $(A shell dumpsys connectivity) == *"PrivateDnsServerName: blocked.invalid"* ]]; do sleep 1; done   # the setting applied
+  local out no; out=$(A shell "for h in $hosts; do nc -w 15 \$h 443 </dev/null & done; wait")
+  no=$(for h in $hosts; do grep -q "$h:443: No address associated with hostname" <<< "$out" || echo "$h"; done)
+  [ -z "$no" ] && echo "blocked: $hosts" || { echo "NOT BLOCKED (resolves or connects):" $no; return 1; }
 }
 down() {  # judges what the harness put on the device (the default plugins, the debug props) against its baseline; the
   # app's own writes (settings.properties, cache) are not checked: they differ after any login and the read-only AVD drops them
@@ -144,5 +157,5 @@ print("\n".join(sorted(seen)))'
 }
 
 case $verb in up|measure) trap '[ $? = 0 ] || down >&2 || true' EXIT ;; esac   # a failed boot leaves no emulator behind
-case $verb in build|up|down|gate|check-log|check-evidence|check-probe|check-netqa|check-state-doc|ship|measure|log|netqa) "${verb//-/_}" ;;
-  *) echo "verbs: build up down gate check-log check-evidence check-probe check-netqa check-state-doc ship measure log netqa" >&2; exit 2 ;; esac
+case $verb in build|up|down|gate|check-blocked|check-log|check-evidence|check-probe|check-netqa|check-state-doc|ship|measure|log|netqa) "${verb//-/_}" ;;
+  *) echo "verbs: build up down gate check-blocked check-log check-evidence check-probe check-netqa check-state-doc ship measure log netqa" >&2; exit 2 ;; esac
