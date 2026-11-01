@@ -90,6 +90,13 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" inst
         s.assertEqual(sorted(re.findall(r"-port (\d+)", log.read_text())), ["5560", "5562"])
         s.assertEqual(log.read_text().count("emu kill"), 2)
 
+    def test_a_running_emulator_holds_no_lock(s):  # the port lock ends when adb sees the emulator, not when it exits
+        log = s.fake_windows(); emu = s.ev / "sdk/emulator/emulator.exe"
+        emu.write_text(emu.read_text() + "exec sleep 5\n")
+        subprocess.run([str(TRACK), "up", "x"], env=s.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)   # returns while it runs
+        r = subprocess.run(["flock", "-n", str(Path(s.env["HD_ROOT"]) / "state/emulator-port.lock"), "true"])
+        s.assertEqual(r.returncode, 0)
+
     def test_check_blocked(s):  # up's check: every Jagex, RuneScape, RuneLite and Google host fails to resolve on the device
         st = Path(s.env["HD_ROOT"]) / "state/x"; st.mkdir(parents=True); (st / "serial").write_text("emulator-5560\n")
         hosts = re.search(r'^hosts="([^"]+)"', TRACK.read_text(), re.M).group(1).split()
