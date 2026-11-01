@@ -1932,6 +1932,43 @@ bool cross_world_ids(int64_t out[100], int& index) {
 int login_index() { return g_build ? read_at<int32_t>(g_base + 0xace678) : -1; }
 int login_field() { return g_build ? read_at<int32_t>(g_base + 0xaae4f4) : -1; }
 
+// The login screen's forward button of the current page, as its click does in the input handler 0x41615c
+// (static RE, client-devtools-login): page 0 "Sign in with Email / Username" (world warning 0x47adf4(1), then
+// 0x47b398: AppAuth through JagexMobileSDKWrapper.authenticateWithJagexWeb), 12 terms "Accept" (0x4595d8 saves
+// the terms version, 0x47bc84 resumes the pending sign-in), 10 "Play Now" (0x47adf4(4), then 0x47d340 on the auth
+// object), 9 "Try again" (0x3fedec on *(client+0x2fa8), then 0x4334f8(0,0): the home page). Returns the page acted
+// on, or -1 off the login screen or on a page with no forward button (30: the browser sign-in runs). Game thread.
+int login_submit() {
+    uintptr_t c = client();
+    if (!c || game_state() != 10) return -1;
+    int page = login_index();
+    auto fn = [](uintptr_t a) { return g_base + a; };
+    switch (page) {
+        case 0:
+            if (reinterpret_cast<int (*)(int)>(fn(0x47adf4))(1) == 0) reinterpret_cast<void (*)()>(fn(0x47b398))();
+            return page;
+        case 12:
+            reinterpret_cast<void (*)(uintptr_t)>(fn(0x4595d8))(c);
+            reinterpret_cast<void (*)()>(fn(0x47bc84))();
+            return page;
+        case 10: {
+            // auth = plat->vt[0x68](plat), plat = *(client->vt[0x10](client) + 8)
+            uintptr_t x = reinterpret_cast<uintptr_t (*)(uintptr_t)>(read_at<uintptr_t>(read_at<uintptr_t>(c) + 0x10))(c);
+            uintptr_t plat = x ? read_at<uintptr_t>(x + 8) : 0;
+            uintptr_t auth = plat ? reinterpret_cast<uintptr_t (*)(uintptr_t)>(read_at<uintptr_t>(read_at<uintptr_t>(plat) + 0x68))(plat) : 0;
+            if (!auth) return -1;
+            if (reinterpret_cast<int (*)(int)>(fn(0x47adf4))(4) == 0) reinterpret_cast<void (*)(uintptr_t)>(fn(0x47d340))(auth);
+            return page;
+        }
+        case 9:
+            reinterpret_cast<void (*)(uintptr_t)>(fn(0x3fedec))(read_at<uintptr_t>(c + 0x2fa8));
+            reinterpret_cast<void (*)(int, int)>(fn(0x4334f8))(0, 0);
+            return page;
+        default:
+            return -1;
+    }
+}
+
 // Minimap zoom (px per tile, int 2..8 at mm +0x6470, mm = *(Client+0x40e970)) and its zoom-input flag
 // (u8 mm +0x64b4, CS2 7250/7251). The game's setter 0x463528(client, zoom) (CS2 7252) clamps, resizes
 // the minimap image and redraws it with the render world view's scene and plane.

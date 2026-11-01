@@ -18,7 +18,7 @@ index 861a240..2ccb1a9 100644
  			}
  			default:
 diff --git a/src/main/java/com/openrune/devtools/McpTools.java b/src/main/java/com/openrune/devtools/McpTools.java
-index b798a2a..3b395c0 100644
+index b798a2a..64724c6 100644
 --- a/src/main/java/com/openrune/devtools/McpTools.java
 +++ b/src/main/java/com/openrune/devtools/McpTools.java
 @@ -61,6 +61,7 @@ import javax.swing.SwingUtilities;
@@ -29,22 +29,21 @@ index b798a2a..3b395c0 100644
  import net.runelite.api.DecorativeObject;
  import net.runelite.api.GameObject;
  import net.runelite.api.GroundObject;
-@@ -236,6 +237,14 @@ class McpTools
+@@ -236,6 +237,13 @@ class McpTools
  			schema(props()),
  			args -> textResult(getSkills()));
  
 +		register("login",
-+			"Log in through the client's own login: sets the username and password on the login screen, submits (gameState LOGGING_IN) and blocks until the client leaves LOGGING_IN; returns the resulting gameState and loginIndex. No screen points or input events. The password is never logged or echoed.",
++			"Log in through the client's own login: presses each login page's submit (desktop: the username and password; the mobile: Sign in, Accept, Play Now, Try again, its AppAuth sign-in done in-app) until LOGGED_IN or the client returns to a page already pressed (refused); returns the gameState and loginIndex it ends on. No screen points or input events. The password is never logged or echoed.",
 +			schema(props(
-+				"username", "string", "Account username",
-+				"password", "string", "Account password"),
-+				"username", "password"),
++				"username", "string", "Account username (desktop password login)",
++				"password", "string", "Account password (desktop password login)")),
 +			args -> textResult(login(args)));
 +
  		// ---- raw input ----
  
  		register("click",
-@@ -780,6 +789,8 @@ class McpTools
+@@ -780,6 +788,8 @@ class McpTools
  		{
  			JsonObject result = new JsonObject();
  			result.addProperty("gameState", client.getGameState().name());
@@ -53,45 +52,52 @@ index b798a2a..3b395c0 100644
  			result.addProperty("canvasWidth", client.getCanvasWidth());
  			result.addProperty("canvasHeight", client.getCanvasHeight());
  			result.addProperty("resized", client.isResized());
-@@ -808,6 +819,43 @@ class McpTools
+@@ -808,6 +818,50 @@ class McpTools
  		});
  	}
  
-+	/** Submits the login screen's credentials as the client's own login does, and waits on the outcome it reports. */
++	/**
++	 * Logs in through the client's own login: while on the login screen it presses the page's submit (setGameState
++	 * LOGGING_IN: desktop submits the credentials, the mobile presses Sign in, Accept, Play Now or Try again), again
++	 * on each read the client is still there, until it is LOGGED_IN or back on the login screen after LOGGING_IN
++	 * (refused). Returns the gameState and loginIndex it ends on.
++	 */
 +	private JsonElement login(JsonObject args) throws Exception
 +	{
-+		String username = args.get("username").getAsString();
-+		String password = args.get("password").getAsString();
-+		GameState submitted = onClientThread(() ->
++		String username = args.has("username") ? args.get("username").getAsString() : null;
++		String password = args.has("password") ? args.get("password").getAsString() : null;
++		boolean[] loggingIn = {false};
++		while (true)
 +		{
-+			if (client.getGameState() != GameState.LOGIN_SCREEN)
++			JsonObject r = onClientThread(() ->
 +			{
-+				throw new IllegalStateException("Not on the login screen: gameState " + client.getGameState().name());
-+			}
-+			client.setUsername(username);
-+			client.setPassword(password);
-+			client.setGameState(GameState.LOGGING_IN);
-+			return client.getGameState();
-+		});
-+		if (submitted == GameState.LOGIN_SCREEN)
-+		{
-+			throw new IllegalStateException("The client did not take the submit: gameState LOGIN_SCREEN, loginIndex " + onClientThread(client::getLoginIndex));
-+		}
-+		// The login connection always ends in a state the client reports (logged in or back on the login screen)
-+		JsonObject result;
-+		do
-+		{
-+			Thread.sleep(100);
-+			result = onClientThread(() ->
-+			{
-+				JsonObject r = new JsonObject();
-+				r.addProperty("gameState", client.getGameState().name());
-+				r.addProperty("loginIndex", client.getLoginIndex());
-+				return r;
++				GameState gs = client.getGameState();
++				if (gs == GameState.LOGIN_SCREEN && !loggingIn[0])
++				{
++					if (username != null)
++					{
++						client.setUsername(username);
++					}
++					if (password != null)
++					{
++						client.setPassword(password);
++					}
++					client.setGameState(GameState.LOGGING_IN);
++					gs = client.getGameState();
++				}
++				loggingIn[0] |= gs == GameState.LOGGING_IN;
++				JsonObject o = new JsonObject();
++				o.addProperty("gameState", gs.name());
++				o.addProperty("loginIndex", client.getLoginIndex());
++				return o;
 +			});
++			String gs = r.get("gameState").getAsString();
++			if (gs.equals(GameState.LOGGED_IN.name()) || (loggingIn[0] && gs.equals(GameState.LOGIN_SCREEN.name())))
++			{
++				return r;
++			}
++			Thread.sleep(100);  // the next read of the client's login state
 +		}
-+		while (result.get("gameState").getAsString().equals(GameState.LOGGING_IN.name()));
-+		return result;
 +	}
 +
  	private JsonElement setWidget(JsonObject args) throws Exception

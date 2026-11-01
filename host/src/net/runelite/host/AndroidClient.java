@@ -1468,11 +1468,18 @@ public class AndroidClient extends ClientStub {
         int[] px = Native.drawMinimap(plane);
         return px == null ? null : new HostSpritePixels(px, 736, 736);
     }
-    /** Only LOADING is honoured (plugins use it to rebuild the scene), via the game's own reload. */
+    /**
+     * LOADING rebuilds the scene (the game's own reload); LOGGING_IN presses the login page's forward button
+     * (Sign in, Accept, Play Now, Try again) as its click does, with the AppAuth browser step done in-app
+     * (LoginAgent). Other states are not honoured.
+     */
     @Override public void setGameState(GameState state) {
-        if (state != GameState.LOADING) return;
-        if (isClientThread()) Native.reloadScene();
-        else Host.invoke(Native::reloadScene);
+        Runnable r;
+        if (state == GameState.LOADING) r = Native::reloadScene;
+        else if (state == GameState.LOGGING_IN) r = () -> { LoginAgent.arm(); Native.loginSubmit(); };
+        else return;
+        if (isClientThread()) r.run();
+        else Host.invoke(r);
     }
     @Override public net.runelite.api.NameableContainer<net.runelite.api.Ignore> getIgnoreContainer() { return ignores; }
     private AndroidNameables.Entry[] friendsCycle = new AndroidNameables.Entry[0];

@@ -214,6 +214,7 @@ jlongArray n_cross_world_ids(JNIEnv* env, jclass) {
 }
 jint n_login_index(JNIEnv*, jclass) { return game::login_index(); }
 jint n_login_field(JNIEnv*, jclass) { return game::login_field(); }
+jint n_login_submit(JNIEnv*, jclass) { return client_thread::on_client_thread() ? game::login_submit() : -1; }
 jint n_minimap_zoom(JNIEnv*, jclass) { return game::minimap_zoom(); }
 jboolean n_set_minimap_zoom(JNIEnv*, jclass, jint z) { return client_thread::on_client_thread() && game::set_minimap_zoom(z); }
 jint n_minimap_zoom_input(JNIEnv*, jclass) { return game::minimap_zoom_input(); }
@@ -2094,6 +2095,7 @@ const JNINativeMethod kNatives[] = {
     {"crossWorldIds", "()[J", reinterpret_cast<void*>(n_cross_world_ids)},
     {"loginIndex", "()I", reinterpret_cast<void*>(n_login_index)},
     {"loginField", "()I", reinterpret_cast<void*>(n_login_field)},
+    {"loginSubmit", "()I", reinterpret_cast<void*>(n_login_submit)},
     {"clientInt", "(I)I", reinterpret_cast<void*>(n_client_int)},
     {"setClientInt", "(II)Z", reinterpret_cast<void*>(n_set_client_int)},
     {"musicVolume", "()I", reinterpret_cast<void*>(n_music_volume)},

@@ -84,6 +84,8 @@ final class Native {
     /** Login screen page and input field (0 username, 1 password). */
     static native int loginIndex();
     static native int loginField();
+    /** Game thread: presses the login page's forward button as its click does; the page acted on, or -1. */
+    static native int loginSubmit();
     /** Minimap zoom (px per tile, 2..8; -1 before the minimap exists); set through the game's setter, game thread only. */
     static native int minimapZoom();
     static native boolean setMinimapZoom(int zoom);

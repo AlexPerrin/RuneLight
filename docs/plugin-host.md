@@ -426,13 +426,18 @@ in the host so agents can drive device tests. Off by default and never in the de
   from `files/plugins/`, and at startup deletes any jar that updater could have left (one early test
   run downloaded one before the stub; it was never loaded).
 - Local tools: `host/plugins/devtools/login.patch` is applied on top of the pinned REV at build and never
-  proposed upstream. It adds `login` (username, password: the client's own login, `setUsername`/`setPassword`
-  then `setGameState(LOGGING_IN)`, no screen points or input events; it returns the gameState the client
-  leaves LOGGING_IN for, or fails at once when the client does not take the submit), `loginIndex` and
-  `loginField` in `get_client_state`, and redacts a `password` argument in the activity log. The same
-  classes jar (`re/devtools-build/devtools.jar`) serves desktop RuneLite. The mobile host honours only
-  `setGameState(LOADING)`, so on the mobile `login` fails with "did not take the submit"; the mobile
-  signs in through AppAuth.
+  proposed upstream. It adds `login` (optional username, password), `loginIndex` and `loginField` in
+  `get_client_state`, and redacts a `password` argument in the activity log. `login` presses the login page's
+  submit through the client (`setGameState(LOGGING_IN)`, no screen points or input events), again on each read
+  while the client stays on the login screen, and returns the gameState and loginIndex once LOGGED_IN or back on
+  the login screen after LOGGING_IN (refused). Desktop RuneLite submits the credentials (the same classes jar,
+  `re/devtools-build/devtools.jar`). The mobile host's `setGameState(LOGGING_IN)` presses the page's forward
+  button as its click does (`Native.loginSubmit`, game.cpp `login_submit`: page 0 Sign in with Email / Username,
+  12 Accept, 10 Play Now, 9 Try again; 30 has none) and arms `LoginAgent`: when AppAuth's
+  AuthorizationManagementActivity is about to open the browser on a local authorization endpoint (10.0.2.2,
+  127.0.0.1), the agent requests it and hands the app the redirect (`authStarted` and the redirect as the
+  activity's data), so the app's own state check and token exchange run and no browser opens; any other endpoint
+  is left to the browser.
 - Shared device: driving `osrs-devtools` (the harness repo's `.mcp.json` entry) drives the app on `ANDROID_SERIAL`, so
   the sign-in safety rule applies to anything it
   clicks (signed out: only "Sign in with Email / Username"; never Google/Jagex account screens).

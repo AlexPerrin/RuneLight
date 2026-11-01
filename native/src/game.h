@@ -603,6 +603,8 @@ bool cross_world_ids(int64_t out[100], int& index);
 // Login screen page and input field (globals).
 int login_index();
 int login_field();
+// Presses the login page's forward button as its click does (game.cpp); the page acted on or -1. Game thread.
+int login_submit();
 // Minimap zoom (2..8, set through the game's setter) and its zoom-input flag.
 int minimap_zoom();
 bool set_minimap_zoom(int zoom);
