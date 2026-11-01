@@ -56,16 +56,19 @@ case "$*" in *"echo y"*) [ -n "$NOAPP" ] || echo y ;; *"ls -1"*) printf 'quest-h
     def fake_windows(s):  # adb, the emulator and netstat as scripts; a started emulator's port lists as LISTENING
         sdk = s.ev / "sdk"; sys32 = s.ev / "sys32"; log = s.ev / "win.log"
         for d in (sdk / "platform-tools", sdk / "emulator", sys32): d.mkdir(parents=True)
-        progs = {sdk / "platform-tools/adb.exe": f"""echo "adb $*" >> {log}
+        HOSTS = re.search(r'^hosts="([^"]+)"', TRACK.read_text(), re.M).group(1)
+        progs = {sdk / "platform-tools/adb.exe": f"""printf "%s\\n" "adb $*" >> {log}
 case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
   *"dumpsys package"*) n=$(cat "$PENDING" 2>/dev/null || echo 0); [ "$n" = 0 ] || {{ echo $((n - 1)) > "$PENDING"; [ "$n" -gt 2 ] && exit 0; }}
     printf 'Active install sessions:\\n'; [ "$n" = 0 ] || printf '  Session 1:\\n    mAppPackageName=com.jagex.oldscape.andro\\n    id\\n'; printf 'Finalized install sessions:\\n' ;;
   *" install "*) echo "${{INSTALL:-Failure [INSTALL_FAILED_DUPLICATE_PACKAGE]}}" ;; *libosrsrl*) echo 1 ;;
-  *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;; esac""",
+  *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;;
+  *"nc -w 15"*) [ -z "$BOOTS" ] || for h in {HOSTS}; do echo "nc: $h:443: No address associated with hostname"; done ;;
+  *"echo y"*) [ -z "$BOOTS" ] || echo y ;; *"ls -1"*) printf 'grounditems.jar\\nopponentinfo.jar\\nquest-helper.jar\\n' ;; esac""",
                  sdk / "emulator/emulator.exe": f'echo "emulator $*" >> {log}; echo "emulator: booting on $PWD"',
                  sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}"}
         for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
-        (s.ev / "t.apk").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
+        (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
         s.env.update(ANDROID_SDK=str(sdk), WINDOWS_SYSTEM32=str(sys32)); s.env.pop("ADB", None)
         return log
 
@@ -81,6 +84,16 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         s.row("up")
         calls = log.read_text().splitlines(); i = next(n for n, c in enumerate(calls) if c.startswith("adb -s emulator-5560 install "))
         s.assertEqual(sum("dumpsys package" in c for c in calls[:i]), 5)
+
+    def test_boot_pushes_the_changes_own_devtools_jar(s):  # built with the APK, kept beside it by T; never the main checkout's
+        log = s.fake_windows(); s.env.update(INSTALL="Success", BOOTS="1")
+        m = Path(tempfile.mkdtemp()); (m / "tools").mkdir(); shutil.copy(TRACK, m / "tools/track.sh")   # a stub login: never the real adb
+        (m / "tools/mobile_login.py").write_text("raise SystemExit(1)\n"); subprocess.run(["git", "init", "-q", str(m)], check=True)
+        subprocess.run([str(m / "tools/track.sh"), "up", "x"], env=s.env, capture_output=True)
+        pushes = [c for c in log.read_text().splitlines() if "push" in c and "devtools.jar" in c]
+        s.assertEqual(len(pushes), 1); s.assertIn("t.devtools.jar", pushes[0]); s.assertNotIn("plugins-extra", pushes[0])
+        (s.ev / "t.devtools.jar").unlink()
+        rc, out = s.row("up"); s.assertEqual(rc, 1); s.assertIn("no APK or devtools jar for t", out)
 
     def test_emulator_has_no_console_window(s):  # started directly, not through cmd's start; its output is the run's log
         log = s.fake_windows(); s.row("up")
@@ -158,7 +171,7 @@ case "$*" in *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;;
         g("init", "-q"); g("config", "user.name", "t"); g("config", "user.email", "t@t"); g("commit", "-q", "--allow-empty", "-m", "c")
         g("update-ref", "refs/remotes/origin/HEAD", "HEAD"); g("worktree", "add", "-q", "--detach", str(w))
         (w / "tools").mkdir(); shutil.copy(TRACK, w / "tools" / "track.sh")
-        Path(s.env["HD_ROOT"], "hd.py").write_text("print('HEAD t')\n"); (s.ev / "t.apk").write_text("")
+        Path(s.env["HD_ROOT"], "hd.py").write_text("print('HEAD t')\n"); (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text("")
         r = subprocess.run([str(w / "tools" / "track.sh"), "build", "x"], env=s.env, capture_output=True, text=True)
         s.assertIn("cached", r.stdout, r.stderr)
         s.assertTrue((m / ".worktrees" / "x").is_dir()); s.assertFalse((w / ".worktrees").exists())

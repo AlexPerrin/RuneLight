@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # tools/track.sh <verb> <slug> [arg]: the client track (docs/ARCHITECTURE.md of osrs-harness). Env from hd: SLUG HEAD T
 # TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. Verbs:
-#   build [TCOMMIT]   host build, ninja and the repack with OPENRUNE=1 LOCAL_AUTH=1 in the build copy; the APK is kept only
-#                     when its repack log passes check-log; cached by T (evidence/<slug>/<T>.apk)
+#   build [TCOMMIT]   the devtools plugin (host/plugins/devtools/build.sh on the copy's own re/devtools, a shared clone of the
+#                     main one, re/devtools-build and re/host/plugins-extra), host build, ninja and the repack with OPENRUNE=1
+#                     LOCAL_AUTH=1 in the build copy; the APK is kept only when its repack log passes check-log; cached by T
+#                     (evidence/<slug>/<T>.apk and <T>.devtools.jar, the jar boot pushes)
 #   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) with no
 #                     hostname resolving (checked on Jagex, RuneScape, RuneLite and Google hosts), installs the APK once no
 #                     install of the app is pending, logs
@@ -55,21 +57,24 @@ tree() {
 }
 build() {
   tree
-  if [ -f "$ev/$T.apk" ]; then echo "cached $ev/$T.apk"; record true build <<< "cached"; return; fi
+  if [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ]; then echo "cached $ev/$T.apk"; record true build <<< "cached"; return; fi
   if [ -d "$copy" ]; then git -C "$copy" reset -q --hard "$tc" && git -C "$copy" clean -fdq; else git -C "$repo" worktree add -q --detach "$copy" "$tc"; fi
   mkdir -p "$copy/re/host"; for f in base.apk split_config.arm64_v8a.apk; do ln -sfn "$repo/$f" "$copy/$f"; done  # the ignored store APKs
-  for e in "$repo"/re/*; do n=$(basename "$e"); case $n in host|build|out) ;; *) ln -sfn "$e" "$copy/re/$n" ;; esac; done
+  for e in "$repo"/re/*; do n=$(basename "$e"); case $n in host|build|out|devtools|devtools-build) ;; *) ln -sfn "$e" "$copy/re/$n" ;; esac; done
+  for n in devtools devtools-build; do [ -L "$copy/re/$n" ] && rm "$copy/re/$n"; done   # a copy made before the change's own devtools linked them
+  [ -d "$copy/re/devtools/.git" ] || git clone -q --shared "$repo/re/devtools" "$copy/re/devtools"   # its own checkout; the objects stay shared
+  mkdir -p "$copy/re/devtools-build"; ln -sfn "$repo/re/devtools-build/lombok-1.18.30.jar" "$copy/re/devtools-build/lombok-1.18.30.jar"
   [ -d "$copy/re/host/plugins-extra" ] || cp -a "$repo/re/host/plugins-extra" "$copy/re/host/"
   [ -f "$copy/re/build/build.ninja" ] || cmake -S "$copy/native" -B "$copy/re/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_TOOLCHAIN_FILE="$ndk/build/cmake/android.toolchain.cmake" -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 >/dev/null
   log=$ev/repack-$T.log
-  (cd "$copy" && host/build.sh && ninja -C re/build && OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh) > "$log" 2>&1 || { record false build < "$log"; echo "build failed: $log"; return 1; }
+  (cd "$copy" && host/plugins/devtools/build.sh && host/build.sh && ninja -C re/build && OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh) > "$log" 2>&1 || { record false build < "$log"; echo "build failed: $log"; return 1; }
   EVIDENCE=$ev check_log >/dev/null || { record false build <<< "repack log fails the privacy check: $log"; rm -f "$copy/re/out/osrs-runelite.apk"; return 1; }
-  cp "$copy/re/out/osrs-runelite.apk" "$ev/$T.apk"; record true build < "$log"; echo "built $ev/$T.apk"
+  cp "$copy/re/host/plugins-extra/devtools.jar" "$ev/$T.devtools.jar"; cp "$copy/re/out/osrs-runelite.apk" "$ev/$T.apk"; record true build < "$log"; echo "built $ev/$T.apk"
 }
 up() {
   T=${T:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["T"])' "$state/build.json")}
-  [ -f "$ev/$T.apk" ] || { echo "no APK for $T: build first"; return 1; }
+  [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ] || { echo "no APK or devtools jar for $T: build first"; return 1; }
   EVIDENCE=$ev check_log >/dev/null
   boot
   ANDROID_SERIAL=$(serial) python3 "$self/mobile_login.py"
@@ -77,7 +82,7 @@ up() {
   echo "LOGGED_IN $(serial) 7780"
 }
 boot() {  # an Agent_Phone emulator on a free even console port, the APK in place of the official app, Chrome granted the
-  # local network, devtools and the three default plugins pushed; the serial goes to state/<slug>/serial as the emulator starts
+  # local network, the change's own devtools jar and the three default plugins pushed; the serial goes to state/<slug>/serial as the emulator starts
   need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32
   exec 9> "$root/state/emulator-port.lock"; flock 9   # one boot at a time picks a port, until adb sees its emulator there
   port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
@@ -100,7 +105,7 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   A shell mkdir -p "$files/plugins" >/dev/null; A shell chmod 777 "$files/plugins" >/dev/null
   for j in $defaults; do A push "$(win "$repo/re/host/plugins/$j")" "$files/plugins/$j" >/dev/null; done
   [ "$(A shell ls -1 "$files/plugins" | LC_ALL=C sort | paste -sd' ')" = "$defaults" ] || { echo "the three default plugins are not in place" >&2; return 1; }
-  A push "$(win "$repo/re/host/plugins-extra/devtools.jar")" "$files/plugins/devtools.jar" >/dev/null
+  A push "$(win "$ev/$T.devtools.jar")" "$files/plugins/devtools.jar" >/dev/null
   A shell setprop debug.osrsrl.devtools 1 >/dev/null
 }
 check_blocked() { s=$(serial) && need "$adb" ANDROID_SDK && blocked; }
