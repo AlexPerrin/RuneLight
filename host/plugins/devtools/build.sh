@@ -12,9 +12,11 @@ ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 REV=${REV:-8304e71}
 SRC=$ROOT/re/devtools
 OUT=$ROOT/re/devtools-build
-[[ -d $SRC/.git ]] || git clone -q https://github.com/OpenRune/OpenRune-Developer-Tools "$SRC"
+[[ -e $SRC/.git ]] || git clone -q https://github.com/OpenRune/OpenRune-Developer-Tools "$SRC"
 git -C "$SRC" cat-file -e "$REV^{commit}" 2>/dev/null || git -C "$SRC" fetch -q --unshallow origin || git -C "$SRC" fetch -q origin
-git -C "$SRC" checkout -q "$REV"
+git -C "$SRC" checkout -q -f "$REV"
+# Local tools on top of REV, carried here and never proposed upstream: login (the client's own login submit).
+git -C "$SRC" apply "$ROOT/host/plugins/devtools/login.patch"
 mkdir -p "$OUT"
 LOMBOK=$OUT/lombok-1.18.30.jar
 [[ -f $LOMBOK ]] || curl -sfL -o "$LOMBOK" https://repo1.maven.org/maven2/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar
