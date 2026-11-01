@@ -4,7 +4,7 @@
 #   build [TCOMMIT]   host build, ninja and the repack with OPENRUNE=1 LOCAL_AUTH=1 in the build copy; the APK is kept only
 #                     when its repack log passes check-log; cached by T (evidence/<slug>/<T>.apk)
 #   up                boots the change's emulator, installs the APK, logs in; prints LOGGED_IN <serial> <devtools port>
-#   down              restores the device state (checked) and stops the emulator
+#   down              removes devtools, clears the debug props, checks the plugins dir is the three defaults; stops the emulator
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   ship TCOMMIT      pushes the merge commit of base and head to origin main
@@ -64,7 +64,7 @@ up() {
   echo "LOGGED_IN $(serial) 7780"
 }
 boot() {  # an Agent_Phone emulator on a free even console port, the APK in place of the official app, Chrome granted the
-  # local network, the device state backed up, devtools and the three default plugins pushed; prints the serial
+  # local network, devtools and the three default plugins pushed; prints the serial
   need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/cmd.exe" WINDOWS_SYSTEM32
   port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
   (cd /mnt/c && setsid "$sys32/cmd.exe" /c start "" /min "$(win "$sdk/emulator/emulator.exe")" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" < /dev/null > /dev/null 2>&1 &)   # the interop pipe stays open while the emulator lives
@@ -80,13 +80,12 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   A shell mkdir -p "$files/plugins" >/dev/null; A shell chmod 777 "$files/plugins" >/dev/null
   for j in $defaults; do A push "$(win "$repo/re/host/plugins/$j")" "$files/plugins/$j" >/dev/null; done
   [ "$(A shell ls -1 "$files/plugins" | LC_ALL=C sort | paste -sd' ')" = "$defaults" ] || { echo "the three default plugins are not in place" >&2; return 1; }
-  A exec-out cat "$files/settings.properties" > "$state/settings.before"
-  A shell find "$files" -type f | LC_ALL=C sort > "$state/files.before"
   A push "$(win "$repo/re/host/plugins-extra/devtools.jar")" "$files/plugins/devtools.jar" >/dev/null
   A shell setprop debug.osrsrl.devtools 1 >/dev/null
   echo "$s"
 }
-down() {
+down() {  # judges what the harness put on the device (the default plugins, the debug props) against its baseline; the
+  # app's own writes (settings.properties, cache) are not checked: they differ after any login and the read-only AVD drops them
   s=$(serial) || return 0; need "$adb" ANDROID_SDK
   bad=()
   A shell rm -f "$files/plugins/devtools.jar" >/dev/null
@@ -95,9 +94,6 @@ down() {
   for p in netallow probe set where say wdump keylog projlog camlog selflog tmodelog netlog netwrite agent devtools soundlog; do
     v=$(A shell getprop "debug.osrsrl.$p" | tr -d '[:space:]'); [ -z "$v" ] || [ "$v" = 0 ] || bad+=("prop debug.osrsrl.$p = $v")
   done
-  A exec-out cat "$files/settings.properties" > "$state/settings.after"
-  cmp -s "$state/settings.after" "$state/settings.before" || bad+=("settings.properties changed")
-  [ "$(A shell find "$files" -type f | LC_ALL=C sort)" = "$(cat "$state/files.before")" ] || bad+=("files/ tree changed")
   A emu kill >/dev/null; rm -f "$state/serial"
   [ ${#bad[@]} = 0 ] || { (IFS=';'; echo "RESTORE FAILED: ${bad[*]}"); return 1; }; echo restored
 }

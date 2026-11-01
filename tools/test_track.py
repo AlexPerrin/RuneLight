@@ -37,18 +37,17 @@ class Rows(unittest.TestCase):
         (s.ev / "api-probe.tsv").write_text("# result: pass 1 / 2 = 50.0%\n")
         rc, out = s.row("check-probe"); s.assertEqual((rc, "no '# build:' line" in out), (1, True))
 
-    def test_down_checks_the_restore(s):  # down judges the device against the backup up took, then stops the emulator
+    def test_down_checks_the_restore(s):  # down judges the harness's baseline, not the app's writes after a first login
         st = Path(s.env["HD_ROOT"]) / "state/x"; st.mkdir(parents=True)
-        (st / "serial").write_text("emulator-5560\n"); (st / "settings.before").write_text("a=1\n"); (st / "files.before").write_text("f/a\nf/b")
+        (st / "serial").write_text("emulator-5560\n")
         adb = s.ev / "adb.exe"; log = s.ev / "adb.log"
         adb.write_text(f"""#!/bin/sh
 echo "$*" >> {log}
-case "$*" in *"ls -1"*) printf 'quest-helper.jar\\r\\ngrounditems.jar\\r\\nopponentinfo.jar\\r\\n'; printf "${{EXTRA:-}}" ;; *"cat "*settings*) printf 'a=1\\n' ;;
-  *"find "*) printf 'f/b\\nf/a\\n' ;; *"emu kill"*) exit 1 ;; esac
+case "$*" in *"ls -1"*) printf 'quest-helper.jar\\r\\ngrounditems.jar\\r\\nopponentinfo.jar\\r\\n'; printf "${{EXTRA:-}}" ;; *"emu kill"*) exit 1 ;; esac
 """)
         adb.chmod(0o755); s.env["ADB"] = str(adb)
         rc, out = s.row("down"); s.assertEqual((rc, out.strip()), (0, "restored"))
-        s.assertIn("emu kill", log.read_text()); s.assertFalse((st / "serial").exists())
+        s.assertIn("emu kill", log.read_text()); s.assertNotIn("settings.properties", log.read_text()); s.assertFalse((st / "serial").exists())
         (st / "serial").write_text("emulator-5560\n"); s.env["EXTRA"] = "probe.jar\\n"
         rc, out = s.row("down"); s.assertEqual(rc, 1); s.assertIn("RESTORE FAILED: plugins dir is not the three defaults", out)
 
