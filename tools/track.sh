@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # tools/track.sh <verb> <slug> [arg]: the client track (docs/ARCHITECTURE.md of osrs-harness). Env from hd: SLUG HEAD T
-# TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. build, gate,
-# the check-* rows but check-blocked, and tree are tools/gate/gate.sh's (the code a build or gate runs, its own files). Verbs:
+# TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. build,
+# check-log and tree are tools/build/build.sh's (the code a build runs, keyed alone); gate and the other check-* rows but
+# check-blocked tools/gate/gate.sh's (the code a gate runs). Verbs:
 #   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
 #                     allowlist (answering DNS on the Windows loopback first, check-blocked after), installs the APK once no install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
@@ -33,7 +34,7 @@ case $self in "$root"/state/tools/*) ;; *)
   [ -d "$c" ] || { d=$root/state/tools/.$k.$$; rm -rf "$d"; mkdir -p "$d/tools"; cp -a "$self/." "$d/tools/"; mv -T "$d" "$c" 2>/dev/null || rm -rf "$d"; }
   TOOLS_SRC=$self TOOLS_ROOT=$c exec bash "$c/tools/track.sh" "$@" ;;
 esac
-case ${1:-} in build|gate|check-log|check-evidence|check-probe|check-netqa|check-state-doc|tree) exec "$self/gate/gate.sh" "$@" ;; esac
+case ${1:-} in build|check-log|tree) exec "$self/build/build.sh" "$@" ;; gate|check-evidence|check-probe|check-netqa|check-state-doc) exec "$self/gate/gate.sh" "$@" ;; esac
 state=$root/state/$slug; mkdir -p "$state"
 ev=${EVIDENCE:-$root/evidence/$slug}; mkdir -p "$ev"
 copy=$repo/.worktrees/$slug-build   # measure probes in it
@@ -60,7 +61,7 @@ listening() { "$sys32/netstat.exe" -anp TCP | tr -d '\r' | awk '$4=="LISTENING"{
 up() {
   T=${T:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["T"])' "$state/build.json")}
   [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ] || { echo "no APK or devtools jar for $T: build first"; return 1; }
-  EVIDENCE=$ev "$self/gate/gate.sh" check-log "$slug" >/dev/null
+  EVIDENCE=$ev "$self/build/build.sh" check-log "$slug" >/dev/null
   boot
   ANDROID_SERIAL=$(serial) python3 "$self/mobile_login.py" & echo $! > "$state/login.pid"; wait $!   # down stops it when up's caller died
   rm -f "$state/login.pid"
@@ -151,7 +152,7 @@ down() {  # judges what the harness put on the mobile (the default plugins, the 
 }
 ship() { git -C "$repo" push -q origin "$arg:refs/heads/main" && echo "main at ${arg:0:9}"; rm -f "$state"/gate-*.json; }   # the kept gates were of trees on the old main
 measure() {
-  tc=$(git -C "$repo" rev-parse "${arg:-origin/HEAD}^{commit}"); arg=$tc; T=$(git -C "$repo" rev-parse "$tc^{tree}"); T=$T "$self/gate/gate.sh" build "$slug" "$tc"; up
+  tc=$(git -C "$repo" rev-parse "${arg:-origin/HEAD}^{commit}"); arg=$tc; T=$(git -C "$repo" rev-parse "$tc^{tree}"); T=$T "$self/build/build.sh" build "$slug" "$tc"; up
   (cd "$copy" && ANDROID_SERIAL=$(serial) tools/api-probe.sh "$ev")
   v=$(grep -oE '^# result: pass [0-9]+ / [0-9]+ = [0-9.]+%' "$ev/api-probe.tsv" | grep -oE '[0-9.]+%$' | tr -d %)
   python3 -c 'import json,sys;print(json.dumps({"tree":sys.argv[1],"value":float(sys.argv[2]),"report":sys.argv[3]}))' "${TREE:-$T}" "$v" "$ev/api-probe.tsv" | atomic "$state/measure.json"

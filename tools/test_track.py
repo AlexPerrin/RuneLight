@@ -5,8 +5,8 @@ SUITE_TMP = tempfile.TemporaryDirectory(prefix="tools-suite-", ignore_cleanup_er
 tempfile.tempdir = os.environ["TMPDIR"] = SUITE_TMP.name                          # start (mktemp) is under it, removed at the end, a failed test's too
 
 TRACK = Path(__file__).resolve().parent / "track.sh"
-GATE = TRACK.parent / "gate/gate.sh"   # the code a build or gate runs
-place = lambda tools: (shutil.copy(TRACK, tools / "track.sh"), shutil.copytree(GATE.parent, tools / "gate"))   # the track script with its gate dir
+GATE, BUILD = TRACK.parent / "gate/gate.sh", TRACK.parent / "build/build.sh"   # the code a gate runs, the code a build runs
+place = lambda tools: (shutil.copy(TRACK, tools / "track.sh"), shutil.copytree(GATE.parent, tools / "gate"), shutil.copytree(BUILD.parent, tools / "build"))   # the track script with its gate and build dirs
 GOOD = "".join(f"telemetry: line {i}\n" for i in range(7)) + "patched RSA modulus at file offset 0x1\npatched /jav_config.ws at file offset 0x2\npatched smali/net/openid/appauth/X.smali\n"
 
 
@@ -132,7 +132,7 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         shutil.rmtree(m, ignore_errors=True)
 
     def test_build_keeps_the_desktop_devtools_jar(s):  # the classes jar before dexing: the server track's desktops load it
-        b = GATE.read_text().split("\nbuild() {")[1].split("\n}")[0]
+        b = BUILD.read_text().split("\nbuild() {")[1].split("\n}")[0]
         s.assertIn('[ -f "$ev/$T.devtools-desktop.jar" ]', b)
         s.assertIn('cp "$copy/re/devtools-build/devtools.jar" "$ev/$T.devtools-desktop.jar"', b)
 
