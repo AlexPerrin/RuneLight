@@ -4,10 +4,12 @@
 #   build [TCOMMIT]   host build, ninja and the repack with OPENRUNE=1 LOCAL_AUTH=1 in the build copy; the APK is kept only
 #                     when its repack log passes check-log; cached by T (evidence/<slug>/<T>.apk)
 #   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) with no
-#                     hostname resolving (checked on Jagex, RuneScape, RuneLite and Google hosts), installs the APK, logs
+#                     hostname resolving (checked on Jagex, RuneScape, RuneLite and Google hosts), installs the APK once no
+#                     install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
-#   down              removes devtools, clears the debug props, checks the plugins dir is the three defaults; stops the emulator
+#   down              removes devtools, clears the debug props, checks the plugins dir (when up made one) is the three defaults;
+#                     stops the emulator
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
 #   check-blocked     the running mobile resolves none of the Jagex, RuneScape, RuneLite and Google hosts and connects to no
 #                     public address (the Windows Firewall group osrs-harness); up runs it
@@ -38,6 +40,10 @@ record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sy
 serial() { cat "$state/serial" 2>/dev/null || { echo "no mobile for $slug: run up"; return 1; }; }
 win() { wslpath -w "$1"; }
 A() { { "$adb" -s "$s" "$@" 2>&1 || true; } | tr -d '\r'; }   # adb on the run's mobile ($s); callers judge its output
+pm_idle() {  # the package manager is up (its dump lists the install sessions) and no active or legacy session installs $pkg
+  local d; d=$(A shell "dumpsys package | sed -n '/^Active install sessions:/,/^Finalized install sessions:/p;/^Legacy install sessions:/,+1p'" | tr -d ' \n')
+  [[ $d == "Activeinstallsessions:"* && $d != *"$pkg"* ]]   # the dump wraps long lines: joined, the package name is whole
+}
 listening() { "$sys32/netstat.exe" -anp TCP | tr -d '\r' | awk '$4=="LISTENING"{n=split($2,a,":");print a[n]}'; }   # the Windows listening ports
 
 tree() {
@@ -80,6 +86,7 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   "$adb" -s "$s" wait-for-device; exec 9>&-
   until [ "$(A shell getprop sys.boot_completed)" = 1 ]; do sleep 2; done
   A uninstall "$pkg" >/dev/null
+  until pm_idle; do sleep 1; done   # an install while one of $pkg is pending fails INSTALL_FAILED_DUPLICATE_PACKAGE
   r=$(A install -r "$(win "$ev/$T.apk")"); case $r in *Success*) ;; *) echo "install failed: $r" >&2; return 1 ;; esac
   path=$(A shell pm path "$pkg"); path=${path#package:}
   [ "$(A shell "unzip -l $path | grep -c libosrsrl")" = 1 ] || { echo "the APK carries no libosrsrl" >&2; return 1; }
@@ -110,7 +117,8 @@ down() {  # judges what the harness put on the mobile (the default plugins, the 
   bad=()
   A shell rm -f "$files/plugins/devtools.jar" >/dev/null
   for p in devtools probe set; do A shell setprop "debug.osrsrl.$p" '""' >/dev/null; done
-  [ "$(A shell ls -1 "$files/plugins" | LC_ALL=C sort | paste -sd' ')" = "$defaults" ] || bad+=("plugins dir is not the three defaults")
+  [ "$(A shell "[ -d $files/plugins ] && echo y")" != y ] \
+    || [ "$(A shell ls -1 "$files/plugins" | LC_ALL=C sort | paste -sd' ')" = "$defaults" ] || bad+=("plugins dir is not the three defaults")   # no dir: up never got the app to its plugins
   for p in netallow probe set where say wdump keylog projlog camlog selflog tmodelog netlog netwrite agent devtools soundlog; do
     v=$(A shell getprop "debug.osrsrl.$p" | tr -d '[:space:]'); [ -z "$v" ] || [ "$v" = 0 ] || bad+=("prop debug.osrsrl.$p = $v")
   done

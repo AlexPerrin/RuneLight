@@ -43,19 +43,24 @@ class Rows(unittest.TestCase):
         adb = s.ev / "adb.exe"; log = s.ev / "adb.log"
         adb.write_text(f"""#!/bin/sh
 echo "$*" >> {log}
-case "$*" in *"ls -1"*) printf 'quest-helper.jar\\r\\ngrounditems.jar\\r\\nopponentinfo.jar\\r\\n'; printf "${{EXTRA:-}}" ;; *"emu kill"*) exit 1 ;; esac
+case "$*" in *"echo y"*) [ -n "$NOAPP" ] || echo y ;; *"ls -1"*) printf 'quest-helper.jar\\r\\ngrounditems.jar\\r\\nopponentinfo.jar\\r\\n'; printf "${{EXTRA:-}}" ;; *"emu kill"*) exit 1 ;; esac
 """)
         adb.chmod(0o755); s.env["ADB"] = str(adb)
         rc, out = s.row("down"); s.assertEqual((rc, out.strip()), (0, "restored"))
         s.assertIn("emu kill", log.read_text()); s.assertNotIn("settings.properties", log.read_text()); s.assertFalse((st / "serial").exists())
         (st / "serial").write_text("emulator-5560\n"); s.env["EXTRA"] = "probe.jar\\n"
         rc, out = s.row("down"); s.assertEqual(rc, 1); s.assertIn("RESTORE FAILED: plugins dir is not the three defaults", out)
+        (st / "serial").write_text("emulator-5560\n"); s.env["NOAPP"] = "1"   # an install that failed made no plugins dir: nothing to restore
+        rc, out = s.row("down"); s.assertEqual((rc, out.strip()), (0, "restored"))
 
     def fake_windows(s):  # adb, the emulator and netstat as scripts; a started emulator's port lists as LISTENING
         sdk = s.ev / "sdk"; sys32 = s.ev / "sys32"; log = s.ev / "win.log"
         for d in (sdk / "platform-tools", sdk / "emulator", sys32): d.mkdir(parents=True)
         progs = {sdk / "platform-tools/adb.exe": f"""echo "adb $*" >> {log}
-case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" install "*) echo "${{INSTALL:-Failure [INSTALL_FAILED_DUPLICATE_PACKAGE]}}" ;; *libosrsrl*) echo 1 ;;
+case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
+  *"dumpsys package"*) n=$(cat "$PENDING" 2>/dev/null || echo 0); [ "$n" = 0 ] || {{ echo $((n - 1)) > "$PENDING"; [ "$n" -gt 2 ] && exit 0; }}
+    printf 'Active install sessions:\\n'; [ "$n" = 0 ] || printf '  Session 1:\\n    mAppPackageName=com.jagex.oldscape.andro\\n    id\\n'; printf 'Finalized install sessions:\\n' ;;
+  *" install "*) echo "${{INSTALL:-Failure [INSTALL_FAILED_DUPLICATE_PACKAGE]}}" ;; *libosrsrl*) echo 1 ;;
   *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;; esac""",
                  sdk / "emulator/emulator.exe": f'echo "emulator $*" >> {log}; echo "emulator: booting on $PWD"',
                  sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}"}
@@ -69,6 +74,13 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" inst
         rc, out = s.row("up"); s.assertNotEqual(rc, 0); s.assertIn("install failed", out)
         s.assertIn("adb -s emulator-5560 emu kill", log.read_text())
         s.assertFalse((Path(s.env["HD_ROOT"]) / "state/x/serial").exists())
+
+    def test_install_waits_for_a_pending_install(s):  # INSTALL_FAILED_DUPLICATE_PACKAGE: install once the dump shows no session of the app
+        log = s.fake_windows(); s.env["INSTALL"] = "Success"
+        pending = s.ev / "pending"; pending.write_text("4"); s.env["PENDING"] = str(pending)   # 2 dumps before the manager is up, 2 with a session
+        s.row("up")
+        calls = log.read_text().splitlines(); i = next(n for n, c in enumerate(calls) if c.startswith("adb -s emulator-5560 install "))
+        s.assertEqual(sum("dumpsys package" in c for c in calls[:i]), 5)
 
     def test_emulator_has_no_console_window(s):  # started directly, not through cmd's start; its output is the run's log
         log = s.fake_windows(); s.row("up")
