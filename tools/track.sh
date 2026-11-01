@@ -3,7 +3,8 @@
 # TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. Verbs:
 #   build [TCOMMIT]   host build, ninja and the repack with OPENRUNE=1 LOCAL_AUTH=1 in the build copy; the APK is kept only
 #                     when its repack log passes check-log; cached by T (evidence/<slug>/<T>.apk)
-#   up                boots the change's emulator, installs the APK, logs in; prints LOGGED_IN <serial> <devtools port>
+#   up                boots the change's emulator, installs the APK, logs in; prints LOGGED_IN <serial> <devtools port>;
+#                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              removes devtools, clears the debug props, checks the plugins dir is the three defaults; stops the emulator
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
@@ -58,17 +59,19 @@ up() {
   T=${T:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["T"])' "$state/build.json")}
   [ -f "$ev/$T.apk" ] || { echo "no APK for $T: build first"; return 1; }
   EVIDENCE=$ev check_log >/dev/null
-  boot > "$state/serial"
+  boot
   ANDROID_SERIAL=$(serial) python3 "$self/device_login.py"
   date -u +%FT%T.000 > "$state/log-mark"
   echo "LOGGED_IN $(serial) 7780"
 }
 boot() {  # an Agent_Phone emulator on a free even console port, the APK in place of the official app, Chrome granted the
-  # local network, devtools and the three default plugins pushed; prints the serial
+  # local network, devtools and the three default plugins pushed; the serial goes to state/<slug>/serial as the emulator starts
   need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/cmd.exe" WINDOWS_SYSTEM32
+  exec 9> "$root/state/emulator-port.lock"; flock 9   # one boot at a time picks a port, until adb sees its emulator there
   port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
-  (cd /mnt/c && setsid "$sys32/cmd.exe" /c start "" /min "$(win "$sdk/emulator/emulator.exe")" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" < /dev/null > /dev/null 2>&1 &)   # the interop pipe stays open while the emulator lives
-  "$adb" -s "$s" wait-for-device
+  (cd /mnt/c && setsid "$sys32/cmd.exe" /c start "" /min "$(win "$sdk/emulator/emulator.exe")" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" < /dev/null > /dev/null 2>&1 9>&- &)   # the interop pipe stays open while the emulator lives
+  echo "$s" > "$state/serial"
+  "$adb" -s "$s" wait-for-device; exec 9>&-
   until [ "$(A shell getprop sys.boot_completed)" = 1 ]; do sleep 2; done
   A uninstall "$pkg" >/dev/null
   r=$(A install -r "$(win "$ev/$T.apk")"); case $r in *Success*) ;; *) echo "install failed: $r" >&2; return 1 ;; esac
@@ -82,7 +85,6 @@ boot() {  # an Agent_Phone emulator on a free even console port, the APK in plac
   [ "$(A shell ls -1 "$files/plugins" | LC_ALL=C sort | paste -sd' ')" = "$defaults" ] || { echo "the three default plugins are not in place" >&2; return 1; }
   A push "$(win "$repo/re/host/plugins-extra/devtools.jar")" "$files/plugins/devtools.jar" >/dev/null
   A shell setprop debug.osrsrl.devtools 1 >/dev/null
-  echo "$s"
 }
 down() {  # judges what the harness put on the device (the default plugins, the debug props) against its baseline; the
   # app's own writes (settings.properties, cache) are not checked: they differ after any login and the read-only AVD drops them
@@ -140,5 +142,6 @@ print("\n".join(sorted(seen)))'
   fi
 }
 
+case $verb in up|measure) trap '[ $? = 0 ] || down >&2 || true' EXIT ;; esac   # a failed boot leaves no emulator behind
 case $verb in build|up|down|gate|check-log|check-evidence|check-probe|check-netqa|check-state-doc|ship|measure|log|netqa) "${verb//-/_}" ;;
   *) echo "verbs: build up down gate check-log check-evidence check-probe check-netqa check-state-doc ship measure log netqa" >&2; exit 2 ;; esac

@@ -51,6 +51,31 @@ case "$*" in *"ls -1"*) printf 'quest-helper.jar\\r\\ngrounditems.jar\\r\\noppon
         (st / "serial").write_text("emulator-5560\n"); s.env["EXTRA"] = "probe.jar\\n"
         rc, out = s.row("down"); s.assertEqual(rc, 1); s.assertIn("RESTORE FAILED: plugins dir is not the three defaults", out)
 
+    def fake_windows(s):  # adb, the emulator, netstat and cmd as scripts; a started emulator's port lists as LISTENING
+        sdk = s.ev / "sdk"; sys32 = s.ev / "sys32"; log = s.ev / "win.log"
+        for d in (sdk / "platform-tools", sdk / "emulator", sys32): d.mkdir(parents=True)
+        progs = {sdk / "platform-tools/adb.exe": f"""echo "adb $*" >> {log}
+case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" install "*) echo "Failure [INSTALL_FAILED_DUPLICATE_PACKAGE]" ;; esac""",
+                 sdk / "emulator/emulator.exe": "", sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}",
+                 sys32 / "cmd.exe": f'echo "cmd $*" >> {log}'}
+        for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
+        (s.ev / "t.apk").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
+        s.env.update(ANDROID_SDK=str(sdk), WINDOWS_SYSTEM32=str(sys32)); s.env.pop("ADB", None)
+        return log
+
+    def test_a_failed_up_stops_its_emulator(s):  # the serial is known from the start, and down runs on the failure
+        log = s.fake_windows()
+        rc, out = s.row("up"); s.assertNotEqual(rc, 0); s.assertIn("install failed", out)
+        s.assertIn("adb -s emulator-5560 emu kill", log.read_text())
+        s.assertFalse((Path(s.env["HD_ROOT"]) / "state/x/serial").exists())
+
+    def test_concurrent_boots_take_distinct_ports(s):
+        log = s.fake_windows(); (Path(s.env["HD_ROOT"]) / "harness/changes/y.md").write_text("")
+        ps = [subprocess.Popen([str(TRACK), "up", g], env=s.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for g in ("x", "y")]
+        for p in ps: p.wait()
+        s.assertEqual(sorted(re.findall(r"-port (\d+)", log.read_text())), ["5560", "5562"])
+        s.assertEqual(log.read_text().count("emu kill"), 2)
+
     def test_windows_programs_by_absolute_path(s):  # no .ps1 (Windows refuses it from the UNC path); no bare .exe (a lost PATH)
         s.assertEqual(list(TRACK.parent.glob("*.ps1")), [])
         src = "\n".join(l for l in TRACK.read_text().splitlines() if not l.lstrip().startswith("#"))
