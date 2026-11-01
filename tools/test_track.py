@@ -51,13 +51,13 @@ case "$*" in *"ls -1"*) printf 'quest-helper.jar\\r\\ngrounditems.jar\\r\\noppon
         (st / "serial").write_text("emulator-5560\n"); s.env["EXTRA"] = "probe.jar\\n"
         rc, out = s.row("down"); s.assertEqual(rc, 1); s.assertIn("RESTORE FAILED: plugins dir is not the three defaults", out)
 
-    def fake_windows(s):  # adb, the emulator, netstat and cmd as scripts; a started emulator's port lists as LISTENING
+    def fake_windows(s):  # adb, the emulator and netstat as scripts; a started emulator's port lists as LISTENING
         sdk = s.ev / "sdk"; sys32 = s.ev / "sys32"; log = s.ev / "win.log"
         for d in (sdk / "platform-tools", sdk / "emulator", sys32): d.mkdir(parents=True)
         progs = {sdk / "platform-tools/adb.exe": f"""echo "adb $*" >> {log}
 case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" install "*) echo "Failure [INSTALL_FAILED_DUPLICATE_PACKAGE]" ;; esac""",
-                 sdk / "emulator/emulator.exe": "", sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}",
-                 sys32 / "cmd.exe": f'echo "cmd $*" >> {log}'}
+                 sdk / "emulator/emulator.exe": f'echo "emulator $*" >> {log}; echo "emulator: booting on $PWD"',
+                 sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING/p' {log}"}
         for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
         (s.ev / "t.apk").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
         s.env.update(ANDROID_SDK=str(sdk), WINDOWS_SYSTEM32=str(sys32)); s.env.pop("ADB", None)
@@ -68,6 +68,12 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;; *" inst
         rc, out = s.row("up"); s.assertNotEqual(rc, 0); s.assertIn("install failed", out)
         s.assertIn("adb -s emulator-5560 emu kill", log.read_text())
         s.assertFalse((Path(s.env["HD_ROOT"]) / "state/x/serial").exists())
+
+    def test_emulator_has_no_console_window(s):  # started directly, not through cmd's start; its output is the run's log
+        log = s.fake_windows(); s.row("up")
+        s.assertNotIn("cmd.exe", TRACK.read_text())
+        s.assertIn("emulator -avd Agent_Phone", log.read_text())
+        s.assertIn("emulator: booting", (Path(s.env["HD_ROOT"]) / "state/x/emulator.log").read_text())
 
     def test_concurrent_boots_take_distinct_ports(s):
         log = s.fake_windows(); (Path(s.env["HD_ROOT"]) / "harness/changes/y.md").write_text("")

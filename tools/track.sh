@@ -3,7 +3,8 @@
 # TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. Verbs:
 #   build [TCOMMIT]   host build, ninja and the repack with OPENRUNE=1 LOCAL_AUTH=1 in the build copy; the APK is kept only
 #                     when its repack log passes check-log; cached by T (evidence/<slug>/<T>.apk)
-#   up                boots the change's emulator, installs the APK, logs in; prints LOGGED_IN <serial> <devtools port>;
+#   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log), installs the
+#                     APK, logs in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              removes devtools, clears the debug props, checks the plugins dir is the three defaults; stops the emulator
 #   gate TCOMMIT      every check: and gate: row of the contract from the build copy (`hd rows`)
@@ -14,7 +15,7 @@
 #   netqa start|stop  samples the app's sockets and DNS between the two calls
 # Windows locations, run through WSL interop (override in the environment):
 #   ANDROID_SDK       /mnt/c/Users/Alex/AppData/Local/Android/Sdk   platform-tools/adb.exe (ADB overrides adb alone), emulator/emulator.exe
-#   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe, cmd.exe
+#   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe
 set -euo pipefail
 verb=$1; slug=${2:-}; arg=${3:-}
 self=$(cd "$(dirname "$0")" && pwd)
@@ -66,10 +67,10 @@ up() {
 }
 boot() {  # an Agent_Phone emulator on a free even console port, the APK in place of the official app, Chrome granted the
   # local network, devtools and the three default plugins pushed; the serial goes to state/<slug>/serial as the emulator starts
-  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/cmd.exe" WINDOWS_SYSTEM32
+  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32
   exec 9> "$root/state/emulator-port.lock"; flock 9   # one boot at a time picks a port, until adb sees its emulator there
   port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
-  (cd /mnt/c && setsid "$sys32/cmd.exe" /c start "" /min "$(win "$sdk/emulator/emulator.exe")" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" < /dev/null > /dev/null 2>&1 9>&- &)   # the interop pipe stays open while the emulator lives
+  (cd /mnt/c && setsid "$sdk/emulator/emulator.exe" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" < /dev/null > "$state/emulator.log" 2>&1 9>&- &)   # no console window: its log is a file, down is the only stop
   echo "$s" > "$state/serial"
   "$adb" -s "$s" wait-for-device; exec 9>&-
   until [ "$(A shell getprop sys.boot_completed)" = 1 ]; do sleep 2; done

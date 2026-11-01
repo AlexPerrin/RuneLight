@@ -18,7 +18,8 @@ the repro, as a dep of yours; never work around it. Push `origin/client/<slug>`,
 
 The device side is Windows programs run from bash through WSL interop by absolute path, located by `ANDROID_SDK`
 (default `/mnt/c/Users/Alex/AppData/Local/Android/Sdk`: adb.exe, emulator.exe) and `WINDOWS_SYSTEM32` (default
-`/mnt/c/Windows/System32`: netstat.exe, cmd.exe); a missing program fails naming its variable.
+`/mnt/c/Windows/System32`: netstat.exe); a missing program fails naming its variable. The emulator runs with no
+console window, its log in `state/<slug>/emulator.log`; `down` is the only stop.
 
 ## The reviewer (releases only)
 Full QA on the client's live tip at the exact commit, every finding at once: device regression of core and pinned
