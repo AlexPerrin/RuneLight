@@ -39,10 +39,12 @@ def tap_label():
 def main():
     adb("logcat", "-c")
     adb("shell", "monkey", "-p", PKG, "-c", "android.intent.category.LAUNCHER", "1")
-    seen = set()
+    seen, started = set(), False
     while (st := game_state()) != "LOGGED_IN":
-        if not adb("shell", "pidof", PKG).strip():
+        alive = bool(adb("shell", "pidof", PKG).strip())
+        if started and not alive:
             return "FAILED: the app died"
+        started |= alive   # monkey returns before the process exists
         if st == "LOGIN_SCREEN" or st == "LOGGING_IN":
             label = tap_label()
             if label is None:

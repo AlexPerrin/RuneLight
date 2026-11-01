@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tools/track.sh <verb> <slug> [arg]: the client track (docs/ARCHITECTURE.md of osrs-harness). Env from hd: SLUG HEAD T
-# TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The device side runs on Windows through tools/up.ps1. Verbs:
+# TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. Verbs:
 #   build [TCOMMIT]   host build, ninja and the repack with OPENRUNE=1 LOCAL_AUTH=1 in the build copy; the APK is kept only
 #                     when its repack log passes check-log; cached by T (evidence/<slug>/<T>.apk)
 #   up                boots the change's emulator, installs the APK, logs in; prints LOGGED_IN <serial> <devtools port>
@@ -11,6 +11,9 @@
 #   measure GOAL [TCOMMIT]  build and up at the target (origin/HEAD by default), the API probe; state/<goal>/measure.json
 #   log <slug> PATTERN  logcat since the run's marker, filtered
 #   netqa start|stop  samples the app's sockets and DNS between the two calls
+# Windows locations, run through WSL interop (override in the environment):
+#   ANDROID_SDK       /mnt/c/Users/Alex/AppData/Local/Android/Sdk   platform-tools/adb.exe (ADB overrides adb alone), emulator/emulator.exe
+#   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe, cmd.exe
 set -euo pipefail
 verb=$1; slug=${2:-}; arg=${3:-}
 self=$(cd "$(dirname "$0")" && pwd)
@@ -20,11 +23,15 @@ root=${HD_ROOT:-$HOME/osrs-harness}
 state=$root/state/$slug; mkdir -p "$state"
 ev=${EVIDENCE:-$root/evidence/$slug}; mkdir -p "$ev"
 dev=$repo/.worktrees/$slug; copy=$repo/.worktrees/$slug-build
-adb=${ADB:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platform-tools/adb.exe}
+sdk=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}; sys32=${WINDOWS_SYSTEM32:-/mnt/c/Windows/System32}; adb=${ADB:-$sdk/platform-tools/adb.exe}
+need() { [ -x "$1" ] || { echo "$1 not found: set $2" >&2; exit 2; }; }   # need <program> <the variable that locates it>
+pkg=com.jagex.oldscape.android; files=/sdcard/Android/data/$pkg/files; defaults="grounditems.jar opponentinfo.jar quest-helper.jar"
 ndk=${ANDROID_NDK:-$HOME/Android/Sdk/ndk/android-ndk-r27d}
 record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" > "$state/$2.json"; }
 serial() { cat "$state/serial" 2>/dev/null || { echo "no device for $slug: run up"; return 1; }; }
 win() { wslpath -w "$1"; }
+A() { { "$adb" -s "$s" "$@" 2>&1 || true; } | tr -d '\r'; }   # adb on the run's device ($s); callers judge its output
+listening() { "$sys32/netstat.exe" -anp TCP | tr -d '\r' | awk '$4=="LISTENING"{n=split($2,a,":");print a[n]}'; }   # the Windows listening ports
 
 tree() {
   if [ -n "$arg" ]; then tc=$arg; T=${T:-$(git -C "$repo" rev-parse "$tc^{tree}")}; return; fi
@@ -51,16 +58,48 @@ up() {
   T=${T:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["T"])' "$state/build.json")}
   [ -f "$ev/$T.apk" ] || { echo "no APK for $T: build first"; return 1; }
   EVIDENCE=$ev check_log >/dev/null
-  out=$(powershell.exe -NoProfile -File "$(win "$self/up.ps1")" -Slug "$slug" -Apk "$(win "$ev/$T.apk")" -Plugins "$(win "$repo/re/host/plugins-extra")" -Backup "$(win "$state")" | tr -d '\r')
-  echo "$out" | tail -1 | awk '{print $2}' > "$state/serial"
+  boot > "$state/serial"
   ANDROID_SERIAL=$(serial) python3 "$self/device_login.py"
   date -u +%FT%T.000 > "$state/log-mark"
   echo "LOGGED_IN $(serial) 7780"
 }
+boot() {  # an Agent_Phone emulator on a free even console port, the APK in place of the official app, Chrome granted the
+  # local network, the device state backed up, devtools and the three default plugins pushed; prints the serial
+  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/cmd.exe" WINDOWS_SYSTEM32
+  port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
+  (cd /mnt/c && setsid "$sys32/cmd.exe" /c start "" /min "$(win "$sdk/emulator/emulator.exe")" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" < /dev/null > /dev/null 2>&1 &)   # the interop pipe stays open while the emulator lives
+  "$adb" -s "$s" wait-for-device
+  until [ "$(A shell getprop sys.boot_completed)" = 1 ]; do sleep 2; done
+  A uninstall "$pkg" >/dev/null
+  r=$(A install -r "$(win "$ev/$T.apk")"); case $r in *Success*) ;; *) echo "install failed: $r" >&2; return 1 ;; esac
+  path=$(A shell pm path "$pkg"); path=${path#package:}
+  [ "$(A shell "unzip -l $path | grep -c libosrsrl")" = 1 ] || { echo "the APK carries no libosrsrl" >&2; return 1; }
+  A shell pm grant com.android.chrome android.permission.ACCESS_LOCAL_NETWORK >/dev/null
+  A shell monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null   # a first start creates files/
+  until [ "$(A shell "[ -d $files ] && echo y")" = y ]; do sleep 1; done; A shell am force-stop "$pkg" >/dev/null
+  A shell mkdir -p "$files/plugins" >/dev/null; A shell chmod 777 "$files/plugins" >/dev/null
+  for j in $defaults; do A push "$(win "$repo/re/host/plugins/$j")" "$files/plugins/$j" >/dev/null; done
+  [ "$(A shell ls -1 "$files/plugins" | LC_ALL=C sort | paste -sd' ')" = "$defaults" ] || { echo "the three default plugins are not in place" >&2; return 1; }
+  A exec-out cat "$files/settings.properties" > "$state/settings.before"
+  A shell find "$files" -type f | LC_ALL=C sort > "$state/files.before"
+  A push "$(win "$repo/re/host/plugins-extra/devtools.jar")" "$files/plugins/devtools.jar" >/dev/null
+  A shell setprop debug.osrsrl.devtools 1 >/dev/null
+  echo "$s"
+}
 down() {
-  s=$(serial) || return 0
-  powershell.exe -NoProfile -File "$(win "$self/up.ps1")" -Slug "$slug" -Serial "$s" -Backup "$(win "$state")" -Down | tr -d '\r'
-  rm -f "$state/serial"
+  s=$(serial) || return 0; need "$adb" ANDROID_SDK
+  bad=()
+  A shell rm -f "$files/plugins/devtools.jar" >/dev/null
+  for p in devtools probe set; do A shell setprop "debug.osrsrl.$p" '""' >/dev/null; done
+  [ "$(A shell ls -1 "$files/plugins" | LC_ALL=C sort | paste -sd' ')" = "$defaults" ] || bad+=("plugins dir is not the three defaults")
+  for p in netallow probe set where say wdump keylog projlog camlog selflog tmodelog netlog netwrite agent devtools soundlog; do
+    v=$(A shell getprop "debug.osrsrl.$p" | tr -d '[:space:]'); [ -z "$v" ] || [ "$v" = 0 ] || bad+=("prop debug.osrsrl.$p = $v")
+  done
+  A exec-out cat "$files/settings.properties" > "$state/settings.after"
+  cmp -s "$state/settings.after" "$state/settings.before" || bad+=("settings.properties changed")
+  [ "$(A shell find "$files" -type f | LC_ALL=C sort)" = "$(cat "$state/files.before")" ] || bad+=("files/ tree changed")
+  A emu kill >/dev/null; rm -f "$state/serial"
+  [ ${#bad[@]} = 0 ] || { (IFS=';'; echo "RESTORE FAILED: ${bad[*]}"); return 1; }; echo restored
 }
 gate() { tc=$arg; build; git -C "$copy" reset -q --hard "$tc"
   if out=$(HD_ROOT=$root python3 "$root/hd.py" rows "$slug" "$tc" "$copy" 2>&1); then record true gate <<< "$out"; else record false gate <<< "$out"; fi; }

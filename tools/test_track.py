@@ -1,5 +1,5 @@
 """The client track's check rows against fixture evidence: python3 -m unittest tools/test_track.py"""
-import os, shutil, subprocess, tempfile, unittest
+import re, os, shutil, subprocess, tempfile, unittest
 from pathlib import Path
 
 TRACK = Path(__file__).resolve().parent / "track.sh"
@@ -36,6 +36,31 @@ class Rows(unittest.TestCase):
         rc, out = s.row("check-probe"); s.assertEqual((rc, "probe built at" in out), (0, True))
         (s.ev / "api-probe.tsv").write_text("# result: pass 1 / 2 = 50.0%\n")
         rc, out = s.row("check-probe"); s.assertEqual((rc, "no '# build:' line" in out), (1, True))
+
+    def test_down_checks_the_restore(s):  # down judges the device against the backup up took, then stops the emulator
+        st = Path(s.env["HD_ROOT"]) / "state/x"; st.mkdir(parents=True)
+        (st / "serial").write_text("emulator-5560\n"); (st / "settings.before").write_text("a=1\n"); (st / "files.before").write_text("f/a\nf/b")
+        adb = s.ev / "adb.exe"; log = s.ev / "adb.log"
+        adb.write_text(f"""#!/bin/sh
+echo "$*" >> {log}
+case "$*" in *"ls -1"*) printf 'quest-helper.jar\\r\\ngrounditems.jar\\r\\nopponentinfo.jar\\r\\n'; printf "${{EXTRA:-}}" ;; *"cat "*settings*) printf 'a=1\\n' ;;
+  *"find "*) printf 'f/b\\nf/a\\n' ;; *"emu kill"*) exit 1 ;; esac
+""")
+        adb.chmod(0o755); s.env["ADB"] = str(adb)
+        rc, out = s.row("down"); s.assertEqual((rc, out.strip()), (0, "restored"))
+        s.assertIn("emu kill", log.read_text()); s.assertFalse((st / "serial").exists())
+        (st / "serial").write_text("emulator-5560\n"); s.env["EXTRA"] = "probe.jar\\n"
+        rc, out = s.row("down"); s.assertEqual(rc, 1); s.assertIn("RESTORE FAILED: plugins dir is not the three defaults", out)
+
+    def test_windows_programs_by_absolute_path(s):  # no .ps1 (Windows refuses it from the UNC path); no bare .exe (a lost PATH)
+        s.assertEqual(list(TRACK.parent.glob("*.ps1")), [])
+        src = "\n".join(l for l in TRACK.read_text().splitlines() if not l.lstrip().startswith("#"))
+        s.assertNotIn("powershell", src.lower()); s.assertEqual(re.findall(r'(?:^|[\s(|;&])[\w.-]+\.exe\b', src), [])
+
+    def test_a_missing_windows_program_names_its_variable(s):
+        st = Path(s.env["HD_ROOT"]) / "state/x"; st.mkdir(parents=True); (st / "serial").write_text("emulator-5560\n")
+        s.env.pop("ADB", None); s.env["ANDROID_SDK"] = "/nonexistent"
+        rc, out = s.row("down"); s.assertEqual(rc, 2); s.assertIn("/nonexistent/platform-tools/adb.exe not found: set ANDROID_SDK", out)
 
     def test_slug_names_a_change(s):  # `log PATTERN` would read the pattern as the slug
         r = subprocess.run([str(TRACK), "log", "Have a nice day"], env=s.env, capture_output=True, text=True)

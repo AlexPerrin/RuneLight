@@ -16,6 +16,10 @@ emulator, installs the APK, logs in and prints the devtools port; `down` restore
 only where the emulator refuses injected events. Blocked by the server: file the blocker as a server change with
 the repro, as a dep of yours; never work around it. Push `origin/client/<slug>`, then `hd handover <slug>`.
 
+The device side is Windows programs run from bash through WSL interop by absolute path, located by `ANDROID_SDK`
+(default `/mnt/c/Users/Alex/AppData/Local/Android/Sdk`: adb.exe, emulator.exe) and `WINDOWS_SYSTEM32` (default
+`/mnt/c/Windows/System32`: netstat.exe, cmd.exe); a missing program fails naming its variable.
+
 ## The reviewer (releases only)
 Full QA on the client's live tip at the exact commit, every finding at once: device regression of core and pinned
 hub plugins, network QA, sign-in, the privacy patches in the repack log, native claims against Ghidra, the release
