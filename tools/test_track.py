@@ -116,6 +116,11 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         s.assertFalse(alive(p)); s.assertFalse(pid.exists())
         shutil.rmtree(m, ignore_errors=True)
 
+    def test_build_keeps_the_desktop_devtools_jar(s):  # the classes jar before dexing: the server track's desktops load it
+        b = TRACK.read_text().split("\nbuild() {")[1].split("\n}")[0]
+        s.assertIn('[ -f "$ev/$T.devtools-desktop.jar" ]', b)
+        s.assertIn('cp "$copy/re/devtools-build/devtools.jar" "$ev/$T.devtools-desktop.jar"', b)
+
     def test_emulator_has_no_console_window(s):  # started directly, not through cmd's start; its output is the run's log
         log = s.fake_windows(); s.row("up")
         s.assertNotIn("cmd.exe", TRACK.read_text())
@@ -225,7 +230,7 @@ case "$*" in *push*) ;;
         g("init", "-q"); g("config", "user.name", "t"); g("config", "user.email", "t@t"); g("commit", "-q", "--allow-empty", "-m", "c")
         g("update-ref", "refs/remotes/origin/HEAD", "HEAD"); g("worktree", "add", "-q", "--detach", str(w))
         (w / "tools").mkdir(); shutil.copy(TRACK, w / "tools" / "track.sh")
-        Path(s.env["HD_ROOT"], "hd.py").write_text("print('HEAD t')\n"); (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text("")
+        Path(s.env["HD_ROOT"], "hd.py").write_text("print('HEAD t')\n"); (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "t.devtools-desktop.jar").write_text("")
         r = subprocess.run([str(w / "tools" / "track.sh"), "build", "x"], env=s.env, capture_output=True, text=True)
         s.assertIn("cached", r.stdout, r.stderr)
         s.assertTrue((m / ".worktrees" / "x").is_dir()); s.assertFalse((w / ".worktrees").exists())

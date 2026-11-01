@@ -4,7 +4,8 @@
 #   build [TCOMMIT]   the devtools plugin (host/plugins/devtools/build.sh on the copy's own re/devtools, a shared clone of the
 #                     main one, re/devtools-build and re/host/plugins-extra), host build, ninja and the repack with OPENRUNE=1
 #                     LOCAL_AUTH=1 in the build copy; the APK is kept only when its repack log passes check-log; cached by T
-#                     (evidence/<slug>/<T>.apk and <T>.devtools.jar, the jar boot pushes)
+#                     (evidence/<slug>/<T>.apk, <T>.devtools.jar, the jar boot pushes, and <T>.devtools-desktop.jar, its
+#                     classes before dexing, the jar the server track's desktops load from the build of slug live)
 #   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
 #                     allowlist (check-blocked), installs the APK once no install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
@@ -60,7 +61,7 @@ tree() {
 }
 build() {
   tree
-  if [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ]; then echo "cached $ev/$T.apk"; record true build <<< "cached"; return; fi
+  if [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ] && [ -f "$ev/$T.devtools-desktop.jar" ]; then echo "cached $ev/$T.apk"; record true build <<< "cached"; return; fi
   if [ -d "$copy" ]; then git -C "$copy" reset -q --hard "$tc" && git -C "$copy" clean -fdq; else git -C "$repo" worktree add -q --detach "$copy" "$tc"; fi
   mkdir -p "$copy/re/host"; for f in base.apk split_config.arm64_v8a.apk; do ln -sfn "$repo/$f" "$copy/$f"; done  # the ignored store APKs
   for e in "$repo"/re/*; do n=$(basename "$e"); case $n in host|build|out|devtools|devtools-build) ;; *) ln -sfn "$e" "$copy/re/$n" ;; esac; done
@@ -73,7 +74,7 @@ build() {
   log=$ev/repack-$T.log
   (cd "$copy" && host/plugins/devtools/build.sh && host/build.sh && ninja -C re/build && OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh) > "$log" 2>&1 || { record false build < "$log"; echo "build failed: $log"; return 1; }
   EVIDENCE=$ev check_log >/dev/null || { record false build <<< "repack log fails the privacy check: $log"; rm -f "$copy/re/out/osrs-runelite.apk"; return 1; }
-  cp "$copy/re/host/plugins-extra/devtools.jar" "$ev/$T.devtools.jar"; cp "$copy/re/out/osrs-runelite.apk" "$ev/$T.apk"; record true build < "$log"; echo "built $ev/$T.apk"
+  cp "$copy/re/host/plugins-extra/devtools.jar" "$ev/$T.devtools.jar"; cp "$copy/re/devtools-build/devtools.jar" "$ev/$T.devtools-desktop.jar"; cp "$copy/re/out/osrs-runelite.apk" "$ev/$T.apk"; record true build < "$log"; echo "built $ev/$T.apk"
 }
 up() {
   T=${T:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["T"])' "$state/build.json")}
