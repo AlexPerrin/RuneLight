@@ -402,6 +402,8 @@ public final class Host {
     /** Cycles a LOGGED_IN after LOADING has waited for the new scene base, or -1. */
     private static int pendingSceneCycles = -1;
     private static GameState lastPostedState;
+    /** The login screen's page last logged ('LoginIndex <n>'), or -1 off the login screen (device_login reads it). */
+    private static int lastLoginIndex = -1;
 
     /**
      * Latched with the posted GameStateChanged: false from a posted non-LOGGED_IN state until
@@ -557,6 +559,8 @@ public final class Host {
                 WidgetListeners.runTargetMode(client);
                 postActorChanges(bus);
                 if (pendingLoggedIn && localPlayer() != null) postLoggedIn(bus);
+                int loginIndex = lastPostedState == GameState.LOGIN_SCREEN ? Native.loginIndex() : -1;
+                if (loginIndex != lastLoginIndex && (lastLoginIndex = loginIndex) >= 0) Log.i(TAG, "LoginIndex " + loginIndex);
                 if (loggedInPosted) pollAmbientSounds(bus);
                 if (loggedInPosted && client instanceof AndroidClient) {
                     ((AndroidClient) client).projectiles.poll(bus, client);

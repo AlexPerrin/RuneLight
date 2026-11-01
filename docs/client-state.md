@@ -2,7 +2,7 @@
 
 Short current-state doc for the client track (docs/workflow.md "State"). Rewrite it; don't append.
 History: docs/client-handoff.md (per-gen log; the last entry holds gens 41-46 and host-menu-entry-removal, moved here
-from this file). Tasks and blockers: `python3 ~/osrs-harness/hd.py status`. Last rewrite: 2026-10-30, client dev
+from this file). Tasks and blockers: `python3 ~/osrs-harness/hd.py status`. Last rewrite: 2026-10-31, client dev (client-login-index-log: the login screen pages); before that 2026-10-30, client dev
 (the change that made the Agent_Phone emulator the only device in docs and scripts; the adb tools require `ANDROID_SERIAL`;
 `tools/plugin-test.sh` signs in through `~/osrs-harness/bench/emulator_login.py`), merged with client-devtools-menu-actions.
 
@@ -16,6 +16,23 @@ from this file). Tasks and blockers: `python3 ~/osrs-harness/hd.py status`. Last
   sidecar `10.0.2.2:8080` serving jav_config, LOCAL_AUTH sign-in, digest and payments param 2).
 - API coverage and each plugin's status: docs/plugin-host.md. Addresses: docs/offsets.md (ELF; Ghidra = ELF + 0x100000).
 - Privacy patches and Network QA: docs/app-telemetry.md (read it before any build that touches networking).
+
+## Login screen pages
+
+The host logs `osrsrl-host: LoginIndex <n>` once on entering LOGIN_SCREEN and on each change of the page while there
+(`Host` CLIENT_TICK, `Native.loginIndex`); device and desktop login tools wait on it. Read on Agent_Phone (2400x1080
+landscape, canvas = screen points) on a fresh install (client-login-index-log, evidence/client-login-index-log):
+
+| n | page | buttons (bounds) |
+|---|------|------------------|
+| 0 | welcome, signed out | Sign in with Google [905,475][1495,558]; Sign in with Email / Username [905,575][1495,658] |
+| 12 | terms dialog (after either sign-in button on a fresh install, not at launch) | Accept [882,603][1184,686]; Decline [1213,603][1515,686]; its text links (terms of use, privacy policy, EULA) are at y 455-525 |
+| 30 | waiting on the browser sign-in (AppAuth opens Chrome at 10.0.2.2:8080; Chrome's first run asks "Use without an account") and briefly after Play Now, before LOGGING_IN | none on the canvas |
+| 10 | welcome, signed in | Play Now [973,475][1422,612]; Sign out [1048,645][1350,727] |
+
+On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
+and World / Tap to switch at [450,925][655,995]: never tap there. The api-probe at this build (no reach set-up, logged
+in idle at spawn) is 91.0% (1140/1253).
 
 ## Releases and tooling
 
