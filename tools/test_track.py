@@ -126,6 +126,12 @@ case "$*" in *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;;
         s.env.pop("OPEN"); s.env["OPEN_ADDR"] = "8.8.8.8"   # a public address connects with no lookup
         rc, out = s.row("check-blocked"); s.assertEqual(rc, 1); s.assertIn("NOT BLOCKED (resolves or connects): 8.8.8.8", out)
 
+    def test_network_qa_allows_three_hosts(s):  # the skill's allowed list: the local server and the two RuneLite hosts, nothing else
+        skill = (TRACK.parent.parent / ".claude/skills/network-qa/SKILL.md").read_text()
+        allowed = skill[skill.index("- Allowed"):skill.index("- Any other host is a FAIL")]
+        s.assertEqual(set(re.findall(r"10\.0\.2\.2|[\w.-]+\.(?:net|com|io)", allowed)), {"10.0.2.2", "api.runelite.net", "static.runelite.net"})
+        for t in ("Braze", "OneTrust", "Google", "singular", "jagex", "runescape"): s.assertNotIn(t, allowed)
+
     def test_windows_programs_by_absolute_path(s):  # no .ps1 (Windows refuses it from the UNC path); no bare .exe (a lost PATH)
         s.assertEqual(list(TRACK.parent.glob("*.ps1")), [])
         src = "\n".join(l for l in TRACK.read_text().splitlines() if not l.lstrip().startswith("#"))
