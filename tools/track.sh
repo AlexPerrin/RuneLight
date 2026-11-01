@@ -9,13 +9,15 @@
 #   check-log | check-evidence | check-probe | check-netqa | check-state-doc   the seed rows
 #   ship TCOMMIT      pushes the merge commit of base and head to origin main
 #   measure GOAL [TCOMMIT]  build and up at the target (origin/HEAD by default), the API probe; state/<goal>/measure.json
-#   log PATTERN       logcat since the run's marker, filtered
+#   log <slug> PATTERN  logcat since the run's marker, filtered
 #   netqa start|stop  samples the app's sockets and DNS between the two calls
 set -euo pipefail
 verb=$1; slug=${2:-}; arg=${3:-}
 self=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$(git -C "$self" rev-parse --path-format=absolute --git-common-dir)")  # the main checkout (re/ lives there), also when run from a worktree
-root=${HD_ROOT:-$HOME/osrs-harness}; state=$root/state/$slug; mkdir -p "$state"
+root=${HD_ROOT:-$HOME/osrs-harness}
+[ -f "$root/harness/changes/$slug.md" ] || [ -f "$root/harness/goals/$slug.md" ] || case $slug in live|integration) ;; *) echo "no change or goal \"$slug\": tools/track.sh <verb> <slug> [arg]" >&2; exit 2 ;; esac
+state=$root/state/$slug; mkdir -p "$state"
 ev=${EVIDENCE:-$root/evidence/$slug}; mkdir -p "$ev"
 dev=$repo/.worktrees/$slug; copy=$repo/.worktrees/$slug-build
 adb=${ADB:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platform-tools/adb.exe}

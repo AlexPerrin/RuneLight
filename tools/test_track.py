@@ -10,6 +10,7 @@ class Rows(unittest.TestCase):
     def setUp(s):
         s.ev = Path(tempfile.mkdtemp())
         s.env = {**os.environ, "HD_ROOT": tempfile.mkdtemp(), "EVIDENCE": str(s.ev), "HEAD": "abcdef1234567890", "T": "t"}
+        (Path(s.env["HD_ROOT"]) / "harness/changes").mkdir(parents=True); (Path(s.env["HD_ROOT"]) / "harness/changes/x.md").write_text("")
 
     def tearDown(s):
         shutil.rmtree(s.ev, ignore_errors=True)
@@ -35,6 +36,11 @@ class Rows(unittest.TestCase):
         rc, out = s.row("check-probe"); s.assertEqual((rc, "probe built at" in out), (0, True))
         (s.ev / "api-probe.tsv").write_text("# result: pass 1 / 2 = 50.0%\n")
         rc, out = s.row("check-probe"); s.assertEqual((rc, "no '# build:' line" in out), (1, True))
+
+    def test_slug_names_a_change(s):  # `log PATTERN` would read the pattern as the slug
+        r = subprocess.run([str(TRACK), "log", "Have a nice day"], env=s.env, capture_output=True, text=True)
+        s.assertEqual(r.returncode, 2); s.assertIn('no change or goal "Have a nice day"', r.stderr)
+        s.assertFalse((Path(s.env["HD_ROOT"]) / "state").exists())
 
     def test_repo_from_worktree(s):  # run from a worktree, the script's repo is the main checkout
         m = Path(tempfile.mkdtemp()); w = m / ".worktrees" / "tools-wt"
