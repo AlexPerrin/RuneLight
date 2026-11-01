@@ -20,7 +20,7 @@
 #   ANDROID_SDK       /mnt/c/Users/Alex/AppData/Local/Android/Sdk   platform-tools/adb.exe (ADB overrides adb alone), emulator/emulator.exe
 #   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe
 set -euo pipefail
-verb=$1; slug=${2:-}; arg=${3:-}
+verb=$1; slug=${2:-${SLUG:-}}; arg=${3:-}   # a contract row passes no slug: hd exports SLUG
 self=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$(git -C "$self" rev-parse --path-format=absolute --git-common-dir)")  # the main checkout (re/ lives there), also when run from a worktree
 root=${HD_ROOT:-$HOME/osrs-harness}

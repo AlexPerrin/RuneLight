@@ -124,6 +124,11 @@ case "$*" in *dumpsys*) echo 'PrivateDnsServerName: blocked.invalid' ;;
         s.env.pop("ADB", None); s.env["ANDROID_SDK"] = "/nonexistent"
         rc, out = s.row("down"); s.assertEqual(rc, 2); s.assertIn("/nonexistent/platform-tools/adb.exe not found: set ANDROID_SDK", out)
 
+    def test_slug_from_env(s):  # hd rows runs a contract row with no slug argument, SLUG in the env
+        s.env["SLUG"] = "x"; (s.ev / "login.logcat.txt").write_text("x")
+        r = subprocess.run([str(TRACK), "check-evidence"], env=s.env, capture_output=True, text=True)
+        s.assertEqual(r.returncode, 0, r.stderr)
+
     def test_slug_names_a_change(s):  # `log PATTERN` would read the pattern as the slug
         r = subprocess.run([str(TRACK), "log", "Have a nice day"], env=s.env, capture_output=True, text=True)
         s.assertEqual(r.returncode, 2); s.assertIn('no change or goal "Have a nice day"', r.stderr)
