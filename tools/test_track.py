@@ -248,6 +248,15 @@ case "$*" in *push*) ;;
         s.assertEqual(r.returncode, 2); s.assertIn('no change or goal "Have a nice day"', r.stderr)
         s.assertFalse((Path(s.env["HD_ROOT"]) / "state").exists())
 
+    def test_a_run_reads_its_own_copy_of_the_tools(s):  # a tools ship moves the checkout: a running script keeps the copy it started from
+        t = Path(tempfile.mkdtemp()) / "tools"; t.mkdir(); place(t); copies = Path(s.env["HD_ROOT"]) / "state/tools"
+        run = lambda: subprocess.run(["bash", str(t / "track.sh"), "check-log", "x"], env=s.env, capture_output=True, text=True)
+        run(); run(); s.assertEqual(len(list(copies.iterdir())), 1)                     # one copy per content
+        g = next(copies.iterdir()) / "tools/gate/gate.sh"; before = g.read_text()
+        (t / "gate/gate.sh").write_text(before + "# shipped\n"); run()
+        s.assertEqual((len(list(copies.iterdir())), g.read_text()), (2, before))       # the ship made a new copy, the first unchanged
+        shutil.rmtree(t.parent, ignore_errors=True)
+
     def test_repo_from_worktree(s):  # run from a worktree, the script's repo is the main checkout
         m = Path(tempfile.mkdtemp()); w = m / ".worktrees" / "tools-wt"
         g = lambda *a, c=m: subprocess.run(["git", "-C", str(c), *a], check=True, capture_output=True)
