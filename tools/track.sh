@@ -7,7 +7,7 @@
 #                     allowlist (its own DNS relay on Windows answering first, check-blocked after), installs the APK once no install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
-#   down              stops the login up started (state/<slug>/login.pid), removes devtools, clears the debug props, checks the plugins dir (when up made one) is the three defaults;
+#   down              stops every login the change's ups started (mobile_login.py <slug>), removes devtools, clears the debug props, checks the plugins dir (when up made one) is the three defaults;
 #                     stops the emulator and its DNS relay
 #   check-blocked     the running mobile gets a TLS answer from api.runelite.net and static.runelite.net (resolved to the
 #                     relay of tools/allow.py), resolves none of the Jagex, RuneScape, telemetry and Google hosts and connects
@@ -63,8 +63,7 @@ up() {
   [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ] || { echo "no APK or devtools jar for $T: build first"; return 1; }
   EVIDENCE=$ev "$self/build/build.sh" check-log "$slug" >/dev/null
   boot
-  ANDROID_SERIAL=$(serial) python3 "$self/mobile_login.py" & echo $! > "$state/login.pid"; wait $!   # down stops it when up's caller died
-  rm -f "$state/login.pid"
+  ANDROID_SERIAL=$(serial) python3 "$self/mobile_login.py" "$slug"   # its command line names the change: down stops it when up's caller died
   date -u +%FT%T.000 > "$state/log-mark"
   echo "LOGGED_IN $(serial) 7780"
 }
@@ -148,8 +147,7 @@ except ssl.SSLWantReadError: sys.stdout.buffer.write(o.read())' "$h" > "$state/h
 }
 down() {  # judges what the harness put on the mobile (the default plugins, the debug props) against its baseline; the
   # app's own writes (settings.properties, cache) are not checked: they differ after any login and the read-only AVD drops them
-  p=$(cat "$state/login.pid" 2>/dev/null || true)   # the login up started, with its adb children; a reused pid is left alone
-  if [ -n "$p" ] && grep -qs mobile_login "/proc/$p/cmdline"; then kill $p $(pgrep -P "$p") 2>/dev/null || true; fi; rm -f "$state/login.pid"
+  for p in $(pgrep -f "mobile_login\.py $slug\$" || true); do kill $p $(pgrep -P "$p") 2>/dev/null || true; done   # every login of the change's ups, with its adb children; never another change's
   if w=$(cat "$state/allow-relay.winpid" 2>/dev/null); then   # the mobile's DNS relay, by its pid and image (a reused pid is left alone)
     "$sys32/taskkill.exe" /F /PID "$w" /FI "IMAGENAME eq ${ps##*/}" >/dev/null 2>&1 || true; rm -f "$root"/state/winpids/*/"$w" "$state/allow-relay.winpid"
   fi

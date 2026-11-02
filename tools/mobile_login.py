@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mobile_login.py: launches the app on $ANDROID_SERIAL and signs in through LOCAL_AUTH; prints LOGGED_IN or FAILED: <screen>.
+"""mobile_login.py <slug>: launches the app on $ANDROID_SERIAL and signs in through LOCAL_AUTH; prints LOGGED_IN or FAILED: <screen>.
 Every wait is on a fact read from the mobile (the host's GameStateChanged line, the focused window, the view labels).
 """
 import os, re, subprocess, sys, time
