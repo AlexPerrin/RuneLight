@@ -9,7 +9,9 @@
 gate() { tc=$arg  # hd gates the client's batch as ship-client, NAMES its changes; recorded under the gate key G, kept as gate-<G>
   if ! "$self/build.sh" build "$slug" "$tc"; then ok=false out="build failed at $T: $ev/repack-$T.log"
   else git -C "$copy" reset -q --hard "$tc"
-    if out=$(HD_ROOT=$root python3 "$root/hd.py" rows "${NAMES:-$slug}" "$tc" "$copy" 2>&1); then ok=true; else ok=false; fi
+    out=$(HD_ROOT=$root python3 "$root/hd.py" rows "${NAMES:-$slug}" "$tc" "$copy" 2>&1) && rc=0 || rc=$?
+    [ $rc != 75 ] || { echo "$out"; exit 75; }   # a row held (its source down): no result, hd starts the gate again
+    ok=$([ $rc = 0 ] && echo true || echo false)
   fi; T=${G:-$T}; record "$ok" gate <<< "$out"; cp "$state/gate.json" "$state/.gate.$$.tmp"; mv -f "$state/.gate.$$.tmp" "$state/gate-$T.json"; }
 check_evidence() { for p in "$ev"/*logcat*.txt "$ev"/*.dump.* "$ev"/*devtools*.json; do [ -e "$p" ] && { echo "mobile evidence: $(basename "$p")"; return 0; }; done; echo "no logcat extract, dump or devtools JSON in $ev"; return 1; }
 check_probe() {
