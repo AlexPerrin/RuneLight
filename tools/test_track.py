@@ -59,7 +59,7 @@ case "$*" in *"echo y"*) [ -n "$NOAPP" ] || echo y ;; *"ls -1"*) printf 'quest-h
 
     def fake_windows(s):  # adb, the emulator and netstat as scripts; a started emulator's port lists as LISTENING
         sdk = s.ev / "sdk"; sys32 = s.ev / "sys32"; log = s.ev / "win.log"
-        for d in (sdk / "platform-tools", sdk / "emulator", sys32): d.mkdir(parents=True)
+        for d in (sdk / "platform-tools", sdk / "emulator", sys32 / "WindowsPowerShell/v1.0", s.ev / "relays"): d.mkdir(parents=True)
         HOSTS = re.search(r'^hosts="([^"]+)"', TRACK.read_text(), re.M).group(1)
         progs = {sdk / "platform-tools/adb.exe": f"""printf "%s\\n" "adb $*" >> {log}
 case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
@@ -71,7 +71,9 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
   *"nc -w 15"*) [ -z "$BOOTS" ] || for h in {HOSTS}; do echo "nc: $h:443: No address associated with hostname"; done ;;
   *"echo y"*) [ -z "$BOOTS" ] || echo y ;; *"ls -1"*) printf 'grounditems.jar\\nopponentinfo.jar\\nquest-helper.jar\\n' ;; esac""",
                  sdk / "emulator/emulator.exe": f'echo "emulator $*" >> {log}; echo "emulator: booting on $PWD"',
-                 sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING 7300/p' {log}; echo '  UDP    0.0.0.0:53             *:*                                    3860'",
+                 sys32 / "netstat.exe": f"sed -n 's/.*-port \\([0-9]*\\).*/  TCP 127.0.0.1:\\1 0.0.0.0:0 LISTENING 7300/p' {log}; echo '  UDP    0.0.0.0:53             *:*                                    3860'; [ -z \"$STALE\" ] || echo '  UDP    127.0.0.2:53           *:*                                    3070'; for a in $(ls {s.ev}/relays); do echo \"  UDP    $a:53           *:*                                    42${{a##*.}}\"; done",
+                 sys32 / "WindowsPowerShell/v1.0/powershell.exe": f'echo "powershell $*" >> {log}; echo "relay $ALLOW_DNS" >> {log}; echo "#< CLIXML"; touch {s.ev}/relays/$ALLOW_DNS; echo listening',   # a relay's pid: 42 and its last octet
+                 sys32 / "taskkill.exe": f'echo "taskkill $*" >> {log}; rm -f {s.ev}/relays/127.0.0.${{3#42}}',
                  sys32 / "nslookup.exe": f'echo "nslookup $*" >> {log}; [ -n "$NODNS" ] || printf "Name:    api.runelite.net\\r\\nAddress:  10.0.2.2\\r\\n"',
                  sys32 / "tasklist.exe": 'case "$*" in *"PID eq 3860"*) printf \'"svchost.exe","3860","SharedAccess"\\r\\n\' ;; *"PID eq 7300"*) printf \'"qemu-system-x86_64.exe","7300","Console"\\r\\n\' ;; esac'}
         for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
@@ -155,6 +157,7 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         for p in ps: p.wait()
         s.assertEqual(sorted(re.findall(r"-port (\d+)", log.read_text())), ["5560", "5562"])
         s.assertEqual(log.read_text().count("emu kill"), 2)
+        s.assertEqual(sorted(re.findall(r"-dns-server (\S+)", log.read_text())), ["127.0.0.2", "127.0.0.3"])   # each its own relay
 
     def test_a_running_emulator_holds_no_lock(s):  # the port lock ends when adb sees the emulator, not when it exits
         log = s.fake_windows(); emu = s.ev / "sdk/emulator/emulator.exe"
@@ -189,18 +192,26 @@ case "$*" in *push*) ;;
     def test_up_puts_the_mobile_on_the_allowlist(s):  # the allowlist container, the emulator asking it, the wifi path off
         log = s.fake_windows(); s.env["INSTALL"] = "Success"; s.row("up")
         calls = log.read_text()
-        s.assertIn("docker run -d --rm --name mobile-allow -p 127.0.0.1:53:53/udp -p 127.0.0.1:443:443", calls)
-        s.assertIn("-dns-server 127.0.0.1", calls); s.assertIn("shell svc wifi disable", calls)
+        s.assertIn("docker run -d --rm --name mobile-allow -p 127.0.0.1:8053:53/tcp -p 127.0.0.1:443:443", calls)
+        s.assertIn("-dns-server 127.0.0.2", calls); s.assertIn("shell svc wifi disable", calls)
         s.assertNotIn("private_dns", TRACK.read_text())
 
     def test_up_proves_the_allowlist_answers_on_the_windows_loopback(s):  # the emulator resolves from Windows: no answer there, the container is replaced once, then the port's holder is named
         log = s.fake_windows(); s.env.update(INSTALL="Success", NODNS="1")
         rc, out = s.row("up"); calls = log.read_text()
         s.assertEqual(rc, 1); s.assertIn("Windows udp 53 held by: svchost.exe (pid 3860, SharedAccess)", out)
-        s.assertEqual((calls.count("docker run -d --rm --name mobile-allow"), calls.count("docker rm -f mobile-allow"), calls.count("nslookup api.runelite.net 127.0.0.1")), (2, 1, 2))
+        s.assertEqual((calls.count("docker run -d --rm --name mobile-allow"), calls.count("docker rm -f mobile-allow"), calls.count("nslookup api.runelite.net 127.0.0.2")), (2, 1, 2))
         s.assertNotIn("emulator -avd", calls)
         s.env.pop("NODNS"); log.write_text(""); s.row("up"); calls = log.read_text()
-        s.assertLess(calls.index("nslookup api.runelite.net 127.0.0.1"), calls.index("emulator -avd")); s.assertNotIn("docker rm", calls)
+        s.assertLess(calls.index("nslookup api.runelite.net 127.0.0.2"), calls.index("emulator -avd")); s.assertNotIn("docker rm", calls)
+
+    def test_the_mobiles_dns_is_its_own_relay_at_an_address_no_windows_process_holds(s):  # ICS holds 0.0.0.0:53, a stale relay 127.0.0.2:53
+        log = s.fake_windows(); s.env.update(INSTALL="Success", STALE="1"); st = Path(s.env["HD_ROOT"]) / "state/x"
+        s.row("up"); calls = log.read_text()   # up fails at check-blocked (the fake mobile reaches nothing), and its down runs
+        s.assertIn("relay 127.0.0.3", calls); s.assertLess(calls.index("nslookup api.runelite.net 127.0.0.3"), calls.index("emulator -avd"))
+        s.assertIn("-dns-server 127.0.0.3", calls); s.assertNotIn("127.0.0.1 ", calls.split("emulator -avd")[1].split("\n")[0])
+        s.assertIn("taskkill /F /PID 423 /FI IMAGENAME eq powershell.exe", calls); s.assertFalse((st / "allow-relay.winpid").exists())
+        s.assertNotIn("3070", calls)   # the stale holder is never stopped
 
     def test_allow_answers_only_the_allowed_names(s):  # tools/allow.py: DNS and the TLS relay admit api/static.runelite.net alone
         import ssl, struct, sys; sys.path.insert(0, str(TRACK.parent)); import allow
@@ -228,10 +239,9 @@ case "$*" in *push*) ;;
         s.assertEqual(set(re.findall(r"10\.0\.2\.2|[\w.-]+\.(?:net|com|io)", allowed)), {"10.0.2.2", "api.runelite.net", "static.runelite.net"})
         for t in ("Braze", "OneTrust", "Google", "singular", "jagex", "runescape"): s.assertNotIn(t, allowed)
 
-    def test_windows_programs_by_absolute_path(s):  # no .ps1 (Windows refuses it from the UNC path); no bare .exe (a lost PATH)
-        s.assertEqual(list(TRACK.parent.glob("*.ps1")), [])
+    def test_windows_programs_by_absolute_path(s):  # a .ps1 runs as its text (Windows refuses the file from the UNC path); no bare .exe (a lost PATH)
         src = "\n".join(l for l in TRACK.read_text().splitlines() if not l.lstrip().startswith("#"))
-        s.assertNotIn("powershell", src.lower()); s.assertEqual(re.findall(r'(?:^|[\s(|;&])[\w.-]+\.exe\b', src), [])
+        s.assertEqual(re.findall(r'"\$ps"[^\n]*?-(\w*File|EncodedCommand)', src), ["EncodedCommand"]); s.assertEqual(re.findall(r'(?:^|[\s(|;&])[\w.-]+\.exe\b', src), [])
 
     def test_a_missing_windows_program_names_its_variable(s):
         st = Path(s.env["HD_ROOT"]) / "state/x"; st.mkdir(parents=True); (st / "serial").write_text("emulator-5560\n")

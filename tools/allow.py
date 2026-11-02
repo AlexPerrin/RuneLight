@@ -1,5 +1,6 @@
-"""The mobile's only resolver and only way out (tools/track.sh up runs it in a container on the Windows loopback, the
-emulator started with -dns-server 127.0.0.1): DNS on udp 53 answers the allowed names with the address the mobile sees
+"""The mobile's only resolver and only way out (tools/track.sh up runs it in a container, one for every mobile; each
+emulator asks DNS of its own tools/allow-relay.ps1 on Windows, which hands each query to it over TCP): DNS on udp and tcp 53
+answers the allowed names with the address the mobile sees
 the host at, every other name NXDOMAIN; tcp 443 relays a TLS connection to its SNI name when that name is allowed and
 closes any other. python3 allow.py [dns port] [tls port]"""
 import socket, struct, sys, threading
@@ -48,6 +49,17 @@ def record(c):  # the first TLS record whole: a ClientHello with a post-quantum 
     return r
 
 
+def tcp_dns(c):  # one length-prefixed query (DNS over TCP, the way in from tools/allow-relay.ps1) and its answer
+    with c:
+        try:
+            f = c.makefile("rb"); a = answer(f.read(struct.unpack(">H", f.read(2))[0])); c.sendall(struct.pack(">H", len(a)) + a)
+        except (IndexError, struct.error, OSError): pass
+
+
+def serve(l, f):  # each connection to l handled by f on its own thread
+    threading.Thread(target=lambda: [threading.Thread(target=f, args=(l.accept()[0],), daemon=True).start() for _ in iter(int, 1)], daemon=True).start()
+
+
 def relay(c):
     with c:
         hello = record(c); name = sni(hello)
@@ -58,8 +70,7 @@ def relay(c):
 
 def main(dns=53, tls=443):
     d = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); d.bind(("0.0.0.0", dns))
-    l = socket.create_server(("0.0.0.0", tls))
-    threading.Thread(target=lambda: [threading.Thread(target=relay, args=(l.accept()[0],), daemon=True).start() for _ in iter(int, 1)], daemon=True).start()
+    serve(socket.create_server(("0.0.0.0", tls)), relay); serve(socket.create_server(("0.0.0.0", dns)), tcp_dns)
     print("listening", flush=True)   # track.sh waits on this line before its DNS check
     while True:
         q, peer = d.recvfrom(512)

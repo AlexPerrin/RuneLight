@@ -4,11 +4,11 @@
 # check-log and tree are tools/build/build.sh's (the code a build runs, keyed alone); gate and the other check-* rows but
 # check-blocked tools/gate/gate.sh's (the code a gate runs). Verbs:
 #   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
-#                     allowlist (answering DNS on the Windows loopback first, check-blocked after), installs the APK once no install of the app is pending, logs
+#                     allowlist (its own DNS relay on Windows answering first, check-blocked after), installs the APK once no install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              stops the login up started (state/<slug>/login.pid), removes devtools, clears the debug props, checks the plugins dir (when up made one) is the three defaults;
-#                     stops the emulator
+#                     stops the emulator and its DNS relay
 #   check-blocked     the running mobile gets a TLS answer from api.runelite.net and static.runelite.net (resolved to the
 #                     relay of tools/allow.py), resolves none of the Jagex, RuneScape, telemetry and Google hosts and connects
 #                     to no public address (the Windows Firewall group osrs-harness); up runs it
@@ -18,7 +18,7 @@
 #   netqa start|stop  samples the app's sockets and DNS between the two calls
 # Windows locations, run through WSL interop (override in the environment):
 #   ANDROID_SDK       /mnt/c/Users/Alex/AppData/Local/Android/Sdk   platform-tools/adb.exe (ADB overrides adb alone), emulator/emulator.exe
-#   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe, nslookup.exe, tasklist.exe
+#   WINDOWS_SYSTEM32  /mnt/c/Windows/System32                      netstat.exe, nslookup.exe, tasklist.exe, taskkill.exe, WindowsPowerShell/v1.0/powershell.exe
 #   DOCKER            docker                                       the allowlist container (mobile-allow)
 set -euo pipefail
 verb=$1; slug=${2:-${SLUG:-}}; arg=${3:-}   # a contract row passes no slug: hd exports SLUG
@@ -38,7 +38,7 @@ case ${1:-} in build|check-log|tree) exec "$self/build/build.sh" "$@" ;; gate|ch
 state=$root/state/$slug; mkdir -p "$state"
 ev=${EVIDENCE:-$root/evidence/$slug}; mkdir -p "$ev"
 copy=$repo/.worktrees/$slug-build   # measure probes in it
-sdk=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}; sys32=${WINDOWS_SYSTEM32:-/mnt/c/Windows/System32}; adb=${ADB:-$sdk/platform-tools/adb.exe}
+sdk=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}; sys32=${WINDOWS_SYSTEM32:-/mnt/c/Windows/System32}; adb=${ADB:-$sdk/platform-tools/adb.exe}; ps=$sys32/WindowsPowerShell/v1.0/powershell.exe
 need() { [ -x "$1" ] || { echo "$1 not found: set $2" >&2; exit 2; }; }   # need <program> <the variable that locates it>
 pkg=com.jagex.oldscape.android; files=/sdcard/Android/data/$pkg/files; defaults="grounditems.jar opponentinfo.jar quest-helper.jar"
 addrs="8.8.8.8 1.1.1.1 142.250.80.46 104.26.8.233"   # public addresses (Google DNS, Cloudflare DNS, google.com, runelite.net): none connects
@@ -68,29 +68,42 @@ up() {
   date -u +%FT%T.000 > "$state/log-mark"
   echo "LOGGED_IN $(serial) 7780"
 }
-allow() {  # the mobile's resolver and relay on the Windows loopback (tools/allow.py), one container for every mobile, outliving
-  # the run; it must answer a Windows DNS query (the emulator asks from Windows), else it is replaced once, else the holder of udp 53 is named
-  local n p h
+udp53() { "$sys32/netstat.exe" -anop UDP | tr -d '\r' | awk '$1=="UDP" && $2 ~ /:53$/ {print $2, $NF}'; }   # each Windows udp 53 bind: address:53 pid
+allow() {  # the mobile's resolver and relay (tools/allow.py), one container for every mobile, outliving the run, and the mobile's own
+  # DNS relay on Windows (tools/allow-relay.ps1) at the first 127.0.0.N no Windows process holds udp 53 on (Internet Connection
+  # Sharing holds 0.0.0.0:53, which a more specific bind overrides; the mirrored loopback carries no UDP from Windows to WSL, nor
+  # TCP on port 53, so the relay asks the container over TCP on 127.0.0.1:8053); a Windows DNS query there must get its answer
+  # (the emulator asks from Windows), else the container is replaced once, else the holders of udp 53 are named
+  local n h held
+  held=$(udp53 | cut -d' ' -f1); dns=$(for n in $(seq 2 254); do grep -qxF "127.0.0.$n:53" <<< "$held" || { echo "127.0.0.$n"; break; }; done)
+  [ -n "$dns" ] || { echo "no 127.0.0.N free of a Windows udp 53 bind" >&2; return 1; }
+  : > "$state/allow-relay.log"   # a previous up's log is not this relay's
+  (cd /mnt/c && ALLOW_DNS=$dns WSLENV=${WSLENV:+$WSLENV:}ALLOW_DNS exec setsid "$ps" -NoProfile -NonInteractive -EncodedCommand "$(iconv -t UTF-16LE "$self/allow-relay.ps1" | base64 -w0)") \
+    < /dev/null > "$state/allow-relay.log" 2>&1 9>&- &   # its text, never a file Windows runs from the UNC path; its log: "listening", or why it could not bind
+  until grep -q '^listening' "$state/allow-relay.log" || ! kill -0 $! 2>/dev/null; do sleep 1; done   # it prints the line once bound, or ends
+  w=$(udp53 | awk -v a="$dns:53" '$1==a{print $2; exit}')
+  [ -n "$w" ] || { echo "the DNS relay did not bind $dns:53: $(head -c 500 "$state/allow-relay.log")" >&2; return 1; }
+  winpid "$w" "${ps##*/}"; echo "$w" > "$state/allow-relay.winpid"
   for n in 1 2; do
     if [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" != true ]; then
-      $docker run -d --rm --name mobile-allow -p 127.0.0.1:53:53/udp -p 127.0.0.1:443:443 -v "$self/allow.py:/allow.py:ro" python:3.13-alpine python /allow.py >/dev/null
+      $docker run -d --rm --name mobile-allow -p 127.0.0.1:8053:53/tcp -p 127.0.0.1:443:443 -v "$self/allow.py:/allow.py:ro" python:3.13-alpine python /allow.py >/dev/null
       until $docker logs mobile-allow 2>&1 | grep -q '^listening'; do [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" = true ] || break; sleep 1; done
     fi
-    "$sys32/nslookup.exe" api.runelite.net 127.0.0.1 2>/dev/null | tr -d '\r' | grep -q '10\.0\.2\.2' && return 0
+    "$sys32/nslookup.exe" api.runelite.net "$dns" 2>/dev/null | tr -d '\r' | grep -q '10\.0\.2\.2' && return 0
     [ $n = 2 ] || $docker rm -f mobile-allow >/dev/null 2>&1 || true
   done
-  h=$(for p in $("$sys32/netstat.exe" -anop UDP | tr -d '\r' | awk '$1=="UDP" && $2 ~ /:53$/ {print $NF}' | sort -u); do
+  h=$(for p in $(udp53 | cut -d' ' -f2 | sort -u); do
     "$sys32/tasklist.exe" /SVC /FO CSV /NH /FI "PID eq $p" | tr -d '\r"' | awk -F, '{printf "%s (pid %s, %s) ", $1, $2, $3}'; done)
-  echo "mobile-allow does not answer DNS on the Windows loopback (nslookup api.runelite.net 127.0.0.1); Windows udp 53 held by: ${h:-none}" >&2
+  echo "mobile-allow does not answer DNS at $dns from Windows (nslookup api.runelite.net $dns; the relay's log: $state/allow-relay.log); Windows udp 53 held by: ${h:-none}" >&2
   return 1
 }
 boot() {  # an Agent_Phone emulator on a free even console port, the APK in place of the official app, Chrome granted the
   # local network, the change's own devtools jar and the three default plugins pushed; the serial goes to state/<slug>/serial as the emulator starts
-  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/nslookup.exe" WINDOWS_SYSTEM32; need "$sys32/tasklist.exe" WINDOWS_SYSTEM32
+  need "$adb" ANDROID_SDK; need "$sdk/emulator/emulator.exe" ANDROID_SDK; need "$sys32/netstat.exe" WINDOWS_SYSTEM32; need "$sys32/nslookup.exe" WINDOWS_SYSTEM32; need "$sys32/tasklist.exe" WINDOWS_SYSTEM32; need "$sys32/taskkill.exe" WINDOWS_SYSTEM32; need "$ps" WINDOWS_SYSTEM32
   exec 9> "$root/state/emulator-port.lock"; flock 9   # one boot at a time picks a port, until adb sees its emulator there
   allow || return 1
   port=$(comm -23 <(seq 5560 2 5598 | sort) <(listening | sort -u) | sort -n | head -1); s=emulator-$port; [ -n "$port" ] || { echo "no free even port in 5560-5598" >&2; return 1; }
-  (cd /mnt/c && setsid "$sdk/emulator/emulator.exe" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" -dns-server 127.0.0.1 < /dev/null > "$state/emulator.log" 2>&1 &) 9>&-   # the lock is not inherited; no console window: its log is a file, down is the only stop
+  (cd /mnt/c && setsid "$sdk/emulator/emulator.exe" -avd Agent_Phone -read-only -gpu swiftshader_indirect -port "$port" -dns-server "$dns" < /dev/null > "$state/emulator.log" 2>&1 &) 9>&-   # the lock is not inherited; no console window: its log is a file, down is the only stop
   echo "$s" > "$state/serial"
   "$adb" -s "$s" wait-for-device; exec 9>&-
   w=$("$sys32/netstat.exe" -ano -p TCP | tr -d '\r' | awk -v p="$port" '$4=="LISTENING"{n=split($2,a,":"); if (a[n]==p) {print $5; exit}}' || true)   # the emulator's Windows pid: its console port's holder
@@ -137,6 +150,9 @@ down() {  # judges what the harness put on the mobile (the default plugins, the 
   # app's own writes (settings.properties, cache) are not checked: they differ after any login and the read-only AVD drops them
   p=$(cat "$state/login.pid" 2>/dev/null || true)   # the login up started, with its adb children; a reused pid is left alone
   if [ -n "$p" ] && grep -qs mobile_login "/proc/$p/cmdline"; then kill $p $(pgrep -P "$p") 2>/dev/null || true; fi; rm -f "$state/login.pid"
+  if w=$(cat "$state/allow-relay.winpid" 2>/dev/null); then   # the mobile's DNS relay, by its pid and image (a reused pid is left alone)
+    "$sys32/taskkill.exe" /F /PID "$w" /FI "IMAGENAME eq ${ps##*/}" >/dev/null 2>&1 || true; rm -f "$root"/state/winpids/*/"$w" "$state/allow-relay.winpid"
+  fi
   s=$(serial) || return 0; need "$adb" ANDROID_SDK
   bad=()
   A shell rm -f "$files/plugins/devtools.jar" >/dev/null

@@ -18,12 +18,12 @@ the repro, as a dep of yours; never work around it. Push `origin/client/<slug>`,
 
 The mobile side is Windows programs run from bash through WSL interop by absolute path, located by `ANDROID_SDK`
 (default `/mnt/c/Users/Alex/AppData/Local/Android/Sdk`: adb.exe, emulator.exe) and `WINDOWS_SYSTEM32` (default
-`/mnt/c/Windows/System32`: netstat.exe, nslookup.exe, tasklist.exe); a missing program fails naming its variable. The emulator runs with no
+`/mnt/c/Windows/System32`: netstat.exe, nslookup.exe, tasklist.exe, taskkill.exe, WindowsPowerShell/v1.0/powershell.exe); a missing program fails naming its variable. The emulator runs with no
 console window, its log in `state/<slug>/emulator.log`; `down` is the only stop; the emulator's Windows pid (its console port's holder) and image are recorded in `state/winpids/<the run's slice>/` of osrs-harness, which ends it with the run, and down drops the record. `DOCKER` (default `docker`) runs the
-allowlist container `mobile-allow`, one for every mobile, left running. Before booting, `up` proves it answers
-`nslookup api.runelite.net 127.0.0.1` from Windows (where the emulator resolves); when it does not, `up` replaces it
-once, then fails naming the Windows holder of udp 53 (Internet Connection Sharing, SharedAccess, takes 0.0.0.0:53 and
-starves the mirrored loopback).
+allowlist container `mobile-allow`, one for every mobile, left running.
+Each mobile asks DNS of its own relay on Windows, `tools/allow-relay.ps1` (its text by -EncodedCommand, its log `state/<slug>/allow-relay.log`), bound to udp 53 at the first 127.0.0.N no Windows process holds udp 53 on, its pid and image recorded like the emulator's and stopped by down.
+Internet Connection Sharing (SharedAccess) holds 0.0.0.0:53, which a more specific bind overrides; the mirrored loopback carries no UDP from Windows to WSL, nor TCP on port 53, so the relay asks the container over TCP on 127.0.0.1:8053.
+Before booting, `up` proves `nslookup api.runelite.net <that address>` from Windows (where the emulator resolves) gets 10.0.2.2; when it does not, `up` replaces the container once, then fails naming the Windows holders of udp 53.
 
 ## The reviewer (releases only)
 Full QA on the client's live tip at the exact commit, every finding at once: mobile regression of core and pinned
@@ -35,7 +35,7 @@ into the evidence dir. Releases are `vX.Y.Z`; autonomous builds are 0.1.x; a maj
 ## Network QA (every release, every change with `network: true`)
 Sample the app's ESTABLISHED sockets every 0.5 s through the sign-out, LOCAL_AUTH sign-in, play, `::drop` relog and
 restart sequence; DNS from logcat's "asked for" lines. Allowed sockets: 10.0.2.2:43594, :8080 and :443 only. The network allowlist: `up` starts the container `mobile-allow`
-(`tools/allow.py` on the Windows loopback, udp 53 and tcp 443) and the emulator with `-dns-server 127.0.0.1`, and turns
+(`tools/allow.py`, DNS over tcp 127.0.0.1:8053 and tcp 443) and the emulator with `-dns-server` at its own relay, and turns
 the mobile's wifi off (that path, through netsimd, resolves with Windows' DNS); the cellular path asks `mobile-allow`,
 which answers `api.runelite.net` and `static.runelite.net` with 10.0.2.2 and every other name NXDOMAIN, and relays a TLS
 connection on 10.0.2.2:443 to its SNI name only when that name is one of the two. The Windows Firewall rules of group
