@@ -23,7 +23,7 @@ ndk=${ANDROID_NDK:-$HOME/Android/Sdk/ndk/android-ndk-r27d}
 atomic() { cat > "$1.$$.tmp"; if [ -s "$1.$$.tmp" ]; then mv -f "$1.$$.tmp" "$1"; else rm -f "$1.$$.tmp"; return 1; fi; }   # a state record whole or not at all: hd reads it at any moment
 pair=$root/state/live/key/client.key   # the live stack's key pair: every APK's modulus, the key ship puts in every live image
 modulus() { sed -n 's/^Modulus: //p' "$pair" 2>/dev/null; }
-carries() { unzip -p "$1" lib/arm64-v8a/liblibs.hal.system.osclient.so 2>/dev/null | grep -aqF "$2"; }   # carries APK MODULUS: the APK's game library holds that login modulus
+carries() { unzip -p "$1" lib/arm64-v8a/liblibs.hal.system.osclient.so 2>/dev/null | grep -aF "$2" >/dev/null; }   # carries APK MODULUS: the APK's game library holds that login modulus (no -q: its early exit SIGPIPEs unzip, a pipefail failure)
 record() { python3 -c 'import json,sys;print(json.dumps({"T":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.stdin.read()[-2000:]}))' "$T" "$1" | atomic "$state/$2.json"; }
 
 tree() {

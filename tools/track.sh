@@ -89,9 +89,9 @@ allow() {  # the mobile's resolver and relay (tools/allow.py), one container for
   for n in 1 2; do
     if [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" != true ]; then
       $docker run -d --rm --name mobile-allow -p 127.0.0.1:8053:53/tcp -p 127.0.0.1:443:443 -v "$self/allow.py:/allow.py:ro" python:3.13-alpine python /allow.py >/dev/null
-      until $docker logs mobile-allow 2>&1 | grep -q '^listening'; do [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" = true ] || break; sleep 1; done
+      until $docker logs mobile-allow 2>&1 | grep '^listening' >/dev/null; do [ "$($docker inspect -f '{{.State.Running}}' mobile-allow 2>/dev/null)" = true ] || break; sleep 1; done
     fi
-    "$sys32/nslookup.exe" api.runelite.net "$dns" 2>/dev/null | tr -d '\r' | grep -q '10\.0\.2\.2' && return 0
+    "$sys32/nslookup.exe" api.runelite.net "$dns" 2>/dev/null | tr -d '\r' | grep '10\.0\.2\.2' >/dev/null && return 0
     [ $n = 2 ] || $docker rm -f mobile-allow >/dev/null 2>&1 || true
   done
   h=$(for p in $(udp53 | cut -d' ' -f2 | sort -u); do

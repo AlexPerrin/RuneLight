@@ -12,7 +12,7 @@ MOD = "8555c56c" + "ab" * 124   # the live stack's modulus in these fixtures
 
 def apk(path, modulus=MOD):  # an APK whose game library carries that login modulus, among the byte tables a real one holds
     import zipfile
-    with zipfile.ZipFile(path, "w") as z: z.writestr("lib/arm64-v8a/liblibs.hal.system.osclient.so", b"\x00" + bytes(range(256)).hex().encode()[:256] + b"\x00" + modulus.encode() + b"\x00")
+    with zipfile.ZipFile(path, "w") as z: z.writestr("lib/arm64-v8a/liblibs.hal.system.osclient.so", b"\x00" + bytes(range(256)).hex().encode()[:256] + b"\x00" + modulus.encode() + b"\x00" + os.urandom(1 << 20))   # bytes after the modulus, as a real one: a reader that stops at the match SIGPIPEs unzip
 
 
 def live(root, modulus=MOD):  # the live stack's key pair (state/live/key) and its record (state/live/tree.json, the server track's ship)
@@ -167,7 +167,7 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         for f in ("repack.sh", "release-dev.sh", "build/build.sh", "track.sh"):   # one source: no default reads another repo's key
             s.assertNotRegex((TRACK.parent / f).read_text(), r"SERVER_TOOLS:-|server-tools/(src|sidecar|scripts)")
         r = (TRACK.parent / "release-dev.sh").read_text()
-        s.assertIn('grep -aqF "$MODULUS" || die', r); s.assertIn('openssl pkey -in "$pair/game.key"', r)
+        s.assertIn('grep -aF "$MODULUS" >/dev/null || die', r); s.assertIn('openssl pkey -in "$pair/game.key"', r)
 
     def test_build_keeps_the_desktop_devtools_jar(s):  # the classes jar before dexing: the server track's desktops load it
         b = BUILD.read_text().split("\nbuild() {")[1].split("\n}")[0]
