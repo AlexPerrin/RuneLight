@@ -33,7 +33,9 @@ echo "release-dev: $tag at ${sha:0:9}"
 # Build (host jar, native lib, repack for the OpenRune test server with local sign-in).
 host/build.sh > "$work/host.log" 2>&1 || { tail -20 "$work/host.log"; die "host/build.sh failed"; }
 ninja -C re/build > "$work/ninja.log" 2>&1 || { tail -20 "$work/ninja.log"; die "ninja failed"; }
-OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh > "$work/repack.log" 2>&1 || { tail -20 "$work/repack.log"; die "repack failed"; }
+pair=${HD_ROOT:-$HOME/osrs-harness}/state/live/key   # the live stack's key pair: the APK's modulus, its private exponent never in the APK
+MODULUS=$(sed -n 's/^Modulus: //p' "$pair/client.key" 2>/dev/null); [[ ${#MODULUS} -eq 256 ]] || die "no live key pair in $pair"
+MODULUS=$MODULUS OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh > "$work/repack.log" 2>&1 || { tail -20 "$work/repack.log"; die "repack failed"; }
 t=$(grep -c '^telemetry:' "$work/repack.log" || true)
 [[ $t -eq 7 ]] || die "expected 7 telemetry: lines in the repack log, found $t"
 
@@ -47,8 +49,9 @@ unzip -q base.apk -d "$work/o/base"; unzip -q split_config.arm64_v8a.apk -d "$wo
 # the single APK is the base's files plus the split's lib/: its "official" counterpart is the two merged
 unzip -q base.apk -d "$work/o/single"; unzip -q -o split_config.arm64_v8a.apk -d "$work/o/single"
 patterns=("PRIVATE KEY" "privateExponent" "alexperrin" "Alex Perrin" "@gmail.com" 'C:\Users' "/home/alex" "/mnt/c/Users")
-d=$(openssl pkey -in ${SERVER_TOOLS:-$HOME/src/openrune-work/server-tools}/src/.data/game.key -text -noout 2>/dev/null | awk '/privateExponent:/{f=1;next} /^[a-zA-Z]/{f=0} f' | tr -d ' :\n' | sed 's/^00//' | cut -c1-24)
-[[ -n $d ]] && patterns+=("$d")
+unzip -p re/out/osrs-runelite.apk lib/arm64-v8a/liblibs.hal.system.osclient.so | grep -aqF "$MODULUS" || die "the APK does not carry the live pair's modulus ${MODULUS:0:8}"
+d=$(openssl pkey -in "$pair/game.key" -text -noout 2>/dev/null | awk '/privateExponent:/{f=1;next} /^[a-zA-Z]/{f=0} f' | tr -d ' :\n' | sed 's/^00//' | cut -c1-24)
+[[ -n $d ]] || die "no private exponent in $pair/game.key"; patterns+=("$d")
 hits=0 keys=0 scanned=0
 while IFS= read -r -d '' f; do
     rel=${f#"$work/x/"}; orig="$work/o/$rel"

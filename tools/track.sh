@@ -3,7 +3,7 @@
 # TCOMMIT BASE CLONE EVIDENCE HD_ROOT. The Windows programs (adb, the emulator) run through WSL interop, by absolute path. build,
 # check-log and tree are tools/build/build.sh's (the code a build runs, keyed alone); gate and the other check-* rows but
 # check-blocked tools/gate/gate.sh's (the code a gate runs). Verbs:
-#   up                boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
+#   up                refuses an APK not carrying the live stack's modulus (state/live/tree.json, written by the server track's ship), naming both; boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
 #                     allowlist (its own DNS relay on Windows answering first, check-blocked after), installs the APK once no install of the app is pending, logs
 #                     in; prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
@@ -62,6 +62,9 @@ up() {
   T=${T:-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["T"])' "$state/build.json")}
   [ -f "$ev/$T.apk" ] && [ -f "$ev/$T.devtools.jar" ] || { echo "no APK or devtools jar for $T: build first"; return 1; }
   EVIDENCE=$ev "$self/build/build.sh" check-log "$slug" >/dev/null
+  live=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("modulus", ""))' "$root/state/live/tree.json" 2>/dev/null || true)
+  mine=$(unzip -p "$ev/$T.apk" lib/arm64-v8a/liblibs.hal.system.osclient.so 2>/dev/null | grep -aoE '[0-9a-f]{256}' | grep -vE '^(00010203|80818283)' | head -1 || true)   # the patched modulus (the library's other 256-hex runs are byte tables)
+  [ -n "$live" ] && [ "$mine" = "$live" ] || { l=${live:0:8}; echo "refused: $T.apk carries modulus ${mine:0:8}, the live stack (state/live/tree.json) ${l:-none, deployed before its key pair}: its login would be refused 'Invalid RSA check'"; return 1; }
   boot
   ANDROID_SERIAL=$(serial) python3 "$self/mobile_login.py" "$slug"   # its command line names the change: down stops it when up's caller died
   date -u +%FT%T.000 > "$state/log-mark"

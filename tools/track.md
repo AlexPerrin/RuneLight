@@ -10,7 +10,9 @@ script is `tools/track.sh <verb> <slug>`; the evidence dir is `evidence/<slug>/`
 Clone `~/src/work/<slug>` on branch `client/<slug>`. Analyse with Ghidra on `re/ghidra` (`-readOnly` unless the task
 updates the project); ids and game data from `osrs-mcp`; what the server sends through `tracks/server.sh log`.
 `tools/track.sh build <slug>` runs the devtools plugin build (its own re/devtools), the host build, ninja and the repack with `OPENRUNE=1 LOCAL_AUTH=1` in the
-build copy and checks the repack log before anything is installable; `tools/track.sh up <slug>` boots your own
+build copy and checks the repack log before anything is installable; the APK's login modulus is the live stack's key pair's
+(`state/live/key` of osrs-harness), and a cached APK of another modulus is rebuilt; `up` refuses an APK whose modulus is not the
+one the live server runs (`state/live/tree.json`), naming both, before it boots anything; `tools/track.sh up <slug>` boots your own
 emulator on the network allowlist (checked), installs the APK and pushes the devtools jar built with it, logs in and prints the devtools port; `down` restores and stops it; `log <slug>
 <pattern>` reads logcat since the run's marker. Test through `osrs-devtools-mobile` data tools; `adb shell input`
 only where the emulator refuses injected events. Blocked by the server: file the blocker as a server change with

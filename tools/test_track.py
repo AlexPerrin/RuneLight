@@ -7,6 +7,19 @@ tempfile.tempdir = os.environ["TMPDIR"] = SUITE_TMP.name                        
 TRACK = Path(__file__).resolve().parent / "track.sh"
 GATE, BUILD = TRACK.parent / "gate/gate.sh", TRACK.parent / "build/build.sh"   # the code a gate runs, the code a build runs
 place = lambda tools: (shutil.copy(TRACK, tools / "track.sh"), shutil.copytree(GATE.parent, tools / "gate"), shutil.copytree(BUILD.parent, tools / "build"))   # the track script with its gate and build dirs
+MOD = "8555c56c" + "ab" * 124   # the live stack's modulus in these fixtures
+
+
+def apk(path, modulus=MOD):  # an APK whose game library carries that login modulus, among the byte tables a real one holds
+    import zipfile
+    with zipfile.ZipFile(path, "w") as z: z.writestr("lib/arm64-v8a/liblibs.hal.system.osclient.so", b"\x00" + bytes(range(256)).hex().encode()[:256] + b"\x00" + modulus.encode() + b"\x00")
+
+
+def live(root, modulus=MOD):  # the live stack's key pair (state/live/key) and its record (state/live/tree.json, the server track's ship)
+    d = Path(root) / "state/live"; (d / "key").mkdir(parents=True, exist_ok=True)
+    (d / "key/client.key").write_text(f"Exponent: 10001\nModulus: {modulus}"); (d / "tree.json").write_text('{"modulus": "%s"}' % modulus)
+
+
 GOOD = "".join(f"telemetry: line {i}\n" for i in range(7)) + "patched RSA modulus at file offset 0x1\npatched /jav_config.ws at file offset 0x2\npatched smali/net/openid/appauth/X.smali\n"
 
 
@@ -77,7 +90,7 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
                  sys32 / "nslookup.exe": f'echo "nslookup $*" >> {log}; [ -n "$NODNS" ] || printf "Name:    api.runelite.net\\r\\nAddress:  10.0.2.2\\r\\n"',
                  sys32 / "tasklist.exe": 'case "$*" in *"PID eq 3860"*) printf \'"svchost.exe","3860","SharedAccess"\\r\\n\' ;; *"PID eq 7300"*) printf \'"qemu-system-x86_64.exe","7300","Console"\\r\\n\' ;; esac'}
         for f, body in progs.items(): f.write_text("#!/bin/sh\n" + body + "\n"); f.chmod(0o755)
-        (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
+        apk(s.ev / "t.apk"); live(s.env["HD_ROOT"]); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "repack-t.log").write_text(GOOD)
         docker = s.ev / "docker"; docker.write_text(f'#!/bin/sh\necho "docker $*" >> {log}\ncase "$1" in logs) echo listening ;; esac\n'); docker.chmod(0o755)
         s.env.update(ANDROID_SDK=str(sdk), WINDOWS_SYSTEM32=str(sys32), DOCKER=str(docker)); s.env.pop("ADB", None)
         return log
@@ -134,6 +147,27 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         s.assertFalse(alive(p)); s.assertTrue(alive(other.pid))
         other.kill(); other.wait()
         shutil.rmtree(m, ignore_errors=True)
+
+    def test_up_refuses_an_apk_not_carrying_the_live_modulus_before_boot(s):  # every APK since 2026-10-31 18:32Z met 'Invalid RSA check' as its first sign
+        log = s.fake_windows(); live(s.env["HD_ROOT"], "9fe5d348" + "cd" * 124)
+        rc, out = s.row("up"); s.assertEqual(rc, 1)
+        s.assertIn("refused: t.apk carries modulus 8555c56c, the live stack (state/live/tree.json) 9fe5d348", out)
+        s.assertFalse(log.exists())                                             # nothing booted: no Windows program ran
+        (Path(s.env["HD_ROOT"]) / "state/live/tree.json").write_text("{}")   # live deployed before its key pair
+        rc, out = s.row("up"); s.assertEqual(rc, 1); s.assertIn("the live stack (state/live/tree.json) none, deployed before its key pair", out)
+
+    def test_build_takes_the_live_pair_and_rebuilds_an_apk_of_another_key(s):  # a cached APK of the same T kept a stale modulus
+        b = BUILD.read_text()
+        s.assertIn("MODULUS=$m OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh", b)
+        s.assertIn('&& carries "$ev/$T.apk" "$m"; then', b.split("\nbuild() {")[1].split("\n}")[0])
+        fn = "\n".join(l for l in b.splitlines() if l.startswith(("pair=", "modulus()", "carries()")))
+        run = lambda f: subprocess.run(["bash", "-c", f"set -euo pipefail\nroot={s.env['HD_ROOT']}\n{fn}\ncarries {f} \"$(modulus)\""], capture_output=True, text=True).returncode
+        apk(s.ev / "a.apk"); apk(s.ev / "b.apk", "9fe5d348" + "cd" * 124); live(s.env["HD_ROOT"])
+        s.assertEqual((run(s.ev / "a.apk"), run(s.ev / "b.apk")), (0, 1))
+        for f in ("repack.sh", "release-dev.sh", "build/build.sh", "track.sh"):   # one source: no default reads another repo's key
+            s.assertNotRegex((TRACK.parent / f).read_text(), r"SERVER_TOOLS:-|server-tools/(src|sidecar|scripts)")
+        r = (TRACK.parent / "release-dev.sh").read_text()
+        s.assertIn('grep -aqF "$MODULUS" || die', r); s.assertIn('openssl pkey -in "$pair/game.key"', r)
 
     def test_build_keeps_the_desktop_devtools_jar(s):  # the classes jar before dexing: the server track's desktops load it
         b = BUILD.read_text().split("\nbuild() {")[1].split("\n}")[0]
@@ -275,7 +309,7 @@ case "$*" in *push*) ;;
         g("init", "-q"); g("config", "user.name", "t"); g("config", "user.email", "t@t"); g("commit", "-q", "--allow-empty", "-m", "c")
         g("update-ref", "refs/remotes/origin/HEAD", "HEAD"); g("worktree", "add", "-q", "--detach", str(w))
         (w / "tools").mkdir(); place(w / "tools")
-        Path(s.env["HD_ROOT"], "hd.py").write_text("print('HEAD t')\n"); (s.ev / "t.apk").write_text(""); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "t.devtools-desktop.jar").write_text("")
+        Path(s.env["HD_ROOT"], "hd.py").write_text("print('HEAD t')\n"); apk(s.ev / "t.apk"); live(s.env["HD_ROOT"]); (s.ev / "t.devtools.jar").write_text(""); (s.ev / "t.devtools-desktop.jar").write_text("")
         r = subprocess.run([str(w / "tools" / "track.sh"), "build", "x"], env=s.env, capture_output=True, text=True)
         s.assertIn("cached", r.stdout, r.stderr)
         s.assertTrue((m / ".worktrees" / "x").is_dir()); s.assertFalse((w / ".worktrees").exists())
