@@ -5,7 +5,7 @@
 # check-blocked tools/gate/gate.sh's (the code a gate runs). Verbs:
 #   up                refuses an APK not carrying the live stack's modulus (state/live/tree.json, written by the server track's ship), naming both; boots the change's emulator (no console window, its log in state/<slug>/emulator.log) on the network
 #                     allowlist (its own DNS relay on Windows answering first, check-blocked after), installs the APK once no install of the app is pending, logs
-#                     in; prints LOGGED_IN <serial> <devtools port>;
+#                     in through the stack's issuer (tools/mobile_login.py: each screen read, acted on once; an unknown one or a refusal fails); prints LOGGED_IN <serial> <devtools port>;
 #                     a failed up or measure runs down (state/<slug>/serial is written as the emulator starts)
 #   down              stops every login the change's ups started (mobile_login.py <slug>), removes devtools, clears the debug props, checks the plugins dir (when up made one) is the three defaults;
 #                     stops the emulator and its DNS relay
@@ -48,7 +48,7 @@ docker=${DOCKER:-docker}
 atomic() { cat > "$1.$$.tmp"; if [ -s "$1.$$.tmp" ]; then mv -f "$1.$$.tmp" "$1"; else rm -f "$1.$$.tmp"; return 1; fi; }   # a state record whole or not at all: hd reads it at any moment
 serial() { cat "$state/serial" 2>/dev/null || { echo "no mobile for $slug: run up"; return 1; }; }
 win() { wslpath -w "$1"; }
-A() { { "$adb" -s "$s" "$@" 2>&1 || true; } | tr -d '\r'; }   # adb on the run's mobile ($s); callers judge its output
+A() { local o; for _ in 1 2 3 4 5; do o=$({ "$adb" -s "$s" "$@" 2>&1 || true; } | tr -d '\r'); [[ $o == *"accept4 failed"* ]] || break; sleep 1; done; printf '%s\n' "$o"; }   # adb on the run's mobile ($s), again while WSL interop drops its stdio ("accept4 failed", as mobile_login.py); callers judge its output
 pm_idle() {  # the package manager is up (its dump lists the install sessions) and no active or legacy session installs $pkg
   local d; d=$(A shell "dumpsys package | sed -n '/^Active install sessions:/,/^Finalized install sessions:/p;/^Legacy install sessions:/,+1p'" | tr -d ' \n')
   [[ $d == "Activeinstallsessions:"* && $d != *"$pkg"* ]]   # the dump wraps long lines: joined, the package name is whole

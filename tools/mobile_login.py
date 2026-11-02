@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""mobile_login.py <slug>: launches the app on $ANDROID_SERIAL and signs in through LOCAL_AUTH; prints LOGGED_IN or FAILED: <screen>.
-Every wait is on a fact read from the mobile (the host's GameStateChanged line, the focused window, the view labels).
+"""mobile_login.py <slug>: launches the app on $ANDROID_SERIAL and signs in through the stack's issuer; prints LOGGED_IN or FAILED: <why>.
+Each step acts once on the screen it reads (the host's GameStateChanged and LoginIndex lines, the focused window, the view
+labels), then waits for the next screen; a screen it does not know, a refused login or the app's death is FAILED.
 """
 import os, re, subprocess, sys, time
 
 ADB = os.environ.get("ADB", "/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platform-tools/adb.exe")
 PKG = "com.jagex.oldscape.android"
-TAPS = {"SIGN_IN": (1200, 617), "ACCEPT": (1032, 645), "PLAY_NOW": (1197, 540), "TRY_AGAIN": (1197, 620)}   # canvas points, 2400x1080 landscape
-LABELS = ("Stay signed out", "Close", "Accept", "No thanks")
+CANVAS = {0: ("Existing User", 1370, 625), 12: ("Accept", 1027, 668), 10: ("Play Now", 1197, 540)}   # LoginIndex: the button that leaves it, on the AVD's 2400x1080 landscape canvas
+WAIT = {-1, 30, 37}   # no screen yet, the browser's sign-in, the connection to the world: the next screen comes from the app, the browser or the server
+REFUSED = 9           # the server's refusal ("Unexpected server response", Try again)
+LABELS = ("Use without an account", "Stay signed out", "No thanks", "Close", "Accept")   # Chrome's first run and prompts before the issuer's /oauth2/auth
 
 
 def adb(*a, retries=5):
@@ -19,42 +22,63 @@ def adb(*a, retries=5):
     return ""
 
 
-def game_state():
-    m = re.findall(r"GameStateChanged (\w+)", adb("logcat", "-d", "-s", "osrsrl-host:I"))
-    return m[-1] if m else ""
-
-
-def tap_label():
+def labels():
     adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
     xml = adb("exec-out", "cat", "/sdcard/ui.xml")
-    for label in LABELS:
-        m = re.search(rf'text="{label}"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml)
-        if m:
-            x1, y1, x2, y2 = map(int, m.groups())
-            adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
-            return label
-    return None
+    return {m[0]: ((int(m[1]) + int(m[3])) // 2, (int(m[2]) + int(m[4])) // 2)
+            for m in re.findall(r'text="([^"]+)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml)}
+
+
+def screen():
+    """(game state, LoginIndex, focused package, the labels of a window not the app's)."""
+    log = adb("logcat", "-d", "-s", "osrsrl-host:I")
+    st = re.findall(r"GameStateChanged (\w+)", log); ix = re.findall(r"LoginIndex (\d+)", log)
+    focus = re.search(r"mCurrentFocus=Window\{\S+ \S+ ([^/}\s]+)", adb("shell", "dumpsys", "window"))
+    pkg = focus.group(1) if focus else ""
+    return st[-1] if st else "", int(ix[-1]) if ix else -1, pkg, ({} if pkg in (PKG, "") else labels())
+
+
+def step(st, ix, pkg, lab):
+    """The action on one screen: ('done',), ('wait',), ('tap', name, x, y) or ('fail', why)."""
+    if st == "LOGGED_IN":
+        return ("done",)
+    if pkg == "com.android.chrome":
+        err = next((t for t in lab if re.search(r"ERR_[A-Z_]+", t)), None)
+        if err:
+            return ("fail", f"the browser's sign-in: {err}")
+        hit = next((l for l in LABELS if l in lab), None)
+        return ("tap", hit, *lab[hit]) if hit else ("wait",)   # the issuer's page redirects back to the app by itself
+    if pkg not in (PKG, ""):
+        return ("fail", f"an unknown window {pkg}: {', '.join(lab) or 'no labels'}")
+    if st != "LOGIN_SCREEN":
+        return ("wait",)   # starting, LOGGING_IN, LOADING: the next state comes from the app or the server
+    if ix == REFUSED:
+        return ("fail", "the server refused the login (LoginIndex 9)")
+    if ix in CANVAS:
+        return ("tap", *CANVAS[ix])
+    return ("wait",) if ix in WAIT else ("fail", f"an unknown login screen (LoginIndex {ix})")
 
 
 def main():
     adb("logcat", "-c")
     adb("shell", "monkey", "-p", PKG, "-c", "android.intent.category.LAUNCHER", "1")
-    seen, started = set(), False
-    while (st := game_state()) != "LOGGED_IN":
+    started, acted = False, None
+    while True:
+        st, ix, pkg, lab = screen()
         alive = bool(adb("shell", "pidof", PKG).strip())
         if started and not alive:
             return "FAILED: the app died"
         started |= alive   # monkey returns before the process exists
-        if st == "LOGIN_SCREEN" or st == "LOGGING_IN":
-            label = tap_label()
-            if label is None:
-                tap = "SIGN_IN" if "SIGN_IN" not in seen else "PLAY_NOW"
-                if "com.jagex.mobilesdk" in adb("logcat", "-d", "-s", "ActivityTaskManager:I"):
-                    tap = "ACCEPT" if "ACCEPT" not in seen else "PLAY_NOW"
-                seen.add(tap)  # shortcut: a tap is never retried (a second tap toggles panels); a missed tap waits here, upgrade when the screen can be read
-                adb("shell", "input", "tap", str(TAPS[tap][0]), str(TAPS[tap][1]))
-        time.sleep(3)
-    return "LOGGED_IN"
+        act = step(st, ix, pkg, lab)
+        if act[0] == "done":
+            return "LOGGED_IN"
+        if act[0] == "fail":
+            return "FAILED: " + act[1]
+        here = (st, ix, pkg, act[1:2])
+        if act[0] == "tap" and here != acted:   # one tap per screen, then the next screen is read: a second tap on one screen toggles panels
+            print(f"{st} LoginIndex {ix} {pkg}: {act[1]}", file=sys.stderr, flush=True)
+            adb("shell", "input", "tap", str(act[2]), str(act[3])); acted = here
+        time.sleep(1)
 
 
 if __name__ == "__main__":

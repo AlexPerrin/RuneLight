@@ -187,6 +187,17 @@ case "$*" in *wait-for-device*) sleep 0.5 ;; *boot_completed*) echo 1 ;;
         s.assertNotIn("monkey", calls)
         s.assertNotIn('"Got it"', (TRACK.parent / "mobile_login.py").read_text())
 
+    def test_login_acts_on_the_screen_it_reads(s):  # the issuer's sign-in by LoginIndex and the focused window; an unknown screen or a refusal is FAILED, never a wait
+        import importlib.util; spec = importlib.util.spec_from_file_location("mobile_login", TRACK.parent / "mobile_login.py"); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+        app, chrome = m.PKG, "com.android.chrome"
+        flow = [("LOGIN_SCREEN", 0, app, {}), ("LOGIN_SCREEN", 12, app, {}), ("LOGIN_SCREEN", 30, chrome, {"Use without an account": (540, 2085)}),
+                ("LOGIN_SCREEN", 30, chrome, {}), ("LOGIN_SCREEN", 10, app, {}), ("LOGGING_IN", 30, app, {}), ("LOGGED_IN", 30, app, {})]
+        s.assertEqual([m.step(*f)[:2] for f in flow], [("tap", "Existing User"), ("tap", "Accept"), ("tap", "Use without an account"), ("wait",), ("tap", "Play Now"), ("wait",), ("done",)])
+        s.assertEqual(m.step("LOGIN_SCREEN", 9, app, {})[0], "fail")                                      # the server's refusal
+        s.assertEqual(m.step("LOGIN_SCREEN", 4, app, {})[0], "fail")                                      # a login screen it does not know
+        s.assertEqual(m.step("LOGIN_SCREEN", 30, "com.android.settings", {"x": (1, 1)})[0], "fail")       # a window it does not know
+        s.assertEqual(m.step("LOGIN_SCREEN", 30, chrome, {"ERR_CONNECTION_REFUSED": (1, 1)})[0], "fail")  # the issuer unreachable
+
     def test_concurrent_boots_take_distinct_ports(s):
         log = s.fake_windows(); (Path(s.env["HD_ROOT"]) / "harness/changes/y.md").write_text("")
         ps = [subprocess.Popen([str(TRACK), "up", g], env=s.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for g in ("x", "y")]
