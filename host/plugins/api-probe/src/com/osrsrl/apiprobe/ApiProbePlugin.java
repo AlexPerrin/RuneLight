@@ -1279,6 +1279,8 @@ public class ApiProbePlugin extends Plugin {
             p.set(row, n == 1 && v >= 0 && v <= 2 ? "pass" : "mismatch", how + " of script " + net.runelite.api.ScriptID.QUEST_STATUS_GET
                 + " (quest_status_get, reads varps only) for quest " + QUEST + ": int stack size 0 -> " + n + ", value " + v + " (0 not started, 1 started, 2 done)");
         };
+        // Ends the client (desktop's stopNow exits RuneLite): the probe would never write its report.
+        SPECIAL.put("Client.stopNow0", (p, row, inst) -> p.set(row, "skipped", "ends the client; the report would never be written"));
         SPECIAL.put("Client.runScript1", script);
         SPECIAL.put("ScriptEvent.run0", script);
         // Desktop sets the world the next login uses: no getter, so the client's fields are compared around it.
