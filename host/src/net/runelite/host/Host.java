@@ -342,8 +342,12 @@ public final class Host {
     public static void onEvent(int type, int a, int b) {
         EventBus bus = eventBus;
         if (bus == null) return;
-        if (gameThread == null) gameThread = Thread.currentThread();
+        boolean first = gameThread == null;
+        if (first) gameThread = Thread.currentThread();
         try {
+            // Native posts a state only on a change, and changes before 'host ready' were dropped
+            // (bus null): post the game's current state once, as desktop plugins see it from the start.
+            if (first && type != GAME_STATE_CHANGED) dispatch(bus, GAME_STATE_CHANGED, Native.gameState(), -1);
             dispatch(bus, type, a, b);
         } finally {
             AndroidWidget.applyChildEdits();
@@ -445,6 +449,9 @@ public final class Host {
         }
     }
 
+    /** The game's last native state: values outside GameState (1000, the start error page) log as UNKNOWN. */
+    private static volatile int rawGameState = -1;
+
     private static void postGameState(EventBus bus, GameState s) {
         GameStateChanged e = new GameStateChanged();
         // Desktop's ConfigManager switches the RuneScape profile while logging in; plugins
@@ -480,7 +487,7 @@ public final class Host {
         loggedInPosted = e.getGameState() == GameState.LOGGED_IN;
         lastPostedState = e.getGameState();
         if (e.getGameState() != GameState.LOGGED_IN) pendingSceneCycles = -1;
-        Log.i(TAG, "GameStateChanged " + e.getGameState() + " (getGameState " + client.getGameState() + ", local player "
+        Log.i(TAG, "GameStateChanged " + e.getGameState() + " (raw " + rawGameState + ", getGameState " + client.getGameState() + ", local player "
             + (localPlayer() != null) + ")");
         bus.post(e);
     }
@@ -663,6 +670,7 @@ public final class Host {
                 Probe.onGameTick();
                 break;
             case GAME_STATE_CHANGED: {
+                rawGameState = a;
                 GameState s = GameState.of(a);
                 // Desktop has the local player when GameStateChanged(LOGGED_IN) is posted (Spawn
                 // Predictor reads its name there); the game's player list can still be empty on

@@ -241,7 +241,7 @@ out (and with the orchestrator's OK).
 
 ```
 M=~/osrs-harness/bench/multiclient/desktop-devtools-mcp.sh
-$M --call tools/list                                  # 47 tools
+$M --call tools/list                                  # 120 tools
 $M --tool get_client_state '{}'                       # gameState, worldX/worldY/plane, camera, ...
 $M --tool walk_to '{"x":3218,"y":3222,"plane":0}'
 $M --tool list_players '{}'                           # shows the Android "tester" when both are near

@@ -12,8 +12,10 @@ from this file). Tasks and blockers: `python3 ~/osrs-harness/hd.py status`. Last
   the game thread and embeds the Java plugin host (host/). The host runs unmodified RuneLite plugins on ART: core
   plugins from the bundled client jar, Plugin Hub plugins built from source (`host/plugins/hub/build.sh`).
 - Tested on each agent's own Agent_Phone emulator (Android Studio AVD, Medium Phone profile, x86_64 API 37 image with
-  arm64 translation; harness skill `test-instances`; adb `emulator-<port>` in `ANDROID_SERIAL`; app uid 10071) against OpenRune (game `10.0.2.2:43594`,
-  sidecar `10.0.2.2:8080` serving jav_config, LOCAL_AUTH sign-in, digest and payments param 2).
+  arm64 translation; harness skill `test-instances`; adb `emulator-<port>` in `ANDROID_SERIAL`; the app's uid is assigned at install, read it with `dumpsys package`) against OpenRune (game `10.0.2.2:43594`,
+  sidecar `10.0.2.2:8080` serving jav_config, digest and payments param 2; LOCAL_AUTH sign-in at Central's http
+  `10.0.2.2:8084`, jav_config params 11, 20, 22 and 28: discovery, oauth2/auth in Chrome, oauth2/token, game-session
+  sessions, accounts and tokens, then the login as the signed-in account).
 - API coverage and each plugin's status: docs/plugin-host.md. Addresses: docs/offsets.md (ELF; Ghidra = ELF + 0x100000).
 - Privacy patches and Network QA: docs/app-telemetry.md (read it before any build that touches networking).
 
@@ -27,7 +29,7 @@ landscape, canvas = screen points) on a fresh install (client-login-index-log, e
 |---|------|------------------|
 | 0 | welcome, signed out | Sign in with Google [905,475][1495,558]; Sign in with Email / Username [905,575][1495,658] |
 | 12 | terms dialog (after either sign-in button on a fresh install, not at launch) | Accept [882,603][1184,686]; Decline [1213,603][1515,686]; its text links (terms of use, privacy policy, EULA) are at y 455-525 |
-| 30 | waiting on the browser sign-in (AppAuth opens Chrome at 10.0.2.2:8080; Chrome's first run asks "Use without an account") and briefly after Play Now, before LOGGING_IN | none on the canvas |
+| 30 | waiting on the browser sign-in (AppAuth opens Chrome at Central's 10.0.2.2:8084/oauth2/auth; Chrome's first run asks "Use without an account") and briefly after Play Now, before LOGGING_IN | none on the canvas |
 | 10 | welcome, signed in | Play Now [973,475][1422,612]; Sign out [1048,645][1350,727] |
 
 On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
@@ -145,6 +147,9 @@ in idle at spawn) is 91.0% (1140/1253).
   `AndroidMenu.applyOrder` writes text edits back and sends a permutation or subset of the game's entries to
   `Native.menuReorder` (logcat `menu reorder (MenuOpened) [...] of N: true`). Entries with submenus can't be dropped
   (`game::menu_reorder`). Row "No Examine".
+- **Game state at start**: native posts a state only on a change, and changes before `host ready` are dropped, so the
+  host's first event posts the game's current state (a start already on 1000, the error page, logs `GameStateChanged
+  UNKNOWN (raw 1000` once).
 - **Game state on rebuilds**: OpenRune's teleports go 30 -> 25 -> 30. A 25 while logged in is held until the scene base
   changes, then LOADING (scene objects forgotten first), WorldViewLoaded and LOGGED_IN go out in one cycle (`GameStateChanged
   LOADING (scene rebuild)`); same-base rebuilds after 50 cycles. A native 30 after the replay already posted LOGGED_IN is
@@ -264,7 +269,9 @@ in idle at spawn) is 91.0% (1140/1253).
   cleanup (it rm's `*.jar`).
 - Login: `ANDROID_SERIAL=emulator-<port> python3 -I ~/osrs-harness/bench/emulator_login.py` (text reads, no screenshot;
   signed out: only "Sign in with Email / Username"). After a force-stop the server often still holds the session ("Either
-  your account is still logged in"): it retries Try again (1197,620) and Play Now (1197,540) until LOGGED_IN.
+  your account is still logged in"): it retries Try again (1197,620) and Play Now (1197,540) until LOGGED_IN. A session resumed after `::drop` ("Reconnect
+  resumed") ends the same way: its force-stop logs "Game session lost: user='tester'", the player leaves ~9 s later
+  ("Logout: player=tester") and the next login succeeds (evidence client-resumed-session-relog).
 - Agent_Phone refuses the host's Instrumentation input (devtools `click`, `type_chat`, tap-based `item_action`/`select_option` log
   `devinput: ... INJECT_EVENTS`): tap with `adb shell input tap` (canvas x,y times the device/canvas ratio) and type chat
   with the keyboard button (90,215 canvas), `input text`, `input keyevent 66`. Never send BACK (4) in game: it leaves the
