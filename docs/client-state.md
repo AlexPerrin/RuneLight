@@ -34,7 +34,7 @@ landscape, canvas = screen points) on a fresh install (client-login-index-log, e
 
 On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
 and World / Tap to switch at [450,925][655,995]: never tap there. The api-probe at this build (no reach set-up, logged
-in idle at spawn) is 90.3% (1131/1253).
+in idle at spawn) is 90.6% (1135/1253).
 
 ## Releases and tooling
 
@@ -186,6 +186,11 @@ in idle at spawn) is 90.3% (1131/1253).
   is the spotanim's sequence (`loadAnimation`).
 - **Camera targets**: `setCameraPitchTarget/YawTarget` write the game's targets (Client `+0x8949c/+0x894a0`); the game
   eases pitch/yaw towards them (Camera Smoothing runs). `debug.osrsrl.camlog 1` also logs every 30th target write.
+- **Camera settings**: `setCameraPitchRelaxerEnabled` writes the game's own relaxer flag (u8 `+0x8951c`, pitch up to 520),
+  `setOculusOrbNormalSpeed` and `setFreeCameraSpeed` the one focal point speed the game uses in both modes (`+0x894c4`, 12),
+  `setCameraSpeed` scales the touch drag sensitivity (settings `+0x82c`) from the game's own value, re-based each cycle when
+  the game's settings change it (offsets.md "camera speeds"). The game has no invert flag or mouse-button camera mask:
+  `setInvertPitch/Yaw` and `setCameraMouseButtonMask` are still ClientStub throws (change client-api-camera-invert-mask).
 - **Sprite overrides** of the sprite's canvas size are cropped to the game's trimmed block at its offset
   (`Native.spriteInfo`, Sprite +0x20..+0x2c); other sizes are still refused. Row "Poison".
 - **Audio**: `javax.sound.sampled` shim (`host/awt/javax/sound/sampled`, HostClip plays through AudioPlayer/MediaPlayer).
