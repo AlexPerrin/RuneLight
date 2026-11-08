@@ -269,7 +269,9 @@ in idle at spawn) is 91.0% (1140/1253).
   cleanup (it rm's `*.jar`).
 - Login: `ANDROID_SERIAL=emulator-<port> python3 -I ~/osrs-harness/bench/emulator_login.py` (text reads, no screenshot;
   signed out: only "Sign in with Email / Username"). After a force-stop the server often still holds the session ("Either
-  your account is still logged in"): it retries Try again (1197,620) and Play Now (1197,540) until LOGGED_IN.
+  your account is still logged in"): it retries Try again (1197,620) and Play Now (1197,540) until LOGGED_IN. A session resumed after `::drop` ("Reconnect
+  resumed") ends the same way: its force-stop logs "Game session lost: user='tester'", the player leaves ~9 s later
+  ("Logout: player=tester") and the next login succeeds (evidence client-resumed-session-relog).
 - Agent_Phone refuses the host's Instrumentation input (devtools `click`, `type_chat`, tap-based `item_action`/`select_option` log
   `devinput: ... INJECT_EVENTS`): tap with `adb shell input tap` (canvas x,y times the device/canvas ratio) and type chat
   with the keyboard button (90,215 canvas), `input text`, `input keyevent 66`. Never send BACK (4) in game: it leaves the
