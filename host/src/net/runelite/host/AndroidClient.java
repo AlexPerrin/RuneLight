@@ -12,6 +12,13 @@ public class AndroidClient extends ClientStub {
         this.worldView = worldView;
     }
 
+    /** Desktop's stopNow ends RuneLite's client: here the app process ends. */
+    @Override
+    public void stopNow() {
+        android.util.Log.i(Host.TAG, "stopNow: the app process ends");
+        System.exit(0);
+    }
+
     @Override
     public WorldView getWorldView(int id) {
         // Only the top-level world view (WorldView.TOPLEVEL = 0; -1 accepted too) exists until

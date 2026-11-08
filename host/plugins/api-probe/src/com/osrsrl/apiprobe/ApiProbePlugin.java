@@ -90,7 +90,8 @@ public class ApiProbePlugin extends Plugin {
     private String apiJar = "?", build = "?";
     private Iterator<Row> current;
     private Object currentInstance;
-    private boolean seeded, retried, done, lastPhase;
+    private boolean seeded, retried, done, lastPhase, waitLogged;
+    private Row stopRow;  // Client.stopNow: called once the report is written
     private final List<Object[]> lastRows = new ArrayList<>();  // {Row, instance}
 
     static final class Row {
@@ -137,6 +138,7 @@ public class ApiProbePlugin extends Plugin {
 
     @Subscribe
     public void onGameTick(GameTick t) {
+        if (stopRow != null && done && probewait().contains("stopNow")) stopNow();
         if (done || client.getGameState() != GameState.LOGGED_IN || client.getLocalPlayer() == null) return;
         try {
             if (!seeded) { seed(); seeded = true; return; }
@@ -147,7 +149,12 @@ public class ApiProbePlugin extends Plugin {
                 if (current == null || !current.hasNext()) {
                     current = null;
                     if (!next()) {
-                        if (!later.isEmpty() || awaitingHitsplat() || awaited()) return;
+                        if (!later.isEmpty() || awaitingHitsplat()) return;
+                        if (awaited()) {  // tools/api-probe.sh acts on this line: the rows that need no waited instance are done
+                            if (!waitLogged) log.info("api-probe: waiting for {}", probewait());
+                            waitLogged = true;
+                            return;
+                        }
                         if (lastRows.isEmpty()) { finish(); return; }
                         // one LAST row per tick, in LAST order, each once the previous one's checks are done
                         lastPhase = true;
@@ -1279,8 +1286,9 @@ public class ApiProbePlugin extends Plugin {
             p.set(row, n == 1 && v >= 0 && v <= 2 ? "pass" : "mismatch", how + " of script " + net.runelite.api.ScriptID.QUEST_STATUS_GET
                 + " (quest_status_get, reads varps only) for quest " + QUEST + ": int stack size 0 -> " + n + ", value " + v + " (0 not started, 1 started, 2 done)");
         };
-        // Ends the client (desktop's stopNow exits RuneLite): the probe would never write its report.
-        SPECIAL.put("Client.stopNow0", (p, row, inst) -> p.set(row, "skipped", "ends the client; the report would never be written"));
+        // Ends the client (desktop's stopNow exits RuneLite): called after the report is written (finish); tools/api-probe.sh
+        // records whether the app process ended.
+        SPECIAL.put("Client.stopNow0", (p, row, inst) -> { p.stopRow = row; p.set(row, "called", "called after this report is written: tools/api-probe.sh records whether the app process ends"); });
         SPECIAL.put("Client.runScript1", script);
         SPECIAL.put("ScriptEvent.run0", script);
         // Desktop sets the world the next login uses: no getter, so the client's fields are compared around it.
@@ -1583,7 +1591,7 @@ public class ApiProbePlugin extends Plugin {
 
     private void finish() throws Exception {
         done = true;
-        eventBus.unregister(this);
+        if (stopRow == null) eventBus.unregister(this);  // else stopNow() unregisters
         for (Runnable r : cleanup) r.run();
         for (Map.Entry<String, List<Row>> e : byIface.entrySet())
             for (Row r : e.getValue())
@@ -1608,6 +1616,20 @@ public class ApiProbePlugin extends Plugin {
         File out = new File(dir, "api-probe.tsv");
         if (!tmp.renameTo(out)) throw new java.io.IOException("rename to " + out + " failed");
         log.info("api-probe: done, pass {} / {} = {}%, {}", pass, rows.size(), pct, counts);
+        if (stopRow != null) log.info("api-probe: stopNow waits for 'stopNow' in debug.osrsrl.probewait");
+    }
+
+    /** Client.stopNow, last: tools/api-probe.sh names "stopNow" in probewait once it has the report and has cleaned up. */
+    private void stopNow() {
+        eventBus.unregister(this);
+        stopRow = null;
+        log.info("api-probe: stopNow");
+        try {
+            client.stopNow();
+            log.info("api-probe: stopNow returned");  // tools/api-probe.sh: the process did not end
+        } catch (Throwable e) {
+            log.info("api-probe: stopNow returned: {}", e.toString());
+        }
     }
 
     private static String clean(String s) {
