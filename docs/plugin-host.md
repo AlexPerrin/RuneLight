@@ -417,14 +417,13 @@ item id), computed once per cycle (`AndroidMenu.hoverEntry`). Item Stats' toolti
 
 ## Developer tools (MCP)
 
-OpenRune-Developer-Tools (BSD-2, a sideloaded RuneLite plugin with an MCP server of 47 tools) runs
+OpenRune-Developer-Tools (BSD-2, a sideloaded RuneLite plugin with an MCP server of 120 tools) runs
 in the host so agents can drive device tests. Off by default and never in the default plugin set.
 - Build: `host/plugins/devtools/build.sh` builds it from source (clones into git-ignored
-  `re/devtools`, pinned; compiles against our 1.13.1 jars) with updates disabled: its self-updater
-  (which would fetch a release jar from GitHub into `sideloaded-plugins`) is stubbed out with ASM
-  (`host/gen/StubMethods.java`), whatever its version check decides. The host only loads plugins
-  from `files/plugins/`, and at startup deletes any jar that updater could have left (one early test
-  run downloaded one before the stub; it was never loaded).
+  `re/devtools`, pinned; compiles against our 1.13.1 jars) with updates disabled: its update
+  checker (notify-only, asks GitHub for the latest release and already skips our `-local` version)
+  is stubbed out with ASM (`host/gen/StubMethods.java`), so it reaches no host. The host only loads
+  plugins from `files/plugins/`, and at startup deletes any jar left in `sideloaded-plugins`.
 - Shared device: driving `osrs-devtools` (the harness repo's `.mcp.json` entry) drives the app on `ANDROID_SERIAL`, so
   the sign-in safety rule applies to anything it
   clicks (signed out: only "Sign in with Email / Username"; never Google/Jagex account screens).
