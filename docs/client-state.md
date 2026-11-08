@@ -29,7 +29,7 @@ landscape, canvas = screen points) on a fresh install (client-login-index-log, e
 |---|------|------------------|
 | 0 | welcome, signed out | Sign in with Google [905,475][1495,558]; Sign in with Email / Username [905,575][1495,658] |
 | 12 | terms dialog (after either sign-in button on a fresh install, not at launch) | Accept [882,603][1184,686]; Decline [1213,603][1515,686]; its text links (terms of use, privacy policy, EULA) are at y 455-525 |
-| 30 | waiting on the browser sign-in (AppAuth opens Chrome at Central's 10.0.2.2:8084/oauth2/auth; Chrome's first run asks "Use without an account") and briefly after Play Now, before LOGGING_IN | none on the canvas |
+| 30 | waiting on the browser sign-in (AppAuth opens Chrome at Central's 10.0.2.2:8084/oauth2/auth; Chrome's first run asks "Use without an account"; with no dev account set, Central's form asks Username and Password, and each mobile signs in as its own account, so parallel mobiles do not refuse each other Duplicate) and briefly after Play Now, before LOGGING_IN | none on the canvas |
 | 10 | welcome, signed in | Play Now [973,475][1422,612]; Sign out [1048,645][1350,727] |
 
 On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
