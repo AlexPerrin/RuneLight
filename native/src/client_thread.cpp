@@ -59,6 +59,18 @@ bool g_world_ok = false;   // guarded by g_world_mutex
 std::vector<game::WorldEntry> g_worlds;  // the whole list, guarded by g_world_mutex
 std::atomic<bool> g_shake_off{false};     // Client.setCameraShakeDisabled
 std::atomic<bool> g_invert[2]{};          // Client.setInvertPitch, setInvertYaw
+std::atomic<float> g_cam_speed{1.0f};     // Client.setCameraSpeed
+float g_sens_base = 0, g_sens_set = 0;    // game thread only: the game's own sensitivity and the one last written
+bool g_sens_seen = false;
+// The drag sensitivity as the game's own value times setCameraSpeed's multiplier; a value the game wrote
+// since (its settings) becomes the new base.
+void apply_camera_speed() {
+    float cur;
+    if (!game::camera_sensitivity(cur)) return;
+    if (!g_sens_seen || cur != g_sens_set) { g_sens_base = cur; g_sens_seen = true; }
+    g_sens_set = g_sens_base * g_cam_speed.load(std::memory_order_relaxed);
+    if (cur != g_sens_set) game::set_camera_sensitivity(g_sens_set);
+}
 int g_world_id = -1;       // game thread only: the id and list the cache was read for
 std::pair<uintptr_t, uint64_t> g_world_list{0, 0};
 uint64_t g_world_read_at = 0;
@@ -457,6 +469,7 @@ void after_cycle() {
     if (g_shake_off.load(std::memory_order_relaxed)) game::clear_camera_shake();
     bool inv_pitch = g_invert[0].load(std::memory_order_relaxed), inv_yaw = g_invert[1].load(std::memory_order_relaxed);
     if ((inv_pitch || inv_yaw) && game::touch_state() == 8) game::invert_camera_drag(inv_pitch, inv_yaw);
+    apply_camera_speed();
     poll_messages(world_up);
     if (world_up) diff_inventories();  // after the messages: changes made after the last one
     diff_interfaces();
@@ -596,6 +609,10 @@ std::vector<game::Inventory> inventories() {
 void set_camera_shake_disabled(bool off) { g_shake_off = off; }
 bool camera_shake_disabled() { return g_shake_off; }
 void set_camera_invert(int axis, bool on) { if (axis == 0 || axis == 1) g_invert[axis] = on; }
+void set_camera_speed(float m) {
+    g_cam_speed = m;
+    if (on_client_thread()) apply_camera_speed();
+}
 
 std::vector<game::WorldEntry> world_list() {
     std::vector<game::WorldEntry> out;

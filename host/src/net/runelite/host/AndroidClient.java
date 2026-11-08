@@ -1113,6 +1113,13 @@ public class AndroidClient extends ClientStub {
     @Override public void setInvertYaw(boolean on) { Native.setCameraInvert(1, on); }
     /** No button selects the camera drag here: the game starts it from a touch only (a mouse's right/middle buttons go to their own listeners). */
     @Override public void setCameraMouseButtonMask(int mask) { }
+    /** Desktop's pitch relaxer is the game's own flag here (Client +0x8951c, which the server can also set): pitch up to 520 instead of 383. */
+    @Override public void setCameraPitchRelaxerEnabled(boolean on) { Native.setClientInt(Native.PITCH_RELAXER, on ? 1 : 0); }
+    /** The touch camera's drag sensitivity, scaled from the game's own (its settings keep working under it). */
+    @Override public void setCameraSpeed(float speed) { Native.setCameraSpeed(speed); }
+    // The mobile game moves the focal point at one speed (Client +0x894c4, 12) in both free camera and orb modes.
+    @Override public void setOculusOrbNormalSpeed(int speed) { Native.setClientInt(Native.ORB_SPEED, speed); }
+    @Override public void setFreeCameraSpeed(int speed) { Native.setClientInt(Native.ORB_SPEED, speed); }
     /** The game's music volume (0-255); a set also changes the playing songs' volume, as desktop. */
     @Override public int getMusicVolume() { return Native.musicVolume(); }
     @Override public void setMusicVolume(int v) {

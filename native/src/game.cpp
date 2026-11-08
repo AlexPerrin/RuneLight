@@ -1822,26 +1822,50 @@ bool connection(std::string& host, int ports[2]) {
     return true;
 }
 
-// Plain int fields of the Client the API reads and writes as they are (docs/offsets.md "Client state").
+// Plain int fields of the Client the API reads and writes as they are (docs/offsets.md "Client state");
+// a field of one byte is read and written as one byte (+0x8951d next to the pitch relaxer is the game's).
 namespace {
-constexpr uint32_t kClientInts[] = {
-    0x894bc,  // 0 oculus orb state / camera mode (CAM_MODE writes it; 0x41d0a4 acts on 1 and 2)
-    0x89500,  // 1 oculus orb focal point X (local units)
-    0x89508,  // 2 oculus orb focal point Y
-    0x413e6c, // 3 chat cycle (refreshChat's 0x43aacc sets it; the chatbox rebuilds when it changes)
-    0x413de4, // 4 changed-skills ring count (241.4's f_changed_skill_count; queueChangedSkill bumps it)
+struct ClientInt { uint32_t off; bool byte; };
+constexpr ClientInt kClientInts[] = {
+    {0x894bc, false},  // 0 oculus orb state / camera mode (CAM_MODE writes it; 0x41d0a4 acts on 1 and 2)
+    {0x89500, false},  // 1 oculus orb focal point X (local units)
+    {0x89508, false},  // 2 oculus orb focal point Y
+    {0x413e6c, false}, // 3 chat cycle (refreshChat's 0x43aacc sets it; the chatbox rebuilds when it changes)
+    {0x413de4, false}, // 4 changed-skills ring count (241.4's f_changed_skill_count; queueChangedSkill bumps it)
+    {0x894c4, false},  // 5 orb/free camera normal speed (12; 0x41d0a4 moves the focal point this many units a cycle in modes 1 and 2)
+    {0x8951c, true},   // 6 pitch relaxer (u8; pitch range 0x001..0x1040 instead of 0x400..0xbf8; packet case 0x80 sets it)
 };
 }  // namespace
 bool client_int(int which, int& out) {
     uintptr_t c = client();
     if (!c || which < 0 || which >= static_cast<int>(sizeof kClientInts / sizeof kClientInts[0])) return false;
-    out = read_at<int32_t>(c + kClientInts[which]);
+    const ClientInt& f = kClientInts[which];
+    out = f.byte ? read_at<uint8_t>(c + f.off) : read_at<int32_t>(c + f.off);
     return true;
 }
 bool set_client_int(int which, int value) {
     uintptr_t c = client();
     if (!c || which < 0 || which >= static_cast<int>(sizeof kClientInts / sizeof kClientInts[0])) return false;
-    *reinterpret_cast<volatile int32_t*>(c + kClientInts[which]) = value;
+    const ClientInt& f = kClientInts[which];
+    if (f.byte) *reinterpret_cast<volatile uint8_t*>(c + f.off) = static_cast<uint8_t>(value);
+    else *reinterpret_cast<volatile int32_t*>(c + f.off) = value;
+    return true;
+}
+
+// Touch camera drag sensitivity: float +0x82c of the settings object *(Client+0x2280); 0x41d0a4 scales the
+// drag's pixel deltas by it into the pitch/yaw deltas (+0x894ac/+0x894b0) while the touch state is 8.
+bool camera_sensitivity(float& out) {
+    uintptr_t c = client();
+    uintptr_t s = c ? read_at<uintptr_t>(c + 0x2280) : 0;
+    if (!s) return false;
+    out = read_at<float>(s + 0x82c);
+    return true;
+}
+bool set_camera_sensitivity(float v) {
+    uintptr_t c = client();
+    uintptr_t s = c ? read_at<uintptr_t>(c + 0x2280) : 0;
+    if (!s) return false;
+    *reinterpret_cast<volatile float*>(s + 0x82c) = v;
     return true;
 }
 
