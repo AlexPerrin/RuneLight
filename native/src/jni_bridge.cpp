@@ -1620,6 +1620,14 @@ jboolean n_play_sound(JNIEnv*, jclass, jint id, jint loops, jint delay) {
     return client_thread::on_client_thread() && game::play_sound_effect(id, loops, delay);
 }
 
+jboolean n_play_sound_volume(JNIEnv*, jclass, jint id, jint volume) {
+    return client_thread::on_client_thread() && game::play_sound_at_volume(id, volume);
+}
+
+jboolean n_play_area_sound(JNIEnv*, jclass, jint id, jint x, jint y, jint range, jint delay) {
+    return client_thread::on_client_thread() && game::play_area_sound(id, x, y, range, delay);
+}
+
 jstring n_property(JNIEnv* env, jclass, jstring name) {
     const char* n = env->GetStringUTFChars(name, nullptr);
     char value[PROP_VALUE_MAX] = "";
@@ -2008,6 +2016,8 @@ const JNINativeMethod kNatives[] = {
     {"setCameraFocal", "(II)Z", reinterpret_cast<void*>(n_set_camera_focal)},
     {"viewport", "()[I", reinterpret_cast<void*>(n_viewport)},
     {"playSound", "(III)Z", reinterpret_cast<void*>(n_play_sound)},
+    {"playSoundVolume", "(II)Z", reinterpret_cast<void*>(n_play_sound_volume)},
+    {"playAreaSound", "(IIIII)Z", reinterpret_cast<void*>(n_play_area_sound)},
     {"screenSize", "()[I", reinterpret_cast<void*>(n_screen_size)},
     {"walkDestination", "()[I", reinterpret_cast<void*>(n_walk_destination)},
     {"friends", "(Z)[Ljava/lang/Object;", reinterpret_cast<void*>(n_friends)},

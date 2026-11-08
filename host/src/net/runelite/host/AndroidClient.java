@@ -81,9 +81,9 @@ public class AndroidClient extends ClientStub {
         };
     }
     @Override public void playSoundEffect(int id) { Native.playSound(id, 1, 0); }
-    @Override public void playSoundEffect(int id, int volume) { Native.playSound(id, 1, 0); }
-    @Override public void playSoundEffect(int id, int x, int y, int range) { Native.playSound(id, 1, 0); }
-    @Override public void playSoundEffect(int id, int x, int y, int range, int delay) { Native.playSound(id, 1, delay); }
+    @Override public void playSoundEffect(int id, int volume) { Native.playSoundVolume(id, volume); }
+    @Override public void playSoundEffect(int id, int x, int y, int range) { Native.playAreaSound(id, x, y, range, 0); }
+    @Override public void playSoundEffect(int id, int x, int y, int range, int delay) { Native.playAreaSound(id, x, y, range, delay); }
     @Override public void setVarcIntValue(int id, int value) { Native.setVarcInt(id, value); }
     @Override public void setVarcStrValue(int id, String value) { Native.setVarcString(id, value); }
 

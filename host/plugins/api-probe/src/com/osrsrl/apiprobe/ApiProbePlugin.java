@@ -1109,7 +1109,8 @@ public class ApiProbePlugin extends Plugin {
                     + ", AreaSoundEffectPlayed " + (a == null ? "none" : "at " + a.getSceneX() + "," + a.getSceneY() + " range " + a.getRange() + " delay " + a.getDelay());
                 boolean ok;
                 if (n == 1) ok = s != null && s.getDelay() == 0;
-                else if (n == 2) { ok = false; ev += "; volume 32 is not applied (desktop plays it at that volume)"; }
+                // Desktop plays (id, volume) straight into the mixer: no queue, so neither event.
+                else if (n == 2) ok = s == null && a == null;
                 else ok = a != null && a.getSceneX() == x && a.getSceneY() == y && a.getRange() == 1 && a.getDelay() == (n == 5 ? 5 : 0);
                 if (n >= 4) ev += "; asked at " + x + "," + y + " range 1";
                 p.set(row, ok ? "pass" : "mismatch", ev);
