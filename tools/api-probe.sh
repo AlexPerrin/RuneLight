@@ -122,7 +122,7 @@ until adb shell ls $F/api-probe.tsv >/dev/null 2>&1; do
     alive || { echo "api-probe: the app exited during the probe; the last row it started is in logcat (rl.ApiProbePlugin)"; status=1; break; }
     if [ -z "$waited" ] && [ -n "$(plog 'waiting for')" ]; then   # the rows that need no waited instance are done
         waited=1; dt click_component "{\"componentId\":$SKILLS_TAB}" >/dev/null
-        desk widget_action '{"componentId":10616846,"option":"Show all"}' >/dev/null   # chatbox private filter (162:14): a login notice on the mobile
+        desk widget_action '{"componentId":10616847,"option":"Show all"}' >/dev/null   # chatbox private filter (162:15): a login notice on the mobile
     fi
     if [ -z "$modal" ] && [ -n "$(plog 'closeInterface waits')" ]; then
         modal=1; retaliate0=$(dt get_var '{"type":"varp","id":172}' | field value)
