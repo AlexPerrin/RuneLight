@@ -84,24 +84,36 @@ public class ApiProbePlugin extends Plugin {
     interface Turned { void run(int yaw, int pitch) throws Exception; }
 
     /**
-     * A drag on the scene through the host canvas (press, two moves a tick apart, release), started at the viewport's
-     * centre with the pitch target mid-range so it is not clamped; a tick after the release (the glide is over in a few
-     * cycles) the targets' changes go to `then` (yaw wrapped to -8192..8191).
+     * A drag on the scene through the host canvas, as the devtools drag (press, 8 moves 60 ms apart, release, on a thread
+     * of its own: the game reads a move per cycle), started at the viewport's centre with the pitch target mid-range so it
+     * is not clamped; a tick after the release (the glide is over in a few cycles) the targets' changes go to `then` (yaw
+     * wrapped to -8192..8191).
      */
     void cameraDrag(Row row, Turned then) {
         java.awt.Canvas cv = client.getCanvas();
         int x = client.getCenterX(), y = client.getCenterY();
         client.setCameraPitchTarget(0x7fc);
         int yaw0 = client.getCameraYawTarget(), pitch0 = client.getCameraPitchTarget();
-        mouse(cv, java.awt.event.MouseEvent.MOUSE_PRESSED, x, y);
-        mouse(cv, java.awt.event.MouseEvent.MOUSE_DRAGGED, x + 40, y + 20);
-        later(row, () -> {
-            mouse(cv, java.awt.event.MouseEvent.MOUSE_DRAGGED, x + 120, y + 60);
-            later(row, () -> {
-                mouse(cv, java.awt.event.MouseEvent.MOUSE_RELEASED, x + 120, y + 60);
-                later(row, () -> then.run(((client.getCameraYawTarget() - yaw0 + 8192) & 0x3fff) - 8192, client.getCameraPitchTarget() - pitch0));
-            });
-        });
+        Thread t = new Thread(() -> {
+            try {
+                mouse(cv, java.awt.event.MouseEvent.MOUSE_PRESSED, x, y);
+                for (int i = 1; i <= 8; i++) {
+                    Thread.sleep(60);
+                    mouse(cv, java.awt.event.MouseEvent.MOUSE_DRAGGED, x + 20 * i, y + 8 * i);
+                }
+                Thread.sleep(60);
+                mouse(cv, java.awt.event.MouseEvent.MOUSE_RELEASED, x + 160, y + 64);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "api-probe-drag");
+        t.start();
+        later(row, afterDrag(row, t, () -> then.run(((client.getCameraYawTarget() - yaw0 + 8192) & 0x3fff) - 8192, client.getCameraPitchTarget() - pitch0)));
+    }
+
+    /** `then` on the first tick after the drag thread has sent its release. */
+    private Check afterDrag(Row row, Thread t, Check then) {
+        return () -> later(row, t.isAlive() ? afterDrag(row, t, then) : then);
     }
 
     private static void mouse(java.awt.Canvas cv, int id, int x, int y) {
