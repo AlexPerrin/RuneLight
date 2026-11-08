@@ -342,8 +342,12 @@ public final class Host {
     public static void onEvent(int type, int a, int b) {
         EventBus bus = eventBus;
         if (bus == null) return;
-        if (gameThread == null) gameThread = Thread.currentThread();
+        boolean first = gameThread == null;
+        if (first) gameThread = Thread.currentThread();
         try {
+            // Native posts a state only on a change, and changes before 'host ready' were dropped
+            // (bus null): post the game's current state once, as desktop plugins see it from the start.
+            if (first && type != GAME_STATE_CHANGED) dispatch(bus, GAME_STATE_CHANGED, Native.gameState(), -1);
             dispatch(bus, type, a, b);
         } finally {
             AndroidWidget.applyChildEdits();
