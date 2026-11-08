@@ -208,6 +208,17 @@ struct SubInterface { int component, group, type; };  // `group` is open inside 
 std::vector<SubInterface> open_sub_interfaces();
 // IF_CLOSESUB for an open sub-interface (`0x462384`); false when it isn't open. Game thread only.
 bool close_sub_interface(int component, int group, bool unload);
+// IF_OPENSUB's helper `0x462640`: opens `group` inside `component` with modal `mode`; false on bad ids. Game thread only.
+bool open_sub_interface(int component, int group, int mode);
+// Game-state writes (RuneLite's setAllWidgetsAreOpTargetable, Widget.setForcedPosition,
+// PlayerComposition.setHash, Scene.removeGameObject/removeTile). Game thread only.
+bool set_all_op_targetable(bool on);  // false when the flags hook isn't installed
+int64_t widget_target_flags(int component, int index);  // 0x460dac as the menu builder sees it; -1 no widget
+bool widget_force_position(int component, int index, int x, int y);  // -1, -1 clears
+uint64_t appearance_set_hash(int index, const int32_t equipment[12], const int32_t colors[5], int npc_id);  // 0: none
+uint64_t appearance_hash(int index);
+bool scene_remove_game_object(int plane, int x, int y, uint64_t tag);
+bool scene_remove_tile(int plane, int x, int y, bool remove);  // remove false: whether the tile is there
 // RuneLite's drawInstanceMap: the game's minimap image of `plane` in desktop's layout (736x736 RGB
 // for the 184-tile extended scene, 4 px per tile; the mobile 104-tile scene fills the middle 416 px
 // at 160,160), resampled when the minimap zoom isn't 4. The game's buffer is restored to the plane it showed. Game thread only.

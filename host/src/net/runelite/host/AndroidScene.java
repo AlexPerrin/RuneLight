@@ -31,8 +31,39 @@ final class AndroidScene extends SceneStub {
                     for (int y = 0; y < SIZE; y++) t[z][x][y] = new Tile(x, y, z);
             tiles = t;
             tilesBase = base;
+            removedTiles.clear();
+        } else if (!removedTiles.isEmpty() && Native.isClientThread()) {
+            // A removed tile is null until the game builds it again (the scene's reload).
+            for (java.util.Iterator<int[]> it = removedTiles.iterator(); it.hasNext(); ) {
+                int[] r = it.next();
+                if (!Native.sceneRemoveTile(r[0], r[1], r[2], false)) continue;
+                tiles[r[0]][r[1]][r[2]] = new Tile(r[1], r[2], r[0]);
+                it.remove();
+            }
         }
         return tiles;
+    }
+
+    private final List<int[]> removedTiles = new java.util.ArrayList<>();  // {plane, x, y}
+
+    /** As desktop: the game's tile leaves the scene (its slot emptied) and getTiles() has null there. */
+    @Override public void removeTile(net.runelite.api.Tile tile) {
+        if (tile == null) return;
+        if (!Native.isClientThread()) { Host.invoke(() -> removeTile(tile)); return; }
+        int z = tile.getPlane(), x = tile.getSceneLocation().getX(), y = tile.getSceneLocation().getY();
+        synchronized (this) {
+            getTiles();
+            if (!Native.sceneRemoveTile(z, x, y, true)) return;
+            tiles[z][x][y] = null;
+            removedTiles.add(new int[] {z, x, y});
+        }
+    }
+
+    /** As desktop: the scenery object leaves every tile it covers (scene only; collision stays). */
+    @Override public void removeGameObject(net.runelite.api.GameObject o) {
+        if (!(o instanceof AndroidTileObject.Game)) return;
+        if (Native.isClientThread()) objects.removeGame((AndroidTileObject.Game) o);
+        else Host.invoke(() -> objects.removeGame((AndroidTileObject.Game) o));
     }
 
     @Override public net.runelite.api.Tile[][][] getExtendedTiles() { return getTiles(); }

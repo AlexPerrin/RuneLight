@@ -150,6 +150,23 @@ final class Native {
     static native boolean widgetClearListener(int id, int index, int offset);
     /** IF_CLOSESUB for `group` open in `component` (`0x462384`); false if not open. Client thread. */
     static native boolean closeSubInterface(int component, int group, boolean unload);
+    /** IF_OPENSUB's helper (`0x462640`): opens `group` in `component` with modal `mode`; false on bad ids. Client thread. */
+    static native boolean openSubInterface(int component, int group, int mode);
+    // Game-state writes (docs/offsets.md "Game-state writes"). Client thread.
+    /** Every widget a target in target mode (the menu builder's flags call gets bit 21); false without the hook. */
+    static native boolean setAllOpTargetable(boolean on);
+    /** A widget's flags as the menu builder's target test reads them (`0x460dac`, the setting applied); -1 no widget. */
+    static native long widgetTargetFlags(int id, int index);
+    /** The layout pass (`0x45ea08`) keeps relative x/y (-1: its own) for this widget; -1, -1 clears. */
+    static native boolean widgetForcePosition(int id, int index, int x, int y);
+    /** Equipment, colours and transformed NPC id into player `index`'s Appearance, then its model hash (`0x5e1bd4`); 0 none. */
+    static native long playerSetHash(int index, int[] equipment, int[] colors, int npcId);
+    /** Player `index`'s Appearance model hash (+0x78); 0 none. */
+    static native long playerHash(int index);
+    /** The scenery object with `tag` whose min corner is (plane, x, y) leaves the scene (`0x6dc300`). */
+    static native boolean sceneRemoveGameObject(int plane, int x, int y, long tag);
+    /** Empties a scene tile slot (remove), or tells whether the tile is there (!remove). */
+    static native boolean sceneRemoveTile(int plane, int x, int y, boolean remove);
     /** The game's minimap image of `plane` as desktop's drawInstanceMap layout (736x736 RGB), or null. Client thread. */
     static native int[] drawMinimap(int plane);
     /** A widget's var/inv/stat transmit trigger ids (offset 0x5c0/0x608/0x650), or null. */

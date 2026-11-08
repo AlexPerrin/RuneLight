@@ -23,6 +23,7 @@
 namespace game {
 void install_message_hook();
 void install_scene_load_hook();
+void install_state_write_hooks();
 namespace {
 
 // Offsets are ELF virtual addresses (as in readelf/objdump; Ghidra shows them +0x100000)
@@ -200,6 +201,7 @@ bool init() {
             LOGI("game: build %s recognised", b.name);
             install_message_hook();
             install_scene_load_hook();
+            install_state_write_hooks();
             return true;
         }
     }
@@ -1476,6 +1478,19 @@ bool close_sub_interface(int component, int group, bool unload) {
     for (const SubInterface& s : open_sub_interfaces()) open |= s.component == component && s.group == group;
     if (!open) return false;
     reinterpret_cast<void (*)(uintptr_t, int, uint32_t, uint64_t)>(g_base + 0x462384)(c, component, static_cast<uint32_t>(group), unload ? 1 : 0);
+    return true;
+}
+
+// RuneLite's Client.openInterface: IF_OPENSUB's helper `0x462640(client, component, group, mode)` adds (or
+// re-uses) the component-table node, loads `group` into `component`, runs its onLoad and lays out the root.
+// Like desktop it doesn't close a node already in `component` (the packet handler does that first). It
+// dereferences the lookup of `component` unchecked, so both ids are validated first. Game thread only.
+bool open_sub_interface(int component, int group, int mode) {
+    uintptr_t c = client();
+    if (!c || group < 0 || group > 0xffff || !widget_slot(component, -1)) return false;
+    auto im = read_at<uintptr_t>(c + g_build->f_interfaces);
+    if (!im || static_cast<uint64_t>(group) >= read_at<uint64_t>(im + 0x6888)) return false;
+    reinterpret_cast<uintptr_t (*)(uintptr_t, int, int, int)>(g_base + 0x462640)(c, component, group, mode);
     return true;
 }
 
@@ -4793,6 +4808,131 @@ bool take_message_inventories(int id, std::vector<Inventory>& out) {
     if (it == g_msg_inv.end()) return false;
     out = std::move(it->second);
     g_msg_inv.erase(it);
+    return true;
+}
+
+// ---- Game-state writes (docs/offsets.md "Game-state writes") ----
+
+namespace {
+// RuneLite's allWidgetsAreOpTargetable: the menu builder 0x525c78 takes a widget as a target only when
+// the flags from 0x460dac(client, Widget_sp*) have bit 21 (0x200000); that call returns to 0x525ce0.
+constexpr uintptr_t kWidgetFlags = 0x460dac, kTargetFlagsRet = 0x525ce0;
+constexpr uint32_t kWidgetFlagsCode[4] = {0xf9400428, 0x91504c09, 0xb94c392a, 0xf9461929};
+// The widget position layout 0x45ea08(clamp, Widget*, parent width, parent height) writes +0x5c/+0x60.
+constexpr uintptr_t kWidgetAlign = 0x45ea08;
+constexpr uint32_t kWidgetAlignCode[4] = {0xb9403c28, 0x7100051f, 0x5400026d, 0x7100091f};
+volatile bool g_all_op_targetable = false;
+bool g_flags_query = false;  // game thread: widget_target_flags asks 0x460dac as the menu builder does
+struct Forced { uint32_t comp; int32_t index; int x, y; };
+std::unordered_map<uintptr_t, Forced> g_forced;  // by Widget*; game thread only
+}  // namespace
+}  // namespace game
+
+extern "C" {
+__attribute__((visibility("hidden"))) void* osrsrl_widget_flags_orig = nullptr;
+__attribute__((visibility("hidden"))) void* osrsrl_widget_align_orig = nullptr;
+void osrsrl_widget_flags_stub();
+void osrsrl_widget_align_stub();
+void osrsrl_widget_flags_cb(const uint64_t*, uint64_t* regs, uintptr_t lr) {
+    if (game::g_all_op_targetable && (lr == game::g_base + game::kTargetFlagsRet || game::g_flags_query)) regs[0] |= 0x200000;
+}
+void osrsrl_widget_align_cb(const uint64_t* args, uint64_t*, uintptr_t) {
+    if (game::g_forced.empty()) return;
+    auto it = game::g_forced.find(args[1]);
+    if (it == game::g_forced.end()) return;
+    uintptr_t w = args[1];
+    const game::Forced& f = it->second;
+    // The Widget* may have been freed and reused by another widget: only the one it was set on.
+    if (game::read_at<uint32_t>(w + 4) != f.comp || game::read_at<int32_t>(w + 8) != f.index) return;
+    if (f.x != -1) *reinterpret_cast<volatile int32_t*>(w + 0x5c) = f.x;
+    if (f.y != -1) *reinterpret_cast<volatile int32_t*>(w + 0x60) = f.y;
+}
+}
+
+namespace game {
+void install_state_write_hooks() {
+    osrsrl_widget_flags_orig = inline_hook(g_base + kWidgetFlags, kWidgetFlagsCode, reinterpret_cast<void*>(osrsrl_widget_flags_stub));
+    osrsrl_widget_align_orig = inline_hook(g_base + kWidgetAlign, kWidgetAlignCode, reinterpret_cast<void*>(osrsrl_widget_align_stub));
+    LOGI("game: widget flags hook %s, widget align hook %s", osrsrl_widget_flags_orig ? "installed" : "FAILED",
+         osrsrl_widget_align_orig ? "installed" : "FAILED");
+}
+
+bool set_all_op_targetable(bool on) {
+    g_all_op_targetable = on;
+    return osrsrl_widget_flags_orig != nullptr;
+}
+
+// The flags 0x460dac gives the menu builder for a widget (its IF_SETEVENTS range, else +0x2b0), with
+// setAllWidgetsAreOpTargetable applied as it is there; -1 for no widget. Game thread.
+int64_t widget_target_flags(int component, int index) {
+    uintptr_t c = client(), slot = widget_slot(component, index);
+    if (!c || !slot || !osrsrl_widget_flags_orig) return -1;
+    g_flags_query = true;
+    uint32_t v = reinterpret_cast<uint32_t (*)(uintptr_t, uintptr_t)>(g_base + kWidgetFlags)(c, slot);
+    g_flags_query = false;
+    return v;
+}
+
+// RuneLite's Widget.setForcedPosition: the layout keeps x/y (-1 = its own) for this widget; both -1
+// clear it. The next layout pass (revalidate) applies it. Game thread.
+bool widget_force_position(int component, int index, int x, int y) {
+    uintptr_t slot = widget_slot(component, index), w = slot ? read_at<uintptr_t>(slot + 8) : 0;
+    if (!w || !osrsrl_widget_align_orig) return false;
+    if (x == -1 && y == -1) g_forced.erase(w);
+    else g_forced[w] = {read_at<uint32_t>(w + 4), read_at<int32_t>(w + 8), x, y};
+    return true;
+}
+
+// RuneLite's PlayerComposition.setHash: the composition's equipment, colours and transformed NPC id
+// into the player's Appearance (Player +0x728), then its model hash 0x5e1bd4(Appearance*), which stores
+// +0x78 and drops the old hash's cached model (the next draw builds the new one). Returns the hash, 0
+// with no appearance. Game thread.
+uint64_t appearance_set_hash(int index, const int32_t equipment[12], const int32_t colors[5], int npc_id) {
+    uintptr_t p = live_player(index), app = p ? read_at<uintptr_t>(p + 0x728) : 0;
+    if (!app) return 0;
+    for (int i = 0; i < 12; i++) *reinterpret_cast<volatile int32_t*>(app + 4 * i) = equipment[i];
+    for (int i = 0; i < 5; i++) *reinterpret_cast<volatile int32_t*>(app + 0x60 + 4 * i) = colors[i];
+    *reinterpret_cast<volatile int32_t*>(app + 0x74) = npc_id;
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x5e1bd4)(app);
+    return read_at<uint64_t>(app + 0x78);
+}
+uint64_t appearance_hash(int index) {
+    uintptr_t p = live_player(index), app = p ? read_at<uintptr_t>(p + 0x728) : 0;
+    return app ? read_at<uint64_t>(app + 0x78) : 0;
+}
+
+// RuneLite's Scene.removeGameObject: the scenery object whose min corner is (plane, x, y) with `tag`
+// (+0x1f0) leaves every tile it covers through the game's own removal 0x6dc300(scene, obj, 0), the
+// scene-only half of LOC_DEL (collision stays). The object may be freed by it. Game thread.
+bool scene_remove_game_object(int plane, int x, int y, uint64_t tag) {
+    uintptr_t scene = top_scene(), t = scene ? scene_tile(scene, plane, x, y) : 0;
+    if (!t) return false;
+    int n = read_at<int32_t>(t + 0x34);
+    uintptr_t objs = read_at<uintptr_t>(t + 0x38);
+    if (n <= 0 || n > 16 || !objs) return false;
+    for (int i = 0; i < n; i++) {
+        uintptr_t o = read_at<uintptr_t>(objs + static_cast<size_t>(i) * 0x10 + 8);
+        if (!o || read_at<uint64_t>(o + 0x1f0) != tag || read_at<int32_t>(o + 0x210) != x || read_at<int32_t>(o + 0x218) != y) continue;
+        reinterpret_cast<void (*)(uintptr_t, uintptr_t, uint64_t)>(g_base + 0x6dc300)(scene, o, 0);
+        return true;
+    }
+    return false;
+}
+
+// RuneLite's Scene.removeTile: the tile slot (Scene +0x968, shared_ptr {ctrl, Tile*}) emptied and its
+// reference released, as the scene's tile creation 0x6db200 replaces one; the scene walkers take a
+// null tile (tiles are created lazily). The scene's reload builds it again. With remove false, only
+// whether the tile is there. Game thread.
+bool scene_remove_tile(int plane, int x, int y, bool remove) {
+    uintptr_t scene = top_scene();
+    if (!scene || !scene_tile(scene, plane, x, y)) return false;
+    if (!remove) return true;
+    int sx = read_at<int32_t>(scene + 0x948), sy = read_at<int32_t>(scene + 0x94c);
+    auto* slot = reinterpret_cast<uintptr_t*>(read_at<uintptr_t>(scene + 0x968) + ((static_cast<size_t>(plane) * sx + x) * sy + y) * 0x10);
+    uintptr_t ctrl = slot[0];
+    slot[1] = 0;
+    slot[0] = 0;
+    release_shared_ptr(ctrl);
     return true;
 }
 }  // namespace game

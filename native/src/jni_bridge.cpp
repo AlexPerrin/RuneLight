@@ -1187,6 +1187,9 @@ jbyteArray n_target_state(JNIEnv* env, jclass, jint len) {
 jboolean n_close_sub_interface(JNIEnv*, jclass, jint component, jint group, jboolean unload) {
     return client_thread::on_client_thread() && game::close_sub_interface(component, group, unload);
 }
+jboolean n_open_sub_interface(JNIEnv*, jclass, jint component, jint group, jint mode) {
+    return client_thread::on_client_thread() && game::open_sub_interface(component, group, mode);
+}
 jintArray n_draw_minimap(JNIEnv* env, jclass, jint plane) {
     std::vector<int32_t> px;
     if (!client_thread::on_client_thread() || !game::draw_minimap(plane, px)) return nullptr;
@@ -1280,6 +1283,31 @@ jboolean n_graphics_object_finish(JNIEnv* env, jclass, jlong obj) {
 }
 jboolean n_projectile_set_end_cycle(JNIEnv* env, jclass, jlong obj, jint cycle) {
     return require_client_thread(env, "projectileSetEndCycle") && game::projectile_set_end_cycle(static_cast<uintptr_t>(obj), cycle);
+}
+jboolean n_set_all_op_targetable(JNIEnv* env, jclass, jboolean on) {
+    return require_client_thread(env, "setAllOpTargetable") && game::set_all_op_targetable(on);
+}
+jlong n_widget_target_flags(JNIEnv* env, jclass, jint component, jint index) {
+    return require_client_thread(env, "widgetTargetFlags") ? game::widget_target_flags(component, index) : -1;
+}
+jboolean n_widget_force_position(JNIEnv* env, jclass, jint component, jint index, jint x, jint y) {
+    return require_client_thread(env, "widgetForcePosition") && game::widget_force_position(component, index, x, y);
+}
+jlong n_player_set_hash(JNIEnv* env, jclass, jint index, jintArray equipment, jintArray colors, jint npc) {
+    if (!require_client_thread(env, "playerSetHash") || !equipment || !colors || env->GetArrayLength(equipment) != 12 || env->GetArrayLength(colors) != 5) return 0;
+    int32_t e[12], c[5];
+    env->GetIntArrayRegion(equipment, 0, 12, reinterpret_cast<jint*>(e));
+    env->GetIntArrayRegion(colors, 0, 5, reinterpret_cast<jint*>(c));
+    return static_cast<jlong>(game::appearance_set_hash(index, e, c, npc));
+}
+jlong n_player_hash(JNIEnv* env, jclass, jint index) {
+    return require_client_thread(env, "playerHash") ? static_cast<jlong>(game::appearance_hash(index)) : 0;
+}
+jboolean n_scene_remove_game_object(JNIEnv* env, jclass, jint plane, jint x, jint y, jlong tag) {
+    return require_client_thread(env, "sceneRemoveGameObject") && game::scene_remove_game_object(plane, x, y, static_cast<uint64_t>(tag));
+}
+jboolean n_scene_remove_tile(JNIEnv* env, jclass, jint plane, jint x, jint y, jboolean remove) {
+    return require_client_thread(env, "sceneRemoveTile") && game::scene_remove_tile(plane, x, y, remove);
 }
 jlong n_projectile_create(JNIEnv* env, jclass, jintArray in) {
     if (!require_client_thread(env, "projectileCreate") || !in || env->GetArrayLength(in) != 15) return 0;
@@ -2034,6 +2062,14 @@ const JNINativeMethod kNatives[] = {
     {"subInterfaces", "()[I", reinterpret_cast<void*>(n_sub_interfaces)},
     {"drawMinimap", "(I)[I", reinterpret_cast<void*>(n_draw_minimap)},
     {"closeSubInterface", "(IIZ)Z", reinterpret_cast<void*>(n_close_sub_interface)},
+    {"openSubInterface", "(III)Z", reinterpret_cast<void*>(n_open_sub_interface)},
+    {"setAllOpTargetable", "(Z)Z", reinterpret_cast<void*>(n_set_all_op_targetable)},
+    {"widgetTargetFlags", "(II)J", reinterpret_cast<void*>(n_widget_target_flags)},
+    {"widgetForcePosition", "(IIII)Z", reinterpret_cast<void*>(n_widget_force_position)},
+    {"playerSetHash", "(I[I[II)J", reinterpret_cast<void*>(n_player_set_hash)},
+    {"playerHash", "(I)J", reinterpret_cast<void*>(n_player_hash)},
+    {"sceneRemoveGameObject", "(IIIJ)Z", reinterpret_cast<void*>(n_scene_remove_game_object)},
+    {"sceneRemoveTile", "(IIIZ)Z", reinterpret_cast<void*>(n_scene_remove_tile)},
     {"typeParam", "(III)Ljava/lang/Object;", reinterpret_cast<void*>(n_type_param)},
     {"overlayBuffer", "(II)Ljava/nio/ByteBuffer;", reinterpret_cast<void*>(n_overlay_buffer)},
     {"overlayPublish", "(II)V", reinterpret_cast<void*>(n_overlay_publish)},

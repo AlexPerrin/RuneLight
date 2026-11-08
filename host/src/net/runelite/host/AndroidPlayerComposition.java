@@ -48,7 +48,17 @@ final class AndroidPlayerComposition implements net.runelite.api.PlayerCompositi
         return id >= KIT_OFFSET && id < ITEM_OFFSET ? id - KIT_OFFSET : -1;
     }
 
-    @Override public void setHash() { }
+    /**
+     * As desktop: the composition's equipment ids, colours and transformed NPC id (a plugin's edits of
+     * getEquipmentIds()/getColors() included) into the player's appearance, and its model hash
+     * recomputed, so the next draw builds the model from them.
+     */
+    @Override public void setHash() {
+        int[] e = equipment.clone(), c = colors.clone();
+        int n = npcId;
+        if (Native.isClientThread()) Native.playerSetHash(index, e, c, n);
+        else Host.invoke(() -> Native.playerSetHash(index, e, c, n));
+    }
     @Override public int getTransformedNpcId() { return npcId; }
     @Override public void setTransformedNpcId(int id) { npcId = id; }
     /** Per slot (KitType index): a plugin's override, else the game's customisation; null when there are none. */
