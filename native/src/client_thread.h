@@ -80,6 +80,8 @@ std::vector<game::WorldEntry> world_list();
 // Client.setCameraShakeDisabled: while on, the shake flags are cleared after every cycle.
 void set_camera_shake_disabled(bool off);
 bool camera_shake_disabled();
+// Client.setInvertPitch (axis 0) / setInvertYaw (axis 1): the touch camera drag turns that axis the other way.
+void set_camera_invert(int axis, bool on);
 
 // Players as of the end of the last cycle; safe from any thread.
 std::vector<game::PlayerInfo> players();

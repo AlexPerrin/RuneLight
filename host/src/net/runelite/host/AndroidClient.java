@@ -1108,6 +1108,11 @@ public class AndroidClient extends ClientStub {
     /** Camera shakes (CAM_SHAKE) are dropped after each cycle while disabled, before the frame applies them. */
     @Override public boolean isCameraShakeDisabled() { return Native.cameraShakeDisabled(); }
     @Override public void setCameraShakeDisabled(boolean off) { Native.setCameraShakeDisabled(off); }
+    /** Desktop inverts the mouse camera drag; here the touch camera drag (and its glide), arrow keys unchanged. */
+    @Override public void setInvertPitch(boolean on) { Native.setCameraInvert(0, on); }
+    @Override public void setInvertYaw(boolean on) { Native.setCameraInvert(1, on); }
+    /** No button selects the camera drag here: the game starts it from a touch only (a mouse's right/middle buttons go to their own listeners). */
+    @Override public void setCameraMouseButtonMask(int mask) { }
     /** The game's music volume (0-255); a set also changes the playing songs' volume, as desktop. */
     @Override public int getMusicVolume() { return Native.musicVolume(); }
     @Override public void setMusicVolume(int v) {

@@ -595,6 +595,8 @@ bool set_music_volume(int v);
 bool midi_requests(std::vector<std::pair<int, bool>>& out);
 // Clears the camera shake flags (as CAM_RESET).
 void clear_camera_shake();
+// After a camera-drag cycle (touch state 8): the inverted axes' steps and deltas turned the other way.
+void invert_camera_drag(bool pitch, bool yaw);
 // Every varp as a long (long table where the varp is long, else the int table); client or server copy.
 bool varps_long(bool server, std::vector<int64_t>& out);
 bool set_varp_long(int id, int64_t v);
