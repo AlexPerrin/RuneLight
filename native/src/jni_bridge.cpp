@@ -192,6 +192,8 @@ jintArray n_midi_requests(JNIEnv* env, jclass) {
 }
 void n_set_camera_shake_disabled(JNIEnv*, jclass, jboolean off) { client_thread::set_camera_shake_disabled(off); }
 jboolean n_camera_shake_disabled(JNIEnv*, jclass) { return client_thread::camera_shake_disabled(); }
+void n_set_camera_speed(JNIEnv*, jclass, jfloat m) { client_thread::set_camera_speed(m); }
+jfloat n_camera_sensitivity(JNIEnv*, jclass) { float v = 0; return game::camera_sensitivity(v) ? v : 0; }
 jlongArray n_varps_long(JNIEnv* env, jclass, jboolean server) {
     std::vector<int64_t> v;
     if (!game::varps_long(server, v)) return nullptr;
@@ -2101,6 +2103,8 @@ const JNINativeMethod kNatives[] = {
     {"midiRequests", "()[I", reinterpret_cast<void*>(n_midi_requests)},
     {"setCameraShakeDisabled", "(Z)V", reinterpret_cast<void*>(n_set_camera_shake_disabled)},
     {"cameraShakeDisabled", "()Z", reinterpret_cast<void*>(n_camera_shake_disabled)},
+    {"setCameraSpeed", "(F)V", reinterpret_cast<void*>(n_set_camera_speed)},
+    {"cameraSensitivity", "()F", reinterpret_cast<void*>(n_camera_sensitivity)},
     {"instanceTemplates", "()[I", reinterpret_cast<void*>(n_instance_templates)},
     {"geOffers", "()[J", reinterpret_cast<void*>(n_ge_offers)},
     {"geSlotRaw", "(I)[B", reinterpret_cast<void*>(n_ge_slot_raw)},

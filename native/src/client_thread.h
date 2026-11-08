@@ -80,6 +80,8 @@ std::vector<game::WorldEntry> world_list();
 // Client.setCameraShakeDisabled: while on, the shake flags are cleared after every cycle.
 void set_camera_shake_disabled(bool off);
 bool camera_shake_disabled();
+// Client.setCameraSpeed: the game's drag sensitivity times the multiplier, kept each cycle (applied at once on the game thread).
+void set_camera_speed(float m);
 
 // Players as of the end of the last cycle; safe from any thread.
 std::vector<game::PlayerInfo> players();

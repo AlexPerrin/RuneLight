@@ -543,7 +543,7 @@ public class ApiProbePlugin extends Plugin {
         return (Integer) host("Native", "clientInt", new Class<?>[] {int.class}, which);
     }
 
-    static final int CHAT_CYCLE = 3, CHANGED_SKILL_COUNT = 4;  // Native.clientInt indices
+    static final int CHAT_CYCLE = 3, CHANGED_SKILL_COUNT = 4, ORB_SPEED = 5, PITCH_RELAXER = 6;  // Native.clientInt indices
 
     /** setX(v) with a getter getX()/isX(): set an altered value, read it back, restore, read again. */
     private void roundTrip(Row row, Object inst, Method get) throws Exception {
@@ -1088,6 +1088,34 @@ public class ApiProbePlugin extends Plugin {
             int read = items[0].getDragDeadTime();
             c.setInventoryDragDelay(old);
             p.set(row, read == old + 10 ? "pass" : "mismatch", "149:0[0] drag dead time " + old + " -> setInventoryDragDelay(" + (old + 10) + ") -> " + read);
+        });
+        // Camera: each setter's game field (Native.clientInt), set, read, restored.
+        SPECIAL.put("Client.setCameraPitchRelaxerEnabled1", (p, row, inst) -> {
+            int old = clientInt(PITCH_RELAXER);
+            ((Client) inst).setCameraPitchRelaxerEnabled(old == 0);
+            int read = clientInt(PITCH_RELAXER);
+            ((Client) inst).setCameraPitchRelaxerEnabled(old != 0);
+            int back = clientInt(PITCH_RELAXER);
+            p.set(row, read == (old == 0 ? 1 : 0) && back == old ? "pass" : "mismatch", "pitch relaxer (+0x8951c) " + old + " -> " + read + " -> restored " + back);
+        });
+        Special orbSpeed = (p, row, inst) -> {
+            int old = clientInt(ORB_SPEED);
+            row.m.invoke(inst, old + 1);
+            int read = clientInt(ORB_SPEED);
+            row.m.invoke(inst, old);
+            int back = clientInt(ORB_SPEED);
+            p.set(row, read == old + 1 && back == old ? "pass" : "mismatch", "orb/free camera speed (+0x894c4) " + old + " -> set " + (old + 1) + " -> " + read + " -> restored " + back);
+        };
+        SPECIAL.put("Client.setOculusOrbNormalSpeed1", orbSpeed);
+        SPECIAL.put("Client.setFreeCameraSpeed1", orbSpeed);
+        // The touch camera's drag sensitivity (settings +0x82c): the game's own times the multiplier.
+        SPECIAL.put("Client.setCameraSpeed1", (p, row, inst) -> {
+            float old = (Float) host("Native", "cameraSensitivity", new Class<?>[0]);
+            ((Client) inst).setCameraSpeed(2f);
+            float read = (Float) host("Native", "cameraSensitivity", new Class<?>[0]);
+            ((Client) inst).setCameraSpeed(1f);
+            float back = (Float) host("Native", "cameraSensitivity", new Class<?>[0]);
+            p.set(row, old != 0 && read == old * 2 && back == old ? "pass" : "mismatch", "drag sensitivity " + old + " -> setCameraSpeed(2) -> " + read + " -> setCameraSpeed(1) -> " + back);
         });
         // Sounds: the SoundEffectPlayed / AreaSoundEffectPlayed the game's queue raises, read on the next tick.
         // Each overload uses its own id, so their events don't mix.
