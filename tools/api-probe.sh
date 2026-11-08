@@ -15,7 +15,7 @@
 #    SLUG's own account N=1), added to the mobile's list; its private chat starts at "Friends" (the mobile is not on its
 #    list, so the server shows it offline) and is set to "Show all" once the probe waits: a login notice
 #  - a fight (Hitsplat, GraphicsObject, HealthBarConfig): `::item scythe_of_vitur` (ItemContainer), the levels to wield
-#    it (::setxp), wielded, and `::npc 3000 poh_combat_dummy_npc` attacked: a hitsplat and the scythe's map spotanim per swing
+#    it (::setxp), wielded, and `::npc 6000 poh_combat_dummy_npc` attacked: a hitsplat and the scythe's map spotanim per swing
 #  - the world map open (WorldMapRegion/Icon, setWorldMapPositionTarget); the skills tab opened once the probe waits (its
 #    "Total level" settext raises skillTabTotalLevel: Script)
 #  - a modal for closeInterface once it waits for one (logcat `closeInterface waits`): auto retaliate off and a
@@ -23,7 +23,7 @@
 #    (equipment stats), opened by a chat command: no devtools touch moves the virtual mouse before the menuAction walk
 # The probe waits for each in `debug.osrsrl.probewait`. Last it writes its report with Client.stopNow "called"; the
 # set-up is undone (the scythe unwielded and dropped, the xp and auto retaliate restored, the friend deleted, the map
-# closed, the desktop stopped; the dummy despawns after its 3000 ticks), "stopNow" in probewait has the probe call
+# closed, the desktop stopped; the dummy despawns after its 6000 ticks), "stopNow" in probewait has the probe call
 # Client.stopNow, and the row is pass once the app process ended (mismatch if the call returned). The app is started
 # again (signed out) for the caller's down.
 set -euo pipefail
@@ -94,24 +94,26 @@ undo() {  # the set-up undone while the mobile plays; the desktop stopped
 }
 declare -A xp0
 trap 'undo || true' EXIT
-d=$("$FORK" live-desktop "$SLUG" | tail -1); [[ $d == LIVE_DESKTOP* ]] || { echo "api-probe: no live desktop for the friend: $d"; exit 1; }
-port=$(cut -d' ' -f2 <<< "$d")
-friend=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["accounts"].split()[0])' "$HD/state/$SLUG/up.json")
 
-# the mobile: the friend listed, the fight, the world map
-dt click_component "{\"componentId\":$FRIENDS_TAB}" >/dev/null; dt click_component "{\"componentId\":$ADD_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null
-! said "Unable to find player" || { echo "api-probe: the server found no player $friend to add"; exit 1; }
+# the mobile: the fight (from here on the server keeps it in combat: no idle logout while the desktop starts), the world map
 chat "::item scythe_of_vitur"; until [[ " $(held) " == *" $SCYTHE "* ]]; do sleep 1; done
 for s in attack:1986068 strength:5346332 hitpoints:13034431; do   # 80 and 90 wield it; 99 hitpoints outlast the dummy's hits
   xp0[${s%:*}]=$(xp "${s%:*}"); chat "::setxp ${s%:*} ${s#*:}"
 done
 dt click_component "{\"componentId\":$INV_TAB}" >/dev/null; dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Wield\"}" >/dev/null
 until [[ " $(worn) " == *" $SCYTHE "* ]]; do sleep 1; done
-chat "::npc 3000 poh_combat_dummy_npc"
+chat "::npc 6000 poh_combat_dummy_npc"
 until npc=$(dt list_npcs | python3 -c 'import json,sys; n=[n for n in json.load(sys.stdin)["npcs"] if "Combat dummy" in (n.get("name") or "")]; n.sort(key=lambda n: n["distance"]); print(n[0]["index"])' 2>/dev/null); do sleep 1; done
 dt interact_npc "{\"npcIndex\":$npc,\"option\":\"Attack\"}" >/dev/null
 until dt get_combat_history '{"windowMs":10000}' | grep -q '"actorType":"npc"'; do sleep 1; done   # the attack has settled the player and hits
 dt click_component "{\"componentId\":$MAP_ORB}" >/dev/null; dt wait_for '{"condition":"interface_open","interfaceId":595,"timeoutMs":60000}' >/dev/null
+
+# the friend: the desktop logged in (it idles out after 5 minutes: the probe starts at once), added to the mobile's list
+d=$("$FORK" live-desktop "$SLUG" | tail -1); [[ $d == LIVE_DESKTOP* ]] || { echo "api-probe: no live desktop for the friend: $d"; exit 1; }
+port=$(cut -d' ' -f2 <<< "$d")
+friend=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["accounts"].split()[0])' "$HD/state/$SLUG/up.json")
+dt click_component "{\"componentId\":$FRIENDS_TAB}" >/dev/null; dt click_component "{\"componentId\":$ADD_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null
+! said "Unable to find player" || { echo "api-probe: the server found no player $friend to add"; exit 1; }
 
 mark=$(adb shell date +%s.000 | tr -d '\r')
 adb push "$(wslpath -w "$ROOT/re/host/plugins-extra/api-probe.jar")" $F/plugins/api-probe.jar >/dev/null 2>&1
