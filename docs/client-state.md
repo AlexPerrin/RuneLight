@@ -145,6 +145,9 @@ in idle at spawn) is 91.0% (1140/1253).
   `AndroidMenu.applyOrder` writes text edits back and sends a permutation or subset of the game's entries to
   `Native.menuReorder` (logcat `menu reorder (MenuOpened) [...] of N: true`). Entries with submenus can't be dropped
   (`game::menu_reorder`). Row "No Examine".
+- **Game state at start**: native posts a state only on a change, and changes before `host ready` are dropped, so the
+  host's first event posts the game's current state (a start already on 1000, the error page, logs `GameStateChanged
+  UNKNOWN (raw 1000` once).
 - **Game state on rebuilds**: OpenRune's teleports go 30 -> 25 -> 30. A 25 while logged in is held until the scene base
   changes, then LOADING (scene objects forgotten first), WorldViewLoaded and LOGGED_IN go out in one cycle (`GameStateChanged
   LOADING (scene rebuild)`); same-base rebuilds after 50 cycles. A native 30 after the replay already posted LOGGED_IN is
