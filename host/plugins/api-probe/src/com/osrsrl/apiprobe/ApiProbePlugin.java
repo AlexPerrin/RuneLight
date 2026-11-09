@@ -1229,11 +1229,12 @@ public class ApiProbePlugin extends Plugin {
         SPECIAL.put("Client.setPassword1", loginText);
         SPECIAL.put("Client.setOtp1", loginText);
         // Title background: the game's two title sprites' pixels (Native.loginBackground {w, h, left(0,0), right(0,0),
-        // hash}) after a cycle with a two-colour background (left half green, right half blue), then the game's own again.
+        // hash, held}) after a cycle with a two-colour background (left half green, right half blue), then the game's own again.
+        // In game the sprites are freed: the background read is the one held for them (held 1), applied when the title loads.
         SPECIAL.put("Client.setLoginScreen1", (p, row, inst) -> {
             Client c = (Client) inst;
             int[] old = (int[]) host("Native", "loginBackground", new Class<?>[0]);
-            if (old == null) { p.set(row, "mismatch", "no title sprite loaded"); return; }
+            if (old == null) { p.set(row, "mismatch", "no title background readable"); return; }
             c.setLoginScreen(c.createSpritePixels(new int[] {0x00ff00, 0x0000ff}, 2, 1));
             p.later(row, () -> {
                 int[] read = (int[]) host("Native", "loginBackground", new Class<?>[0]);
@@ -1241,7 +1242,7 @@ public class ApiProbePlugin extends Plugin {
                 p.later(row, () -> {
                     int[] back = (int[]) host("Native", "loginBackground", new Class<?>[0]);
                     boolean ok = read != null && read[2] == 0xff00ff00 && read[3] == 0xff0000ff && back != null && back[4] == old[4];
-                    p.set(row, ok ? "pass" : "mismatch", "title sprites {w, h, left(0,0), right(0,0), hash} " + Arrays.toString(old)
+                    p.set(row, ok ? "pass" : "mismatch", "title sprites {w, h, left(0,0), right(0,0), hash, held} " + Arrays.toString(old)
                         + " -> setLoginScreen(green|blue) -> " + Arrays.toString(read) + " -> setLoginScreen(null) -> " + Arrays.toString(back));
                 });
             });

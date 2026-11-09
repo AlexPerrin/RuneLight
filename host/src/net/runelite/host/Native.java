@@ -95,7 +95,7 @@ final class Native {
     static native boolean setLoginText(int which, String text);
     /** A plugin's title background (RGB pixels, 0 transparent; null = the game's own), applied after the next cycle. */
     static native void setLoginBackground(int[] pixels, int width, int height);
-    /** Game thread: the title sprites {w, h, left (0,0), right (0,0), hash of both}, or null while none is loaded. */
+    /** Game thread: the title sprites {w, h, left (0,0), right (0,0), hash of both, 0}, or with none loaded (in game) the background held for them {.., 1}. */
     static native int[] loginBackground();
     /** The login screen fire: drawn while on. */
     static native void setLoginFire(boolean on);

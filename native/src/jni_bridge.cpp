@@ -233,10 +233,10 @@ void n_set_login_background(JNIEnv* env, jclass, jintArray px, jint w, jint h) {
     env->ReleaseIntArrayElements(px, p, JNI_ABORT);
 }
 jintArray n_login_background(JNIEnv* env, jclass) {
-    int32_t v[5];
+    int32_t v[6];
     if (!client_thread::on_client_thread() || !game::login_background(v)) return nullptr;
-    jintArray out = env->NewIntArray(5);
-    env->SetIntArrayRegion(out, 0, 5, v);
+    jintArray out = env->NewIntArray(6);
+    env->SetIntArrayRegion(out, 0, 6, v);
     return out;
 }
 void n_set_login_fire(JNIEnv*, jclass, jboolean on) { game::set_login_fire(on); }

@@ -632,10 +632,11 @@ int login_field();
 std::string login_text(int which);
 bool set_login_text(int which, const std::string& text);
 // A plugin's title background (RGB, 0 transparent; null = the game's own), applied after each cycle;
-// the title sprites read back as {w, h, left (0,0), right (0,0), hash}.
+// the title sprites read back as {w, h, left (0,0), right (0,0), hash, 0}; with none loaded (in game)
+// the background held for them, as the sprites would take it, {w, h, left (0,0), right (0,0), hash, 1}.
 void set_login_background(const int32_t* rgb, int w, int h);
 void login_background_cycle();
-bool login_background(int32_t out[5]);
+bool login_background(int32_t out[6]);
 // The login screen fire: drawn while on.
 void set_login_fire(bool on);
 bool login_fire();

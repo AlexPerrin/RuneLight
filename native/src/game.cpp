@@ -2125,17 +2125,27 @@ void login_background_cycle() {
     }
     g_bg_dirty = false;
 }
-// {w, h, left pixel (0,0), right pixel (0,0), hash of both sprites' pixels}; false with no title sprite.
-bool login_background(int32_t out[5]) {
+// {w, h, left pixel (0,0), right pixel (0,0), hash of both sprites' pixels, 0}; with no title sprite
+// (freed in game) the background held until they load: {w, h, its (0,0), its (w/2,0), hash of its pixels, 1}.
+bool login_background(int32_t out[6]) {
     if (!g_build) return false;
     uintptr_t s[2] = {title_sprite(0), title_sprite(1)};
-    if (!s[0] || !s[1]) return false;
+    if (!s[0] || !s[1]) {
+        std::lock_guard lock(g_bg_mutex);
+        uint32_t hash = 0;
+        for (uint32_t p : g_bg) hash = hash * 31 + p;
+        bool any = !g_bg.empty();
+        out[0] = any ? g_bg_w : 0; out[1] = any ? g_bg_h : 0;
+        out[2] = any ? static_cast<int32_t>(g_bg[0]) : 0; out[3] = any ? static_cast<int32_t>(g_bg[g_bg_w / 2]) : 0;
+        out[4] = static_cast<int32_t>(hash); out[5] = 1;
+        return true;
+    }
     int w = read_at<int32_t>(s[0] + 0x18), h = read_at<int32_t>(s[0] + 0x1c);
     const uint32_t* px[2] = {read_at<const uint32_t*>(s[0] + 0x10), read_at<const uint32_t*>(s[1] + 0x10)};
     if (w <= 0 || h <= 0 || !px[0] || !px[1]) return false;
     uint32_t hash = 0;
     for (int i = 0; i < 2; i++) for (size_t k = 0; k < static_cast<size_t>(w) * h; k++) hash = hash * 31 + px[i][k];
-    out[0] = w; out[1] = h; out[2] = static_cast<int32_t>(px[0][0]); out[3] = static_cast<int32_t>(px[1][0]); out[4] = static_cast<int32_t>(hash);
+    out[0] = w; out[1] = h; out[2] = static_cast<int32_t>(px[0][0]); out[3] = static_cast<int32_t>(px[1][0]); out[4] = static_cast<int32_t>(hash); out[5] = 0;
     return true;
 }
 
