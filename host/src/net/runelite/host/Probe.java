@@ -62,6 +62,10 @@ final class Probe {
                 Host.loader.accept(a[1]);
                 return;
             }
+            if (a[0].equals("afk")) {  // "afk <minutes> <n>": the game's idle logout timer (tools/api-probe.sh: no idle logout during its set-up)
+                c.setIdleTimeout(Integer.parseInt(a[1]) * 3000);
+                return;
+            }
             if (a[0].equals("db")) {  // "db <row> <column> <tuple> [rows]": getDBTableField over rows row..row+rows-1
                 a = String.join(" ", a).split(" +");
                 int row = Integer.parseInt(a[1]), col = Integer.parseInt(a[2]), tup = Integer.parseInt(a[3]);

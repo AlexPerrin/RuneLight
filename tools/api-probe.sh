@@ -21,6 +21,7 @@
 #  - a modal for closeInterface once it waits for one (logcat `closeInterface waits`): auto retaliate off and a
 #    teleport onto the player's own tile end the fight (the server closes modals during one), then `::interface 84`
 #    (equipment stats), opened by a chat command: no devtools touch moves the virtual mouse before the menuAction walk
+# The game's idle logout is moved to 10 hours first (`debug.osrsrl.set 'afk 600 <n>'`): the desktop takes minutes to start.
 # The probe waits for each in `debug.osrsrl.probewait`. Last it writes its report with Client.stopNow "called"; the
 # set-up is undone (the scythe unwielded and dropped, the xp and auto retaliate restored, the friend deleted, the map
 # closed, the desktop stopped; the dummy despawns after its 6000 ticks), "stopNow" in probewait has the probe call
@@ -69,9 +70,10 @@ tab() {  # tab <side tab> <its interface>: shown (a click on the open tab closes
   shown "$2" && return; dt click_component "{\"componentId\":$1}" >/dev/null; until shown "$2"; do sleep 1; done; }
 plog() { adb logcat -d -v brief -T "$mark" 2>/dev/null | tr -d '\r' | grep -F "api-probe: $1" || true; }
 
+alive || { echo "api-probe: $PKG is not running on $ANDROID_SERIAL (start it and log in first)"; exit 1; }
+adb shell setprop debug.osrsrl.set "'afk 600 $(date +%s%N)'"   # the game's idle logout after 10 hours, not 5 minutes: the set-up waits on the desktop's start
 "$ROOT/host/plugins/api-probe/build.sh" >/dev/null
 mkdir -p "$OUT"
-alive || { echo "api-probe: $PKG is not running on $ANDROID_SERIAL (start it and log in first)"; exit 1; }
 adb shell rm -f $F/api-probe.tsv $F/api-probe.tsv.part
 
 # the friend: a desktop on the live stack, logged in
@@ -112,11 +114,7 @@ until dt get_combat_history '{"windowMs":10000}' | grep -q '"actorType":"npc"'; 
 shown 595 || dt click_component "{\"componentId\":$MAP_ORB}" >/dev/null; dt wait_for '{"condition":"interface_open","interfaceId":595,"timeoutMs":60000}' >/dev/null
 
 # the friend: the desktop logged in (it idles out after 5 minutes too: the probe starts at once), added to the mobile's list
-# the server logs an idle client out after 5 minutes, in combat too: a tab click each minute while the desktop starts
-log=$(mktemp); "$FORK" live-desktop "$SLUG" > "$log" 2>&1 & desktop=$!
-while kill -0 $desktop 2>/dev/null; do dt click_component "{\"componentId\":$INV_TAB}" >/dev/null; sleep 60; done
-wait $desktop || true; d=$(tail -1 "$log"); rm -f "$log"
-[[ $d == LIVE_DESKTOP* ]] || { echo "api-probe: no live desktop for the friend: $d"; exit 1; }
+desktop=1; d=$("$FORK" live-desktop "$SLUG" | tail -1); [[ $d == LIVE_DESKTOP* ]] || { echo "api-probe: no live desktop for the friend: $d"; exit 1; }
 port=$(cut -d' ' -f2 <<< "$d")
 friend=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["accounts"].split()[0])' "$HD/state/$SLUG/up.json")
 tab $FRIENDS_TAB 429; dt click_component "{\"componentId\":$ADD_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null
