@@ -164,6 +164,17 @@ final class Native {
     static native Object[] widgetListener(int id, int index, int offset);
     /** Clears the game's CS2 listener at `offset` (0x4d0 onDrag, 0x590 onVarTransmit, 0x668 onTimer), as CC_SETON with -1. Client thread. */
     static native boolean widgetClearListener(int id, int index, int offset);
+    /**
+     * Marks the game's listener slot at `offset` (0x380 onClick, 0x3e0 onRelease, 0x410 onHold, 0x440 onMouseOver,
+     * 0x470 onMouseRepeat, 0x4a0 onMouseLeave, 0x6f8 onScrollWheel, 0x8d8 onDialogAbort) as the host's Java listener
+     * of `kind`: the game's own dispatch then reaches Host.onScript phase 5 with that kind. kind -1 clears the slot.
+     * Client thread.
+     */
+    static native boolean widgetSetJavaListener(int id, int index, int offset, int kind);
+    /** What the server's TRIGGER_ONDIALOGABORT does: onDialogAbort over the root interface's tree; false with no root. Client thread. */
+    static native boolean triggerDialogAbort();
+    /** Mouse wheel notches (positive = down, as desktop) at canvas point x,y (the game's mouse for that cycle) for the game's next logged-in cycle. Any thread. */
+    static native void addWheel(int rotation, int x, int y);
     /** IF_CLOSESUB for `group` open in `component` (`0x462384`); false if not open. Client thread. */
     static native boolean closeSubInterface(int component, int group, boolean unload);
     /** IF_OPENSUB's helper (`0x462640`): opens `group` in `component` with modal `mode`; false on bad ids. Client thread. */
@@ -195,6 +206,10 @@ final class Native {
     /** Replaces the string at object stack slot index (0 = bottom) of the running script. */
     static native boolean setScriptString(int index, String text);
     static native boolean playSound(int id, int loops, int delay);
+    /** Plays a sound now at volume 0..127 (the setting wins unless muted); no queue, no event. */
+    static native boolean playSoundVolume(int id, int volume);
+    /** Queues an area sound at scene tile x, y (the game's 0x4ae650; AreaSoundEffectPlayed posts). */
+    static native boolean playAreaSound(int id, int x, int y, int range, int delay);
     static native int varcInt(int id);
     static native String varcString(int id);
     /** Client-side writes through the game's setters; false off the client thread or for unknown ids. */

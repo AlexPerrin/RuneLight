@@ -157,6 +157,11 @@ struct Viewport {
 Viewport viewport();
 // Queue a synth sound effect as SYNTH_SOUND (0x4ae508(Client +0x2610, id, loops, delay)). Game thread only.
 bool play_sound_effect(int id, int loops, int delay);
+// Queue an area sound at scene tile x, y of the top-level world view (0x4ae650, as SOUND_AREA). Game thread only.
+bool play_area_sound(int id, int x, int y, int range, int delay);
+// Play a synth sound now at a volume (0..127) as desktop's playSoundEffect(id, volume): straight into
+// the sound-effect mixer, no queue and no event; the volume setting wins unless muted. Game thread only.
+bool play_sound_at_volume(int id, int volume);
 
 int root_interface();
 // Widget object for a component id (group << 16 | child), or 0 if its group isn't loaded.
@@ -208,6 +213,10 @@ struct SubInterface { int component, group, type; };  // `group` is open inside 
 std::vector<SubInterface> open_sub_interfaces();
 // IF_CLOSESUB for an open sub-interface (`0x462384`); false when it isn't open. Game thread only.
 bool close_sub_interface(int component, int group, bool unload);
+// What TRIGGER_ONDIALOGABORT does (`0x4405cc(client, root, 0x17)`): onDialogAbort over the root's tree. Game thread only.
+bool trigger_dialog_abort();
+// Wheel notches (desktop's sign: positive scrolls down) for the next logged-in cycle's interface pass. Any thread.
+void add_wheel(int rotation, int x, int y);
 // IF_OPENSUB's helper `0x462640`: opens `group` inside `component` with modal `mode`; false on bad ids. Game thread only.
 bool open_sub_interface(int component, int group, int mode);
 // Game-state writes (RuneLite's setAllWidgetsAreOpTargetable, Widget.setForcedPosition,

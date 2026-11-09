@@ -25,6 +25,7 @@ namespace game {
 void install_message_hook();
 void install_scene_load_hook();
 void install_fire_hook();
+void install_wheel_hook();
 void install_state_write_hooks();
 namespace {
 
@@ -204,6 +205,7 @@ bool init() {
             install_message_hook();
             install_scene_load_hook();
             install_fire_hook();
+            install_wheel_hook();
             install_state_write_hooks();
             return true;
         }
@@ -948,6 +950,55 @@ bool play_sound_effect(int id, int loops, int delay) {
     return queued;
 }
 
+bool play_area_sound(int id, int x, int y, int range, int delay) {
+    uintptr_t c = client();
+    uintptr_t wv = c ? read_at<uintptr_t>(c + g_build->f_world_view) : 0;
+    if (!wv || id < 0 || id > 0xffff) return false;
+    // Desktop queues these as area sounds (position x << 16 | y << 8 | range). Here the game's area-sound
+    // queue 0x4ae650, called as SOUND_AREA does (0x46f99c..0x46f9c0): key = the world view's short id
+    // (+0), drop-off 0 (falloff over the whole range), flag 0. Entered through its hook, so
+    // AreaSoundEffectPlayed posts.
+    uintptr_t sys = c + 0x2610;
+    uintptr_t before = read_at<uintptr_t>(sys + 0xc8);
+    reinterpret_cast<void (*)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t)>(
+        g_base + 0x4ae650)(sys, static_cast<uint32_t>(read_at<int16_t>(wv)), id, x & 0xff, y & 0xff, range & 0xff, 0, 1, delay, 0);
+    return read_at<uintptr_t>(sys + 0xc8) != before;
+}
+
+bool play_sound_at_volume(int id, int volume) {
+    uintptr_t c = client();
+    if (!c || id < 0 || id > 0xffff) return false;
+    // Desktop's playSoundEffect(id, volume): straight into the sound-effect mixer (no queue, no event),
+    // at the sound-effect volume setting unless that is muted, then at `volume` (both 0..127).
+    int setting = read_at<int32_t>(c + 0x2f60);
+    int vol = setting != 0 ? setting : std::clamp(volume, 0, 127);
+    // 0x4ad358(out handle, ctx, id, volume, loops) is the ambient sounds' "play now" (ctx = Client
+    // +0x2ed0: +0 loader, +8 mixer, +0x20 resampler byte); handed the queue consumer's mixer
+    // (*(Client +0x25c0)) it plays as a queued plain sound does, at our volume, once (loops 0).
+    uintptr_t ctx[5] = {read_at<uintptr_t>(c + 0x2ed0), read_at<uintptr_t>(c + 0x25c0), 0, 0,
+                        read_at<uint8_t>(c + 0x2ef0)};
+    if (!ctx[0] || !ctx[1]) return false;
+    uintptr_t handle = 0;
+    reinterpret_cast<void (*)(uintptr_t*, uintptr_t*, int, int, int)>(g_base + 0x4ad358)(&handle, ctx, id, vol, 0);
+    if (!handle) return false;
+    // The mixer holds its own reference; drop the handle as the ambient code does when it replaces one
+    // (release the control block at handle +0: counts at +8/+0xc, then the game's free 0x9f4394).
+    auto add = reinterpret_cast<int (*)(int, uintptr_t)>(g_base + 0x3dc1b0);
+    if (uintptr_t cb = read_at<uintptr_t>(handle); cb && add(-1, cb + 8) == 1) {
+        auto vt = read_at<uintptr_t>(cb);
+        reinterpret_cast<void (*)(uintptr_t)>(read_at<uintptr_t>(vt + 0x10))(cb);
+        if (add(-1, cb + 0xc) == 1) reinterpret_cast<void (*)(uintptr_t)>(read_at<uintptr_t>(vt + 0x18))(cb);
+    }
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x9f4394)(handle);
+    static int logs = 0;
+    if (logs < 10) {
+        logs++;
+        LOGI("sound %d: played at volume %d (setting %d, asked %d; ambient mixer %s)", id, vol, setting, volume,
+             read_at<uintptr_t>(c + 0x2ed8) == ctx[1] ? "same" : "differs");
+    }
+    return true;
+}
+
 namespace {
 uintptr_t top_world_view();  // defined with the scene readers below
 }
@@ -1481,6 +1532,18 @@ bool close_sub_interface(int component, int group, bool unload) {
     for (const SubInterface& s : open_sub_interfaces()) open |= s.component == component && s.group == group;
     if (!open) return false;
     reinterpret_cast<void (*)(uintptr_t, int, uint32_t, uint64_t)>(g_base + 0x462384)(c, component, static_cast<uint32_t>(group), unload ? 1 : 0);
+    return true;
+}
+
+// TRIGGER_ONDIALOGABORT (server packet 107, case 0x6b of 0x441dd4 at 0x444a48): with a root interface
+// (Client +0x413a88 != -1) `0x4405cc(client, root, 0x17)` runs onDialogAbort (+0x8d8) over the root's tree
+// and its mounted sub-interfaces (0x45f5dc). Game thread only.
+bool trigger_dialog_abort() {
+    uintptr_t c = client();
+    if (!c) return false;
+    int root = read_at<int32_t>(c + 0x413a88);
+    if (root == -1) return false;
+    reinterpret_cast<void (*)(uintptr_t, int, int)>(g_base + 0x4405cc)(c, root, 0x17);
     return true;
 }
 
@@ -4388,6 +4451,50 @@ bool scene_terrain(int what, int plane, int x, int y, std::vector<int32_t>& out)
     }
     default: return false;
     }
+}
+
+// Mouse wheel: the cycle function zeroes Client +0x413248 (wheel rotation, +0x41324c a scroll layer's own)
+// at 0x41d218 each logged-in cycle and nothing on Android sets it, though the interface pass 0x44ae24 reads
+// it for onScrollWheel and scroll layers (and 0x58d438 for the minimap zoom). The call right after the
+// zeroing (0x73f8f4, return address 0x41d220) is hooked to put the notches the host took from the app's
+// ACTION_SCROLL events there, as desktop's MouseWheel.useRotation at the start of the cycle.
+namespace {
+constexpr uintptr_t kAfterWheelReset = 0x73f8f4, kAfterWheelResetRet = 0x41d220;
+constexpr uint32_t kAfterWheelResetCode[4] = {0xa9bf7bfd, 0x910003fd, 0x9100a001, 0x2a1f03e0};
+using AfterWheelResetFn = int (*)(uintptr_t);
+AfterWheelResetFn g_after_wheel_reset = nullptr;
+std::atomic<int> g_wheel{0}, g_wheel_x{-1}, g_wheel_y{-1};
+
+int hook_after_wheel_reset(uintptr_t x0) {
+    if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_base + kAfterWheelResetRet) {
+        int r = g_wheel.exchange(0);
+        if (r) {
+            uintptr_t c = x0 - 0x1c80;  // x0 = Client + 0x1c80
+            *reinterpret_cast<volatile int32_t*>(c + 0x413248) = r;
+            // a wheel turns where the mouse is: a touch released left the game's mouse off the widget, so the
+            // notch's own point is the mouse for this cycle's interface pass, as desktop's mouse over the widget
+            int x = g_wheel_x.load(), y = g_wheel_y.load();
+            LOGI("game: wheel %d at %d,%d (mouse was %d,%d)", r, x, y, read_at<int32_t>(c + 0x40e9c0), read_at<int32_t>(c + 0x40e9d0));
+            if (x >= 0) {
+                *reinterpret_cast<volatile int32_t*>(c + 0x40e9c0) = x;
+                *reinterpret_cast<volatile int32_t*>(c + 0x40e9d0) = y;
+            }
+        }
+    }
+    return g_after_wheel_reset(x0);
+}
+}  // namespace
+
+void add_wheel(int rotation, int x, int y) {
+    g_wheel_x.store(x);
+    g_wheel_y.store(y);
+    g_wheel.fetch_add(rotation);
+}
+
+void install_wheel_hook() {
+    g_after_wheel_reset = reinterpret_cast<AfterWheelResetFn>(
+        inline_hook(g_base + kAfterWheelReset, kAfterWheelResetCode, reinterpret_cast<void*>(hook_after_wheel_reset)));
+    LOGI("game: wheel hook %s", g_after_wheel_reset ? "installed" : "FAILED");
 }
 
 void install_scene_load_hook() {

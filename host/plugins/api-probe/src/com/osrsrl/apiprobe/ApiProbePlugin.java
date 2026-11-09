@@ -76,10 +76,12 @@ public class ApiProbePlugin extends Plugin {
     /**
      * Rows that change what the server or the session sees, run one at a time after every other row, each once
      * the previous one's check is done: a client-side close of a modal the run set-up opened, then a walk onto the
-     * player's own tile (the server closes its modal too, and the fight stops), then camera drags on the scene (real
-     * touch input, with no modal over the scene), then a scene reload.
+     * player's own tile (the server closes its modal too, and the fight stops), then touches and wheel notches on a
+     * probe child mid-scene and camera drags on the scene (real input, with no modal over the scene), then a scene reload.
      */
-    static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Client.setInvertPitch", "Client.setInvertYaw", "Client.setGameState");
+    static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Widget.setOnClickListener", "Widget.setOnHoldListener",
+        "Widget.setOnReleaseListener", "Widget.setOnMouseOverListener", "Widget.setOnMouseLeaveListener", "Widget.setOnMouseRepeatListener",
+        "Widget.setOnScrollWheelListener", "Client.setInvertPitch", "Client.setInvertYaw", "Client.setGameState");
 
     interface Turned { void run(int yaw, int pitch) throws Exception; }
 
@@ -1052,7 +1054,66 @@ public class ApiProbePlugin extends Plugin {
     }
 
     static final int VARP = 1000, VARBIT = 8119, SOUND = 2266;
-    static final String[] LISTENER_KINDS = {"TIMER", "DRAG", "VAR_TRANSMIT", "STORED", "TARGET_ENTER", "TARGET_LEAVE"};  // WidgetListeners kinds
+    static final String[] LISTENER_KINDS = {"TIMER", "DRAG", "VAR_TRANSMIT", "STORED", "TARGET_ENTER", "TARGET_LEAVE",
+        "CLICK", "HOLD", "RELEASE", "MOUSE_OVER", "MOUSE_LEAVE", "MOUSE_REPEAT", "SCROLL_WHEEL", "DIALOG_ABORT"};  // WidgetListeners kinds
+    static final List<String> GAME_KINDS = Arrays.asList(LISTENER_KINDS).subList(6, LISTENER_KINDS.length);
+
+    /**
+     * The game's own dispatch of a listener the host keeps in the game's slot: a touch on the child (press, 200 ms,
+     * release), then the child moved from under the touch point (the mouse leaves it); a mouse wheel notch over it; or
+     * what the server's TRIGGER_ONDIALOGABORT runs. The child sits mid-scene, over no interface, and doesn't click through.
+     */
+    void gameEvent(Row row, String kind, Widget parent, Widget c, String where, int[] runs, Check clear) throws Exception {
+        c.setOriginalX(Math.max(0, parent.getWidth() / 2 - 40));
+        c.setOriginalY(Math.max(0, parent.getHeight() / 2 - 140));
+        c.setOriginalWidth(80);
+        c.setOriginalHeight(80);
+        c.setNoClickThrough(true);
+        c.revalidate();
+        net.runelite.api.Point at = c.getCanvasLocation();
+        int x = at.getX() + 40, y = at.getY() + 40;
+        String how = kind.equals("DIALOG_ABORT") ? "TRIGGER_ONDIALOGABORT's handler" : kind.equals("SCROLL_WHEEL") ? "a touch at " + x + "," + y + ", then a wheel notch there"
+            : "a touch at " + x + "," + y + " (200 ms), then the child moved from under it";
+        Check done = () -> {
+            int n = runs[0];
+            clear.run();
+            set(row, n > 0 ? "pass" : "mismatch", where + "; the game's dispatch on " + how + " ran it " + n + " times");
+        };
+        if (kind.equals("DIALOG_ABORT")) {
+            if (!(Boolean) host("Native", "triggerDialogAbort", new Class<?>[0])) {
+                clear.run();
+                set(row, "mismatch", where + "; no root interface to abort a dialog on");
+            } else done.run();
+            return;
+        }
+        java.awt.Canvas cv = client.getCanvas();
+        Thread t = new Thread(() -> {
+            try {
+                if (kind.equals("SCROLL_WHEEL")) {  // the game's mouse is where the last touch was: a touch there first
+                    mouse(cv, java.awt.event.MouseEvent.MOUSE_PRESSED, x, y);
+                    Thread.sleep(200);
+                    mouse(cv, java.awt.event.MouseEvent.MOUSE_RELEASED, x, y);
+                    Thread.sleep(200);
+                    cv.dispatchEvent(new java.awt.event.MouseWheelEvent(cv, java.awt.event.MouseEvent.MOUSE_WHEEL, System.currentTimeMillis(), 0, x, y, 0, false,
+                        java.awt.event.MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, 1));
+                    Thread.sleep(200);
+                    return;
+                }
+                mouse(cv, java.awt.event.MouseEvent.MOUSE_PRESSED, x, y);
+                Thread.sleep(200);
+                mouse(cv, java.awt.event.MouseEvent.MOUSE_RELEASED, x, y);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "api-probe-touch");
+        t.start();
+        later(row, afterDrag(row, t, () -> {
+            c.setOriginalX(0);  // from under the touch point: the game's next pass sees the mouse leave
+            c.setOriginalY(0);
+            c.revalidate();
+            later(row, done);
+        }));
+    }
 
     // Setters and hooks without a getter: each effect read where it lands (an event, a game field, host state).
     static {
@@ -1223,7 +1284,8 @@ public class ApiProbePlugin extends Plugin {
                     + ", AreaSoundEffectPlayed " + (a == null ? "none" : "at " + a.getSceneX() + "," + a.getSceneY() + " range " + a.getRange() + " delay " + a.getDelay());
                 boolean ok;
                 if (n == 1) ok = s != null && s.getDelay() == 0;
-                else if (n == 2) { ok = false; ev += "; volume 32 is not applied (desktop plays it at that volume)"; }
+                // Desktop plays (id, volume) straight into the mixer: no queue, so neither event.
+                else if (n == 2) ok = s == null && a == null;
                 else ok = a != null && a.getSceneX() == x && a.getSceneY() == y && a.getRange() == 1 && a.getDelay() == (n == 5 ? 5 : 0);
                 if (n >= 4) ev += "; asked at " + x + "," + y + " range 1";
                 p.set(row, ok ? "pass" : "mismatch", ev);
@@ -1350,6 +1412,10 @@ public class ApiProbePlugin extends Plugin {
                 parent.deleteAllChildren();
             };
             Class<?> cl = Client.class;
+            if (GAME_KINDS.contains(kind)) {
+                p.gameEvent(row, kind, parent, c, where, runs, clear);
+                return;
+            }
             if ("TIMER".equals(kind)) {
                 p.later(row, () -> {
                     int n = runs[0];
