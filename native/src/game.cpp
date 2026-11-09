@@ -943,6 +943,11 @@ std::vector<PlayerInfo> read_players() {
             if (name) info.name = read_string(name);
             info.fine_x = read_at<int32_t>(p + g_build->npc_fine_x);
             info.fine_y = read_at<int32_t>(p + g_build->npc_fine_y);
+            if (!info.local && info.fine_x == 0 && info.fine_y == 0) {
+                // Another player not moved since player info added it (standing still in view): as read_npcs, the add's position.
+                info.fine_x = read_at<int32_t>(p + 0x268);
+                info.fine_y = read_at<int32_t>(p + 0x26c);
+            }
             info.world_x = base_x + (info.fine_x >> 7);
             info.world_y = base_y + (info.fine_y >> 7);
             info.actor = read_actor(p);
