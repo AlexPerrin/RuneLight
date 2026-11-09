@@ -34,7 +34,7 @@ landscape, canvas = screen points) on a fresh install (client-login-index-log, e
 
 On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
 and World / Tap to switch at [450,925][655,995]: never tap there. The api-probe at this build (logged in at spawn,
-no run set-up) is 93.5% (1170/1252, no pass of main's lost): the 13 display/engine setters pass on the game's own
+no run set-up) is 93.8% (1175/1252, no pass of main's lost): the 13 display/engine setters pass on the game's own
 state: setScalingFactor, setStretchedIntegerScaling and setStretchedKeepAspectRatio drive UiScaling (settings +0x16bc,
 then the layout 0x441b88), setUnlockedFps/Target the frame limit (Engine +0x18680), setGpuFlags isGpu, setCompass
 sprite 169, setMinimapTileDrawer runs after the game's minimap build (hook 0x589180), resizeCanvas the layout,
