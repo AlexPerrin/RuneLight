@@ -465,6 +465,7 @@ void after_cycle() {
     diff_skills();
     game::sync_members_world();
     cache_world();
+    game::login_background_cycle();
     // Shakes the server sends while disabled are dropped before the frame applies them (desktop skips them).
     if (g_shake_off.load(std::memory_order_relaxed)) game::clear_camera_shake();
     bool inv_pitch = g_invert[0].load(std::memory_order_relaxed), inv_yaw = g_invert[1].load(std::memory_order_relaxed);

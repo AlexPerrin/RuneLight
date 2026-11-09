@@ -218,6 +218,29 @@ jlongArray n_cross_world_ids(JNIEnv* env, jclass) {
 }
 jint n_login_index(JNIEnv*, jclass) { return game::login_index(); }
 jint n_login_field(JNIEnv*, jclass) { return game::login_field(); }
+jstring n_login_text(JNIEnv* env, jclass, jint which) { return env->NewStringUTF(game::login_text(which).c_str()); }
+jboolean n_set_login_text(JNIEnv* env, jclass, jint which, jstring text) {
+    if (!client_thread::on_client_thread() || !text) return false;
+    const char* c = env->GetStringUTFChars(text, nullptr);
+    bool ok = c && game::set_login_text(which, c);
+    if (c) env->ReleaseStringUTFChars(text, c);
+    return ok;
+}
+void n_set_login_background(JNIEnv* env, jclass, jintArray px, jint w, jint h) {
+    if (!px || env->GetArrayLength(px) < w * h) { game::set_login_background(nullptr, 0, 0); return; }
+    jint* p = env->GetIntArrayElements(px, nullptr);
+    game::set_login_background(p, w, h);
+    env->ReleaseIntArrayElements(px, p, JNI_ABORT);
+}
+jintArray n_login_background(JNIEnv* env, jclass) {
+    int32_t v[6];
+    if (!client_thread::on_client_thread() || !game::login_background(v)) return nullptr;
+    jintArray out = env->NewIntArray(6);
+    env->SetIntArrayRegion(out, 0, 6, v);
+    return out;
+}
+void n_set_login_fire(JNIEnv*, jclass, jboolean on) { game::set_login_fire(on); }
+jboolean n_login_fire(JNIEnv*, jclass) { return game::login_fire(); }
 jint n_minimap_zoom(JNIEnv*, jclass) { return game::minimap_zoom(); }
 jboolean n_set_minimap_zoom(JNIEnv*, jclass, jint z) { return client_thread::on_client_thread() && game::set_minimap_zoom(z); }
 jint n_minimap_zoom_input(JNIEnv*, jclass) { return game::minimap_zoom_input(); }
@@ -2181,6 +2204,12 @@ const JNINativeMethod kNatives[] = {
     {"crossWorldIds", "()[J", reinterpret_cast<void*>(n_cross_world_ids)},
     {"loginIndex", "()I", reinterpret_cast<void*>(n_login_index)},
     {"loginField", "()I", reinterpret_cast<void*>(n_login_field)},
+    {"loginText", "(I)Ljava/lang/String;", reinterpret_cast<void*>(n_login_text)},
+    {"setLoginText", "(ILjava/lang/String;)Z", reinterpret_cast<void*>(n_set_login_text)},
+    {"setLoginBackground", "([III)V", reinterpret_cast<void*>(n_set_login_background)},
+    {"loginBackground", "()[I", reinterpret_cast<void*>(n_login_background)},
+    {"setLoginFire", "(Z)V", reinterpret_cast<void*>(n_set_login_fire)},
+    {"loginFire", "()Z", reinterpret_cast<void*>(n_login_fire)},
     {"clientInt", "(I)I", reinterpret_cast<void*>(n_client_int)},
     {"setClientInt", "(II)Z", reinterpret_cast<void*>(n_set_client_int)},
     {"musicVolume", "()I", reinterpret_cast<void*>(n_music_volume)},
