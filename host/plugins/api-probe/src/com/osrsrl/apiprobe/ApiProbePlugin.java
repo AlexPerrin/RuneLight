@@ -1610,20 +1610,7 @@ public class ApiProbePlugin extends Plugin {
         });
         // A Switch op to another listed world (the list loads once the switcher is open): the server answers LOGOUT_TRANSFER
         // and the client logs in on that world. Last of all: the session ends there.
-        SPECIAL.put("Client.hopToWorld1", (p, row, inst) -> {
-            Client c = p.client;
-            int from = c.getWorld();
-            net.runelite.api.World[] list = c.getWorldList();
-            net.runelite.api.World to = null;
-            StringBuilder ids = new StringBuilder();
-            if (list != null) for (net.runelite.api.World w : list) if (w != null) {
-                ids.append(ids.length() == 0 ? "" : ",").append(w.getId());
-                if (to == null && w.getId() != from) to = w;
-            }
-            if (to == null) { p.set(row, "skipped", "the world list (" + (list == null ? "not loaded" : ids) + ") has no world but the current " + from + " to hop to"); return; }
-            c.hopToWorld(to);
-            p.later(row, hopped(p, row, to, from, 1));
-        });
+        SPECIAL.put("Client.hopToWorld1", (p, row, inst) -> hopToWorld(p, row, 1));
         // A modal interface the run set-up opened (probewait "modal"), closed client-side as desktop does; the server
         // still has it open until the next row's walk closes it there (its move handler closes modals).
         SPECIAL.put("Client.closeInterface2", (p, row, inst) -> {
@@ -1841,6 +1828,23 @@ public class ApiProbePlugin extends Plugin {
             if (!open && ticks < 5) { p.later(row, hopperOpened(p, row, ticks + 1)); return; }
             p.set(row, open ? "pass" : "mismatch", "op 1 (World Switcher) on 182:3: world switcher 69 " + (open ? "open" : "not open") + " after " + ticks + " tick(s)");
         };
+    }
+
+    // shortcut: the switcher's list arrives by an http fetch the client starts when it opens; 50 ticks without another listed world is a skip; a longer wait has no fact to end on.
+    static void hopToWorld(ApiProbePlugin p, Row row, int ticks) {
+        Client c = p.client;
+        int from = c.getWorld();
+        net.runelite.api.World[] list = c.getWorldList();
+        net.runelite.api.World to = null;
+        StringBuilder ids = new StringBuilder();
+        if (list != null) for (net.runelite.api.World w : list) if (w != null) {
+            ids.append(ids.length() == 0 ? "" : ",").append(w.getId());
+            if (to == null && w.getId() != from) to = w;
+        }
+        if (to == null && ticks < 50) { p.later(row, () -> hopToWorld(p, row, ticks + 1)); return; }
+        if (to == null) { p.set(row, "skipped", "the world list (" + (list == null ? "not loaded" : ids) + ") has no world but the current " + from + " to hop to after " + ticks + " tick(s)"); return; }
+        c.hopToWorld(to);
+        p.later(row, hopped(p, row, to, from, 1));
     }
 
     /**
