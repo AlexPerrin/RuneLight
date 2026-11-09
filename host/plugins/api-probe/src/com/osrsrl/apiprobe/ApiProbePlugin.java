@@ -69,14 +69,56 @@ public class ApiProbePlugin extends Plugin {
         EXCLUDED.put(API + "widgets.JavaScriptCallback", "a plugin's widget listener: the client calls it");
         EXCLUDED.put(API + "TileFunction", "a plugin's minimap tile drawer: the client calls it");
         EXCLUDED.put(API + "ClientConfiguration", "RuneLite's loader implements it (RSAppletStub) and hands it to GameEngine.setConfiguration");
+        // One method: interface + "." + name.
+        EXCLUDED.put(API + "Client.setCameraMouseButtonMask", "the game starts its camera drag (touch state 8) from a touch only: its input dispatcher sends a mouse's right and middle buttons to their own listeners, never to the touch state machine, so no button can be selected (the host keeps it a no-op)");
     }
 
     /**
      * Rows that change what the server or the session sees, run one at a time after every other row, each once
      * the previous one's check is done: a client-side close of a modal the run set-up opened, then a walk onto the
-     * player's own tile (the server closes its modal too, and the fight stops), then a scene reload.
+     * player's own tile (the server closes its modal too, and the fight stops), then camera drags on the scene (real
+     * touch input, with no modal over the scene), then low memory mode (it drops scene decorations), then a scene reload.
      */
-    static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Client.changeMemoryMode", "Client.setGameState");
+    static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Client.setInvertPitch", "Client.setInvertYaw", "Client.changeMemoryMode", "Client.setGameState");
+
+    interface Turned { void run(int yaw, int pitch) throws Exception; }
+
+    /**
+     * A drag on the scene through the host canvas, as the devtools drag (press, 8 moves 60 ms apart, release, on a thread
+     * of its own: the game reads a move per cycle), started at the viewport's centre with the pitch target mid-range so it
+     * is not clamped; a tick after the release (the glide is over in a few cycles) the targets' changes go to `then` (yaw
+     * wrapped to -8192..8191).
+     */
+    void cameraDrag(Row row, Turned then) {
+        java.awt.Canvas cv = client.getCanvas();
+        int x = client.getCenterX(), y = client.getCenterY();
+        client.setCameraPitchTarget(0x7fc);
+        int yaw0 = client.getCameraYawTarget(), pitch0 = client.getCameraPitchTarget();
+        Thread t = new Thread(() -> {
+            try {
+                mouse(cv, java.awt.event.MouseEvent.MOUSE_PRESSED, x, y);
+                for (int i = 1; i <= 8; i++) {
+                    Thread.sleep(60);
+                    mouse(cv, java.awt.event.MouseEvent.MOUSE_DRAGGED, x + 20 * i, y + 8 * i);
+                }
+                Thread.sleep(60);
+                mouse(cv, java.awt.event.MouseEvent.MOUSE_RELEASED, x + 160, y + 64);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "api-probe-drag");
+        t.start();
+        later(row, afterDrag(row, t, () -> then.run(((client.getCameraYawTarget() - yaw0 + 8192) & 0x3fff) - 8192, client.getCameraPitchTarget() - pitch0)));
+    }
+
+    /** `then` on the first tick after the drag thread has sent its release. */
+    private Check afterDrag(Row row, Thread t, Check then) {
+        return () -> later(row, t.isAlive() ? afterDrag(row, t, then) : then);
+    }
+
+    private static void mouse(java.awt.Canvas cv, int id, int x, int y) {
+        cv.dispatchEvent(new java.awt.event.MouseEvent(cv, id, System.currentTimeMillis(), 0, x, y, 1, false, java.awt.event.MouseEvent.BUTTON1));
+    }
 
     @Inject private Client client;
     @Inject private EventBus eventBus;
@@ -106,7 +148,7 @@ public class ApiProbePlugin extends Plugin {
             for (String line; (line = r.readLine()) != null; ) {
                 if (line.startsWith("# ")) { apiJar = line.substring(2); continue; }
                 String[] f = line.split("\t");
-                if (EXCLUDED.containsKey(f[0])) continue;
+                if (EXCLUDED.containsKey(f[0]) || EXCLUDED.containsKey(f[0] + "." + f[1])) continue;
                 Row row = new Row();
                 row.iface = f[0];
                 row.name = f[1];
@@ -1464,6 +1506,22 @@ public class ApiProbePlugin extends Plugin {
         });
         // A walk onto the local player's own tile through the game's menu (the server closes its modals and stops the
         // fight). Done once the game ran the click (MenuOptionClicked) or the host dropped it.
+        // Invert: a drag on the scene (the canvas's mouse, as a touch) turns the camera; the same drag again with the
+        // axis inverted must turn that axis the other way.
+        Special invert = (p, row, inst) -> {
+            boolean pitch = row.m.getName().equals("setInvertPitch");
+            p.cameraDrag(row, (yaw0, pitch0) -> {
+                row.m.invoke(inst, true);
+                p.cameraDrag(row, (yaw1, pitch1) -> {
+                    row.m.invoke(inst, false);
+                    int base = pitch ? pitch0 : yaw0, inverted = pitch ? pitch1 : yaw1;
+                    p.set(row, base != 0 && Integer.signum(inverted) == -Integer.signum(base) ? "pass" : "mismatch",
+                        (pitch ? "pitch" : "yaw") + " target moved by a scene drag " + base + ", by the same drag with " + row.m.getName() + "(true) " + inverted + " (then false)");
+                });
+            });
+        };
+        SPECIAL.put("Client.setInvertPitch1", invert);
+        SPECIAL.put("Client.setInvertYaw1", invert);
         SPECIAL.put("Client.menuAction7", (p, row, inst) -> {
             Client c = (Client) inst;
             Player me = c.getLocalPlayer();

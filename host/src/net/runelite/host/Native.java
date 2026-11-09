@@ -95,6 +95,8 @@ final class Native {
     /** The touch camera's drag sensitivity (settings +0x82c); 0 before the settings exist. */
     static native float cameraSensitivity();
     static native boolean cameraShakeDisabled();
+    /** Axis 0 pitch, 1 yaw: while on, the touch camera drag turns that axis the other way. */
+    static native void setCameraInvert(int axis, boolean on);
     /** Every varp as a long (the long table where the game flags it long, else the int table). */
     static native long[] varpsLong(boolean server);
     /** Client.setVarpLongValue; game thread only. */

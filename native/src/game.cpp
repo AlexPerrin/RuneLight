@@ -2007,6 +2007,35 @@ void clear_camera_shake() {
     for (int i = 0; i < 5; i++) *reinterpret_cast<volatile uint8_t*>(c + 0x894cd + i) = 0;
 }
 
+// Camera drag inversion (Client.setInvertPitch/setInvertYaw). In touch state 8 the cycle 0x41d0a4 turns the
+// drag's pixel deltas into the pitch delta +0x894b0 and yaw delta +0x894ac (no sign flag of its own), stores
+// half of each (+0x894a4 pitch, +0x894a8 yaw, truncated) and adds that to the targets: pitch +0x8949c clamped
+// to 0x400..0xbf8 (0x001..0x1040 with the relaxer +0x8951c), yaw +0x894a0 & 0x3fff. After release the deltas
+// halve each cycle (the glide). Run after a drag cycle: each inverted axis's step is applied the other way and
+// its delta negated, so the glide that follows goes the inverted way too.
+void invert_camera_drag(bool pitch, bool yaw) {
+    uintptr_t c = client();
+    if (!c) return;
+    auto f = [c](uint32_t off) { return reinterpret_cast<volatile int32_t*>(c + off); };
+    if (yaw) {
+        int step = *f(0x894a8);
+        *f(0x894a0) = (*f(0x894a0) - 2 * step) & 0x3fff;
+        *f(0x894a8) = -step;
+        *f(0x894ac) = -*f(0x894ac);
+    }
+    if (pitch) {
+        bool relaxed = read_at<uint8_t>(c + 0x8951c) != 0;
+        int lo = relaxed ? 1 : 0x400, hi = relaxed ? 0x1040 : 0xbf8;
+        int step = *f(0x894a4), now = *f(0x8949c);
+        // shortcut: a step clamped at the limit it pushed towards is taken as starting there (exact but for
+        // the one cycle that reaches the limit, off by less than the step)
+        int before = (now == hi && step > 0) || (now == lo && step < 0) ? now : now - step;
+        *f(0x8949c) = std::min(hi, std::max(lo, before - step));
+        *f(0x894a4) = -step;
+        *f(0x894b0) = -*f(0x894b0);
+    }
+}
+
 // 64-bit varps (VARP_LONG, case 53): beside the int tables, full-length long tables (server 0x1127c78,
 // client 0x1127c38) and a per-id flag table (0x1127c20, 1 = the varp is long: readers take the long
 // table, else the int one), all {?, u64 count, data*}. Values are read as the game's readers do.
