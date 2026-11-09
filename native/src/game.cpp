@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <memory>
 
@@ -24,6 +25,7 @@
 namespace game {
 void install_message_hook();
 void install_scene_load_hook();
+void install_minimap_hook();
 void install_fire_hook();
 void install_wheel_hook();
 void install_state_write_hooks();
@@ -204,6 +206,7 @@ bool init() {
             LOGI("game: build %s recognised", b.name);
             install_message_hook();
             install_scene_load_hook();
+            install_minimap_hook();
             install_fire_hook();
             install_wheel_hook();
             install_state_write_hooks();
@@ -1962,6 +1965,102 @@ bool set_music_volume(int v) {
     if (!g_build || !c || v < 0 || v > 255) return false;
     *reinterpret_cast<volatile int32_t*>(c + 0x2f58) = v;
     if (reinterpret_cast<bool (*)()>(g_base + 0x68e948)()) reinterpret_cast<void (*)(int)>(g_base + 0x68ff50)(v);
+    return true;
+}
+
+// Display and settings (client-api-display-engine-stubs, static RE run 302: re/decomp/007b0698.c, 00541b88.c,
+// 005f3e8c.c). Settings S = *(Client+0x2278); each setting is an option object whose vtable +0x40 validates,
+// then the value is written and the observer *(opt+8) slot +0x18 notified (+0x30 would commit and save it).
+// Display *(Client+0x90): 0x6b0698(scale, disp) sets the UI canvas +0x6c/+0x70 from the surface +0x30/+0x34
+// divided by the scale +0x84 (uniform, held at a minimum size); 0x441b88(client) calls it with UiScaling/100
+// and lays the root interface out at the new canvas size.
+bool display(int out[5]) {
+    uintptr_t c = client();
+    uintptr_t d = c ? read_at<uintptr_t>(c + 0x90) : 0;
+    if (!d) return false;
+    out[0] = read_at<int32_t>(d + 0x30);
+    out[1] = read_at<int32_t>(d + 0x34);
+    out[2] = read_at<int32_t>(d + 0x6c);
+    out[3] = read_at<int32_t>(d + 0x70);
+    out[4] = static_cast<int>(read_at<float>(d + 0x84) * 1000);
+    return true;
+}
+static uintptr_t settings_obj() {
+    uintptr_t c = client();
+    return c && g_build ? read_at<uintptr_t>(c + 0x2278) : 0;
+}
+int ui_scaling() {
+    uintptr_t s = settings_obj();
+    return s ? read_at<int32_t>(s + 0x16bc) : -1;
+}
+bool relayout() {
+    uintptr_t c = client();
+    if (!c || !read_at<uintptr_t>(c + 0x90) || !settings_obj()) return false;
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x441b88)(c);
+    return true;
+}
+bool set_ui_scaling(int percent) {
+    uintptr_t s = settings_obj();
+    if (!s || percent < read_at<int32_t>(s + 0x1714) || percent > read_at<int32_t>(s + 0x1718)) return false;
+    *reinterpret_cast<volatile int32_t*>(s + 0x16bc) = percent;
+    return relayout();
+}
+// The frame limit the frame function 0x86bdc8 sleeps to (Engine +0x18680, Engine = *(0x1fa1070); 60 at start,
+// 0 = no wait); the FpsLimit setting (settings +0x45c, console fpslimit) is pushed into it by 0x41c524 through
+// 0x5a8c74. Static RE run 302 (re/decomp/006a8c74.c). Written directly: the setting itself is left as it is.
+static uintptr_t engine_obj() { return g_build ? read_at<uintptr_t>(g_base + 0x1fa1070) : 0; }
+int fps_limit() {
+    uintptr_t e = engine_obj();
+    return e ? read_at<int32_t>(e + 0x18680) : -1;
+}
+bool set_fps_limit(int fps) {
+    uintptr_t e = engine_obj();
+    if (!e || fps < 0) return false;
+    *reinterpret_cast<volatile int32_t*>(e + 0x18680) = fps;
+    return true;
+}
+
+// The minimap build 0x589180(mm, plane, scene) (draw_minimap above), hooked so a plugin's tile drawer runs after
+// each redraw. Static RE run 302 (re/decomp/00689180.c): it calls the tile draw 0x6de9d4 for tiles 1..102 at
+// pixel offset 48*size + 48 + x*zoom + (103-y)*zoom*size.
+namespace {
+constexpr uintptr_t kMinimapBuild = 0x589180;
+constexpr uint32_t kMinimapBuildCode[4] = {0xd10203ff, 0xa9027bfd, 0xa9036ffc, 0xa90467fa};
+using MinimapBuildFn = void (*)(uintptr_t, int, uintptr_t);
+MinimapBuildFn g_minimap_build = nullptr;
+std::atomic<bool> g_minimap_watch{false};
+std::atomic<int> g_minimap_drawn{-1};
+void hook_minimap_build(uintptr_t mm, int plane, uintptr_t scene) {
+    g_minimap_build(mm, plane, scene);
+    if (g_minimap_watch.load(std::memory_order_relaxed)) g_minimap_drawn = plane;
+}
+}  // namespace
+void install_minimap_hook() {
+    g_minimap_build = reinterpret_cast<MinimapBuildFn>(inline_hook(g_base + kMinimapBuild, kMinimapBuildCode, reinterpret_cast<void*>(hook_minimap_build)));
+    LOGI("game: minimap build hook %s", g_minimap_build ? "installed" : "FAILED");
+}
+void set_minimap_watch(bool on) {
+    g_minimap_watch = on;
+    if (!on) g_minimap_drawn = -1;
+}
+int minimap_drawn() { return g_minimap_drawn.exchange(-1); }
+bool minimap_raster(std::vector<int32_t>& out) {
+    uintptr_t c = client();
+    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e970) : 0;
+    if (!mm) return false;
+    auto* px = read_at<int32_t*>(mm + 0x6450);
+    int zoom = read_at<int32_t>(mm + 0x6470), w = read_at<int32_t>(mm + 0x6458), size = zoom * 104 + 96;
+    if (!px || zoom < 2 || zoom > 8 || w != size || read_at<int32_t>(mm + 0x645c) != size
+        || read_at<uint64_t>(mm + 0x6440) != static_cast<uint64_t>(size) * size) return false;
+    out.assign({size, zoom});
+    out.insert(out.end(), px, px + static_cast<size_t>(size) * size);
+    return true;
+}
+bool set_minimap_raster(const int32_t* src, size_t n) {
+    std::vector<int32_t> cur;
+    if (!minimap_raster(cur) || n != cur.size() - 2) return false;
+    uintptr_t mm = read_at<uintptr_t>(client() + 0x40e970);
+    std::copy(src, src + n, read_at<int32_t*>(mm + 0x6450));
     return true;
 }
 

@@ -181,6 +181,36 @@ jint n_music_volume(JNIEnv*, jclass) { return game::music_volume(); }
 jboolean n_set_music_volume(JNIEnv*, jclass, jint v) {
     return client_thread::on_client_thread() && game::set_music_volume(v);
 }
+// {surface w, h, UI canvas w, h, scale * 1000}; null before the display exists.
+jintArray n_display(JNIEnv* env, jclass) {
+    int d[5];
+    if (!game::display(d)) return nullptr;
+    jintArray out = env->NewIntArray(5);
+    if (out) env->SetIntArrayRegion(out, 0, 5, d);
+    return out;
+}
+jint n_ui_scaling(JNIEnv*, jclass) { return game::ui_scaling(); }
+jboolean n_set_ui_scaling(JNIEnv*, jclass, jint p) { return client_thread::on_client_thread() && game::set_ui_scaling(p); }
+jboolean n_relayout(JNIEnv*, jclass) { return client_thread::on_client_thread() && game::relayout(); }
+jint n_fps_limit(JNIEnv*, jclass) { return game::fps_limit(); }
+jboolean n_set_fps_limit(JNIEnv*, jclass, jint v) { return client_thread::on_client_thread() && game::set_fps_limit(v); }
+void n_set_minimap_watch(JNIEnv*, jclass, jboolean on) { game::set_minimap_watch(on); }
+jint n_minimap_drawn(JNIEnv*, jclass) { return game::minimap_drawn(); }
+// {size, zoom, ARGB pixels...}; null off the client thread or before the minimap exists.
+jintArray n_minimap_raster(JNIEnv* env, jclass) {
+    std::vector<int32_t> v;
+    if (!client_thread::on_client_thread() || !game::minimap_raster(v)) return nullptr;
+    jintArray out = env->NewIntArray(static_cast<jsize>(v.size()));
+    if (out) env->SetIntArrayRegion(out, 0, static_cast<jsize>(v.size()), v.data());
+    return out;
+}
+jboolean n_set_minimap_raster(JNIEnv* env, jclass, jintArray px) {
+    if (!px || !client_thread::on_client_thread()) return false;
+    jsize n = env->GetArrayLength(px);
+    std::vector<int32_t> v(static_cast<size_t>(n));
+    env->GetIntArrayRegion(px, 0, n, v.data());
+    return game::set_minimap_raster(v.data(), v.size());
+}
 // {group id, jingle (0/1)} per playing song; null off the client thread.
 jintArray n_midi_requests(JNIEnv* env, jclass) {
     std::vector<std::pair<int, bool>> r;
@@ -2213,6 +2243,16 @@ const JNINativeMethod kNatives[] = {
     {"clientInt", "(I)I", reinterpret_cast<void*>(n_client_int)},
     {"setClientInt", "(II)Z", reinterpret_cast<void*>(n_set_client_int)},
     {"musicVolume", "()I", reinterpret_cast<void*>(n_music_volume)},
+    {"display", "()[I", reinterpret_cast<void*>(n_display)},
+    {"uiScaling", "()I", reinterpret_cast<void*>(n_ui_scaling)},
+    {"setUiScaling", "(I)Z", reinterpret_cast<void*>(n_set_ui_scaling)},
+    {"relayout", "()Z", reinterpret_cast<void*>(n_relayout)},
+    {"fpsLimit", "()I", reinterpret_cast<void*>(n_fps_limit)},
+    {"setFpsLimit", "(I)Z", reinterpret_cast<void*>(n_set_fps_limit)},
+    {"setMinimapWatch", "(Z)V", reinterpret_cast<void*>(n_set_minimap_watch)},
+    {"minimapDrawn", "()I", reinterpret_cast<void*>(n_minimap_drawn)},
+    {"minimapRaster", "()[I", reinterpret_cast<void*>(n_minimap_raster)},
+    {"setMinimapRaster", "([I)Z", reinterpret_cast<void*>(n_set_minimap_raster)},
     {"setMusicVolume", "(I)Z", reinterpret_cast<void*>(n_set_music_volume)},
     {"midiRequests", "()[I", reinterpret_cast<void*>(n_midi_requests)},
     {"setCameraShakeDisabled", "(Z)V", reinterpret_cast<void*>(n_set_camera_shake_disabled)},

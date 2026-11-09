@@ -622,6 +622,7 @@ public final class Host {
                 AndroidMenu.onCycle();
                 ((AndroidClient) client).fetchWantedDbFields();
                 HostSprites.onCycle(client);
+                ((AndroidClient) client).drawMinimapTiles();
                 applyDrawListeners();
                 if (cycleStamp % 10 == 0) ((AndroidClient) client).applyMapDots();
                 Sidebar.onCycle();

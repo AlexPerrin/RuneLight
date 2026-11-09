@@ -70,6 +70,22 @@ final class Native {
     /** Music volume 0-255 (Client +0x2f58); set applies it to the playing songs; game thread only. */
     static native int musicVolume();
     static native boolean setMusicVolume(int v);
+    /** Display {surface width, height, UI canvas width, height, scale * 1000}; null before it exists. */
+    static native int[] display();
+    /** The game's UiScaling setting (percent, 25..400); set (game thread) writes it unsaved and lays the UI out. */
+    static native int uiScaling();
+    static native boolean setUiScaling(int percent);
+    /** The game's own UI layout from the surface size and UiScaling (desktop's resizeCanvas); game thread. */
+    static native boolean relayout();
+    /** The frame limit the game sleeps to (its FpsLimit setting applied; 0 = none); set (game thread) leaves the setting as it is. */
+    static native int fpsLimit();
+    static native boolean setFpsLimit(int fps);
+    /** While on, minimapDrawn returns the plane the game's minimap build drew since the last call, else -1. */
+    static native void setMinimapWatch(boolean on);
+    static native int minimapDrawn();
+    /** The minimap raster {size, zoom, ARGB...} and its write-back (size*size pixels); game thread. */
+    static native int[] minimapRaster();
+    static native boolean setMinimapRaster(int[] px);
     /** {group id, jingle 0/1} per song the music player is playing; game thread only, else null. */
     static native int[] midiRequests();
     /** While on, the camera shake flags are cleared after every cycle. */

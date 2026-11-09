@@ -100,10 +100,20 @@ final class AndroidRender {
     static final class HostRasterizer implements Rasterizer {
         private int left, top, right = Integer.MAX_VALUE, bottom = Integer.MAX_VALUE;
         private boolean lowRes;
+        private int[] target;  // another image drawn into (the minimap tile drawer's pass), else BUFFER
+        private int targetW, targetH;
 
-        @Override public int[] getPixels() { return BUFFER.image().getPixels(); }
-        @Override public int getWidth() { return BUFFER.getWidth(); }
-        @Override public int getHeight() { return BUFFER.getHeight(); }
+        /** Draws into px (w x h) until target(null, 0, 0); the clip is reset either way. */
+        void target(int[] px, int w, int h) {
+            target = px;
+            targetW = w;
+            targetH = h;
+            resetRasterClipping();
+        }
+
+        @Override public int[] getPixels() { return target != null ? target : BUFFER.image().getPixels(); }
+        @Override public int getWidth() { return target != null ? targetW : BUFFER.getWidth(); }
+        @Override public int getHeight() { return target != null ? targetH : BUFFER.getHeight(); }
 
         private int x1() { return Math.min(right, getWidth()); }
         private int y1() { return Math.min(bottom, getHeight()); }

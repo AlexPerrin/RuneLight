@@ -955,7 +955,7 @@ public class AndroidClient extends ClientStub {
         }
         return cameraCache;
     }
-    @Override public boolean isGpu() { return false; }
+    @Override public boolean isGpu() { return (gpuFlags & 1) != 0; }
     @Override public boolean isResized() { return true; }
     /** AWT events dispatched here become Android input (DevInput). */
     @Override public java.awt.Canvas getCanvas() { return DevInput.CANVAS; }
@@ -974,17 +974,131 @@ public class AndroidClient extends ClientStub {
     @Override public int getCenterY() { return getViewportYOffset() + getViewportHeight() / 2; }
     /** Frames per second the game draws (BeforeRender counted per second; the ImGui overlay shows the same rate). */
     @Override public int getFPS() { return Host.fps; }
-    // The mobile client has no stretched mode, minimap ctrl-zoom, free camera / oculus orb or camera
-    // shake toggle; these report desktop's defaults. No Jagex launcher either (null display name, as
-    // RuneLite started without it).
-    // Stretched mode: stored for plugins that read it back; the app always draws at the device's own
-    // resolution, so it changes nothing (getStretchedDimensions stays the real canvas).
-    private boolean stretched, stretchedFast;
+    // No Jagex launcher on mobile (null display name, as RuneLite started without it).
+    // Stretched mode is the game's own UiScaling (Native.uiScaling): it draws the UI canvas at the surface size
+    // divided by percent/100, uniformly, as desktop's resizable stretched mode draws at 1 + scalingFactor/100.
+    // While enabled the setting is 100 + scalingFactor (floored to whole multiples of 100 with integer scaling);
+    // disabled, the game's own value is put back. Not saved. Keep-aspect-ratio is a fixed-mode option on desktop:
+    // the game's scale is always uniform, so it is kept as given. Fast (nearest-neighbour) changes nothing here.
+    private boolean stretched, stretchedFast, integerScaling, keepAspectRatio;
+    private int scalingFactor, uiOwn = -1, uiWritten = -1;
     @Override public boolean isStretchedEnabled() { return stretched; }
-    @Override public void setStretchedEnabled(boolean on) { stretched = on; }
+    @Override public void setStretchedEnabled(boolean on) { stretched = on; applyStretch(); }
     @Override public boolean isStretchedFast() { return stretchedFast; }
     @Override public void setStretchedFast(boolean on) { stretchedFast = on; }
+    @Override public void setStretchedIntegerScaling(boolean on) { integerScaling = on; applyStretch(); }
+    @Override public void setStretchedKeepAspectRatio(boolean on) { keepAspectRatio = on; }
+    public boolean isStretchedKeepAspectRatio() { return keepAspectRatio; }
+    @Override public void setScalingFactor(int factor) { scalingFactor = factor; applyStretch(); }
     @Override public void invalidateStretching(boolean resize) { }  // nothing is cached: the canvas is read per cycle
+    /** The UiScaling percent stretched mode asks for, or the game's own while disabled. */
+    private void applyStretch() {
+        if (!isClientThread()) { Host.invoke(this::applyStretch); return; }
+        int cur = Native.uiScaling();
+        if (cur < 0) return;
+        if (cur != uiWritten) uiOwn = cur;  // the game's (or the player's) value since the last write
+        int want = uiOwn;
+        if (stretched) {
+            want = 100 + scalingFactor;
+            if (integerScaling) want = Math.max(100, want / 100 * 100);
+            want = Math.max(25, Math.min(400, want));
+        }
+        if (want != cur && Native.setUiScaling(want)) uiWritten = want;
+    }
+    /** As desktop: the canvas is laid out again for the current surface size (the game's own layout, 0x441b88). */
+    @Override public void resizeCanvas() {
+        if (isClientThread()) Native.relayout();
+        else Host.invoke(Native::relayout);
+    }
+    // The GPU flags a GPU plugin sets; the game always renders with its own GL pipeline, so only isGpu reads them.
+    private int gpuFlags;
+    @Override public void setGpuFlags(int flags) { gpuFlags = flags; }
+    // Unlocked fps is the game's frame limit (its FpsLimit setting applied, Native.fpsLimit): the target while
+    // unlocked (0 = none), the game's own back when locked. The setting itself is left as it is.
+    private boolean unlockedFps;
+    private int unlockedFpsTarget, fpsOwn = -1, fpsWritten = -1;
+    @Override public void setUnlockedFps(boolean on) { unlockedFps = on; applyFps(); }
+    @Override public void setUnlockedFpsTarget(int fps) { unlockedFpsTarget = fps; applyFps(); }
+    private void applyFps() {
+        if (!isClientThread()) { Host.invoke(this::applyFps); return; }
+        int cur = Native.fpsLimit();
+        if (cur < 0) return;
+        if (cur != fpsWritten) fpsOwn = cur;
+        int want = unlockedFps ? Math.max(0, unlockedFpsTarget) : fpsOwn;
+        if (want != cur && Native.setFpsLimit(want)) fpsWritten = Native.fpsLimit();
+    }
+    private static final int COMPASS_SPRITE = 169;  // the minimap compass graphic
+    /** The minimap compass is the game's sprite 169: an override of it; null puts the game's back. */
+    @Override public void setCompass(net.runelite.api.SpritePixels sp) {
+        if (sp == null) spriteOverrides.remove(COMPASS_SPRITE);
+        else spriteOverrides.put(COMPASS_SPRITE, sp);
+    }
+    /**
+     * Desktop calls the drawer for every tile while it builds the minimap image, the Rasterizer drawing into it.
+     * Here the game's own build (0x589180) runs first; after each one (seen at the end of the cycle) the drawer is
+     * called for the same tiles with the Rasterizer on a copy of the game's minimap raster, written back after.
+     */
+    private net.runelite.api.TileFunction minimapTileDrawer;
+    @Override public void setMinimapTileDrawer(net.runelite.api.TileFunction f) {
+        minimapTileDrawer = f;
+        Native.setMinimapWatch(f != null);
+    }
+    /** Game thread, each cycle. */
+    void drawMinimapTiles() {
+        net.runelite.api.TileFunction f = minimapTileDrawer;
+        int plane = f != null ? Native.minimapDrawn() : -1;
+        if (plane < 0) return;
+        int[] r = Native.minimapRaster();
+        net.runelite.api.Tile[][][] tiles = getTopLevelWorldView().getScene().getTiles();
+        if (r == null || tiles == null || plane >= tiles.length || tiles[plane].length < 103 || tiles[plane][0].length < 103) return;
+        int size = r[0], zoom = r[1];
+        int[] px = java.util.Arrays.copyOfRange(r, 2, r.length);
+        AndroidRender.RASTERIZER.target(px, size, size);
+        try {
+            for (int y = 1; y < 103; y++)
+                for (int x = 1; x < 103; x++) {
+                    net.runelite.api.Tile t = tiles[plane][x][y];
+                    int px0 = 48 + x * zoom, py0 = 48 + (103 - y) * zoom;
+                    if (t != null) f.drawTile(t, x, y, px0, py0, px0 + zoom, py0 + zoom);
+                }
+        } finally {
+            AndroidRender.RASTERIZER.target(null, 0, 0);
+        }
+        Native.setMinimapRaster(px);
+    }
+    // The Android app starts its engine and is never held at startup: the host loads once the game runs, so
+    // initialize and unblockStartup find the state they produce on desktop already reached.
+    @Override public void initialize() { }
+    @Override public void unblockStartup() { }
+    /** RuneLite's loader hands the jav_config here; the app loads its own (patched to the local server) before the host. */
+    private net.runelite.api.ClientConfiguration configuration;
+    @Override public void setConfiguration(net.runelite.api.ClientConfiguration c) { configuration = c; }
+    // Low memory: the Android game has no low-detail mode (static RE run 302: no flag in its loc loading or its
+    // settings). Desktop's low detail loads no ground decorations a player can't interact with; here they are taken
+    // out of the game's scene as they load (SceneObjects) and the scene is reloaded to bring them back.
+    volatile boolean lowMemory;
+    @Override public void changeMemoryMode(boolean low) {
+        if (!isClientThread()) { Host.invoke(() -> changeMemoryMode(low)); return; }
+        boolean was = lowMemory;
+        lowMemory = low;
+        if (low && !was) {
+            for (net.runelite.api.Tile[][] plane : getTopLevelWorldView().getScene().getTiles())
+                for (net.runelite.api.Tile[] col : plane)
+                    for (net.runelite.api.Tile t : col) {
+                        net.runelite.api.GroundObject g = t != null ? t.getGroundObject() : null;
+                        if (g != null && lowDetailDrops(g.getId())) t.setGroundObject(null);
+                    }
+        } else if (!low && was) Native.reloadScene();
+    }
+    // shortcut: "interactive" is any action or an impostor (desktop also keeps by the loc's interact type and a
+    // flag the API doesn't carry); upgrade when AndroidObjectComposition reads those fields.
+    boolean lowDetailDrops(int id) {
+        if (!lowMemory) return false;
+        net.runelite.api.ObjectComposition d = getObjectDefinition(id);
+        if (d == null || d.getImpostorIds() != null) return false;
+        for (String a : d.getActions()) if (a != null) return false;
+        return true;
+    }
 
     // --- rendering surface (AndroidRender says what each means on Android) ---
     @Override public net.runelite.api.Rasterizer getRasterizer() { return AndroidRender.RASTERIZER; }

@@ -89,6 +89,11 @@ final class SceneObjects {
             int sx = packed[i + 4] >>> 8 & 0xff, sy = packed[i + 4] & 0xff;
             AndroidTileObject o = AndroidTileObject.create(layer, baseX + x, baseY + y, plane, packed[i + 1], tag, sx, sy);
             if (o == null || plane >= 4 || x >= SIZE || y >= SIZE) continue;
+            if (o instanceof AndroidTileObject.Ground && Host.client() instanceof AndroidClient
+                    && ((AndroidClient) Host.client()).lowDetailDrops(o.getId())) {  // changeMemoryMode(true)
+                Native.removeGroundObject(plane, x, y);
+                continue;
+            }
             AndroidTileObject old = objects.get(o.key());
             if (old != null) o = old;
             else spawned.add(o);

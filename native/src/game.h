@@ -614,6 +614,22 @@ bool set_camera_sensitivity(float v);
 // Music volume 0-255 (Client +0x2f58); set also applies it to the playing songs.
 int music_volume();
 bool set_music_volume(int v);
+// Display *(Client+0x90): {surface width, height, UI canvas width, height, scale * 1000}.
+bool display(int out[5]);
+// The UiScaling setting (percent, settings +0x16bc, 25..400); set writes it unsaved and lays the UI out again.
+int ui_scaling();
+bool set_ui_scaling(int percent);
+// The game's own UI layout from the surface size and the scaling (0x441b88).
+bool relayout();
+// The frame limit the game sleeps to (Engine +0x18680, its FpsLimit setting applied; 0 = none).
+int fps_limit();
+bool set_fps_limit(int fps);
+// Minimap redraws (0x589180) are recorded while on; minimap_drawn returns the plane drawn since the last call, or -1.
+void set_minimap_watch(bool on);
+int minimap_drawn();
+// The minimap raster {size, zoom, ARGB pixels...}; set writes size*size pixels back.
+bool minimap_raster(std::vector<int32_t>& out);
+bool set_minimap_raster(const int32_t* px, size_t n);
 // The music player's playing songs: {group id, jingle}.
 bool midi_requests(std::vector<std::pair<int, bool>>& out);
 // Clears the camera shake flags (as CAM_RESET).

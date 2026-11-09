@@ -77,11 +77,12 @@ public class ApiProbePlugin extends Plugin {
      * Rows that change what the server or the session sees, run one at a time after every other row, each once
      * the previous one's check is done: a client-side close of a modal the run set-up opened, then a walk onto the
      * player's own tile (the server closes its modal too, and the fight stops), then touches and wheel notches on a
-     * probe child mid-scene and camera drags on the scene (real input, with no modal over the scene), then a scene reload.
+     * probe child mid-scene and camera drags on the scene (real input, with no modal over the scene), then low memory
+     * mode (it drops scene decorations), then a scene reload.
      */
     static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Widget.setOnClickListener", "Widget.setOnHoldListener",
         "Widget.setOnReleaseListener", "Widget.setOnMouseOverListener", "Widget.setOnMouseLeaveListener", "Widget.setOnMouseRepeatListener",
-        "Widget.setOnScrollWheelListener", "Client.setInvertPitch", "Client.setInvertYaw", "Client.setGameState");
+        "Widget.setOnScrollWheelListener", "Client.setInvertPitch", "Client.setInvertYaw", "Client.changeMemoryMode", "Client.setGameState");
 
     interface Turned { void run(int yaw, int pitch) throws Exception; }
 
@@ -588,6 +589,10 @@ public class ApiProbePlugin extends Plugin {
     }
 
     static final int CHAT_CYCLE = 3, CHANGED_SKILL_COUNT = 4, ORB_SPEED = 5, PITCH_RELAXER = 6;  // Native.clientInt indices
+
+    static int uiScaling() throws Exception {
+        return (Integer) host("Native", "uiScaling", new Class<?>[0]);
+    }
 
     /** setX(v) with a getter getX()/isX(): set an altered value, read it back, restore, read again. */
     private void roundTrip(Row row, Object inst, Method get) throws Exception {
@@ -1265,6 +1270,120 @@ public class ApiProbePlugin extends Plugin {
             float back = (Float) host("Native", "cameraSensitivity", new Class<?>[0]);
             p.set(row, old != 0 && read == old * 2 && back == old ? "pass" : "mismatch", "drag sensitivity " + old + " -> setCameraSpeed(2) -> " + read + " -> setCameraSpeed(1) -> " + back);
         });
+        // Display and engine: each setter's game state (Native), set, read, restored.
+        SPECIAL.put("Client.setGpuFlags1", (p, row, inst) -> {
+            Client c = (Client) inst;
+            c.setGpuFlags(1);
+            boolean on = c.isGpu();
+            c.setGpuFlags(0);
+            p.set(row, on && !c.isGpu() ? "pass" : "mismatch", "setGpuFlags(1) -> isGpu " + on + " -> setGpuFlags(0) -> " + c.isGpu());
+        });
+        // Stretched mode is the game's UiScaling: 100 + scalingFactor while enabled, whole hundreds with integer
+        // scaling; the UI canvas follows (surface / scale, held at the game's minimum size).
+        Special stretch = (p, row, inst) -> {
+            Client c = (Client) inst;
+            int own = uiScaling();
+            boolean was = c.isStretchedEnabled();
+            c.setScalingFactor(50);
+            c.setStretchedEnabled(true);
+            int plain = uiScaling();
+            int[] d = (int[]) host("Native", "display", new Class<?>[0]);
+            c.setStretchedIntegerScaling(true);
+            int whole = uiScaling();
+            c.setStretchedIntegerScaling(false);
+            c.setStretchedKeepAspectRatio(true);
+            int[] k = (int[]) host("Native", "display", new Class<?>[0]);
+            boolean keep = (Boolean) inst.getClass().getMethod("isStretchedKeepAspectRatio").invoke(inst);
+            c.setStretchedKeepAspectRatio(false);
+            c.setScalingFactor(0);
+            c.setStretchedEnabled(was);
+            int back = uiScaling();
+            // The canvas keeps the surface's aspect (within a pixel of rounding) at the scale asked.
+            boolean aspect = k != null && Math.abs((long) k[2] * k[1] - (long) k[3] * k[0]) <= Math.max(k[0], k[1]);
+            boolean ok = plain == 150 && d != null && d[4] == 1500 && whole == 100 && keep && aspect && back == own;
+            p.set(row, ok ? "pass" : "mismatch", "UiScaling " + own + " -> stretched, factor 50: " + plain + " (display " + Arrays.toString(d)
+                + ") -> integer scaling: " + whole + " -> keep aspect " + keep + ": display " + Arrays.toString(k) + " -> restored " + back);
+        };
+        SPECIAL.put("Client.setScalingFactor1", stretch);
+        SPECIAL.put("Client.setStretchedIntegerScaling1", stretch);
+        SPECIAL.put("Client.setStretchedKeepAspectRatio1", stretch);
+        // Unlocked fps is the game's FpsLimit setting: the target while unlocked, the game's own back when locked.
+        Special fps = (p, row, inst) -> {
+            Client c = (Client) inst;
+            int own = (Integer) host("Native", "fpsLimit", new Class<?>[0]);
+            c.setUnlockedFpsTarget(30);
+            c.setUnlockedFps(true);
+            int read = (Integer) host("Native", "fpsLimit", new Class<?>[0]);
+            c.setUnlockedFps(false);
+            int back = (Integer) host("Native", "fpsLimit", new Class<?>[0]);
+            c.setUnlockedFpsTarget(0);
+            p.set(row, read == 30 && back == own ? "pass" : "mismatch", "FpsLimit " + own + " -> target 30, unlocked -> " + read + " -> locked -> " + back);
+        };
+        SPECIAL.put("Client.setUnlockedFps1", fps);
+        SPECIAL.put("Client.setUnlockedFpsTarget1", fps);
+        // The compass is the game's sprite 169: a solid sprite of its size, read back, then the game's again.
+        SPECIAL.put("Client.setCompass1", (p, row, inst) -> {
+            Client c = (Client) inst;
+            int[] orig = (int[]) host("Native", "sprite", new Class<?>[] {int.class}, 169);
+            if (orig == null) { p.set(row, "skipped", "sprite 169 not loaded"); return; }
+            int w = orig[0], h = orig[1];
+            int[] px = new int[w * h];
+            Arrays.fill(px, 0xff00ff);
+            c.setCompass(c.createSpritePixels(px, w, h));
+            int[] read = (int[]) host("Native", "sprite", new Class<?>[] {int.class}, 169);
+            c.setCompass(null);
+            int[] back = (int[]) host("Native", "sprite", new Class<?>[] {int.class}, 169);
+            boolean set = read != null && read.length == orig.length && (read[2] & 0xffffff) == 0xff00ff && (read[read.length - 1] & 0xffffff) == 0xff00ff;
+            p.set(row, set && Arrays.equals(back, orig) ? "pass" : "mismatch", "sprite 169 " + w + "x" + h + ": setCompass(solid 0xff00ff) -> "
+                + (read == null ? "null" : String.format("%06x", read[2] & 0xffffff)) + " -> setCompass(null) -> " + (Arrays.equals(back, orig) ? "the game's again" : "differs"));
+        });
+        // The drawer fills the player's tile on the next minimap build; the game's raster holds it, then is redrawn.
+        SPECIAL.put("Client.setMinimapTileDrawer1", (p, row, inst) -> {
+            Client c = (Client) inst;
+            LocalPoint lp = c.getLocalPlayer().getLocalLocation();
+            int sx = lp.getSceneX(), sy = lp.getSceneY(), plane = c.getPlane();
+            int[] calls = {0}, rect = new int[4];
+            c.setMinimapTileDrawer((tile, x, y, px0, py0, px1, py1) -> {
+                calls[0]++;
+                if (x == sx && y == sy) {
+                    rect[0] = px0; rect[1] = py0; rect[2] = px1; rect[3] = py1;
+                    c.getRasterizer().fillRectangle(px0, py0, px1 - px0, py1 - py0, 0xff00ff);
+                }
+            });
+            host("Native", "drawMinimap", new Class<?>[] {int.class}, plane);  // the game's build runs (twice: it puts its image back)
+            p.later(row, () -> {
+                int[] r = (int[]) host("Native", "minimapRaster", new Class<?>[0]);
+                int px = r == null || rect[2] == 0 ? -1 : r[2 + (rect[1] + 1) * r[0] + rect[0] + 1] & 0xffffff;
+                c.setMinimapTileDrawer(null);
+                host("Native", "drawMinimap", new Class<?>[] {int.class}, plane);  // the game's own image again
+                p.set(row, calls[0] > 0 && px == 0xff00ff ? "pass" : "mismatch", "drawer called for " + calls[0] + " tiles; player's tile " + sx + "," + sy
+                    + " at " + Arrays.toString(rect) + " in the game's minimap raster: " + (px < 0 ? "not drawn" : String.format("%06x", px)));
+            });
+        });
+        // resizeCanvas: the game's layout at the current surface; the root interface (the canvas plugins see) has the game's canvas size.
+        SPECIAL.put("GameEngine.resizeCanvas0", (p, row, inst) -> {
+            Client c = (Client) inst;
+            c.resizeCanvas();
+            int[] d = (int[]) host("Native", "display", new Class<?>[0]);
+            boolean ok = d != null && d[2] == c.getCanvasWidth() && d[3] == c.getCanvasHeight() && d[2] > 0;
+            p.set(row, ok ? "pass" : "mismatch", "display " + Arrays.toString(d) + "; canvas " + c.getCanvasWidth() + "x" + c.getCanvasHeight());
+        });
+        // The Android app starts its own engine and never holds startup: the state both produce on desktop holds.
+        Special started = (p, row, inst) -> {
+            Client c = (Client) inst;
+            row.m.invoke(inst);
+            Thread t = c.getClientThread();
+            boolean ok = t != null && t.isAlive() && c.getGameState().getState() >= GameState.LOGIN_SCREEN.getState();
+            p.set(row, ok ? "pass" : "mismatch", "client thread " + t + " alive, game state " + c.getGameState());
+        };
+        SPECIAL.put("GameEngine.initialize0", started);
+        SPECIAL.put("GameEngine.unblockStartup0", started);
+        SPECIAL.put("GameEngine.setConfiguration1", (p, row, inst) -> {
+            Object cfg = p.arg(net.runelite.api.ClientConfiguration.class);
+            ((Client) inst).setConfiguration((net.runelite.api.ClientConfiguration) cfg);
+            Object kept = fields(inst).get("AndroidClient.configuration");
+            p.set(row, kept == cfg ? "pass" : "mismatch", "configuration kept: " + (kept == cfg));
+        });
         // Sounds: the SoundEffectPlayed / AreaSoundEffectPlayed the game's queue raises, read on the next tick.
         // Each overload uses its own id, so their events don't mix.
         Special sound = (p, row, inst) -> {
@@ -1647,6 +1766,19 @@ public class ApiProbePlugin extends Plugin {
         });
         // A scene reload (the only state the host honours; desktop's too): a ground object removed first comes back
         // with the rebuilt scene.
+        // Low memory: the ground decorations no one can interact with leave the scene; off, the reload brings them back.
+        SPECIAL.put("Client.changeMemoryMode1", (p, row, inst) -> {
+            Client c = (Client) inst;
+            int before = plainDecorations(c);
+            c.changeMemoryMode(true);
+            int low = plainDecorations(c);
+            c.changeMemoryMode(false);
+            String ev = "ground decorations without actions: " + before + " -> low memory " + low + "; off (scene reload), state " + c.getGameState();
+            p.later(row, () -> {
+                int back = plainDecorations(c);
+                p.set(row, before > 0 && low == 0 && back == before ? "pass" : "mismatch", ev + "; next tick: " + back);
+            });
+        });
         SPECIAL.put("Client.setGameState1", (p, row, inst) -> {
             Client c = (Client) inst;
             Tile t = groundTile(c);
@@ -1664,6 +1796,23 @@ public class ApiProbePlugin extends Plugin {
                     + (g.getHash() == hash ? " (same hash)" : "")) + ", state " + c.getGameState());
             });
         });
+    }
+
+    /** Ground objects in the scene whose definition has no action and no impostors. */
+    static int plainDecorations(Client c) {
+        int n = 0;
+        for (Tile[][] plane : c.getTopLevelWorldView().getScene().getTiles())
+            for (Tile[] col : plane)
+                for (Tile t : col) {
+                    net.runelite.api.GroundObject g = t != null ? t.getGroundObject() : null;
+                    if (g == null) continue;
+                    net.runelite.api.ObjectComposition d = c.getObjectDefinition(g.getId());
+                    if (d == null || d.getImpostorIds() != null) continue;
+                    boolean act = false;
+                    for (String a : d.getActions()) act |= a != null;
+                    if (!act) n++;
+                }
+        return n;
     }
 
     /** The walk's check: the click the game ran, the destination and where the player is; re-checked while the host holds it. */
