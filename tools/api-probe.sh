@@ -36,7 +36,7 @@ SLUG=${SLUG:-$(basename "$OUT")}   # the desktop's account is this slug's (the h
 PKG=com.jagex.oldscape.android
 F=/sdcard/Android/data/$PKG/files
 WAIT=PendingLogin,Script,Hitsplat,GraphicsObject,HealthBarConfig,modal
-SCYTHE=22325; MOBILE=601; INV_TAB=39387233; WORN_TAB=39387234; SKILLS_TAB=39387207; FRIENDS_TAB=39387211   # 601: the mobile toplevel's side tabs
+SCYTHE=22325; INV_TAB=39387233; WORN_TAB=39387234; SKILLS_TAB=39387207; FRIENDS_TAB=39387211   # 601: the mobile toplevel's side tabs
 ADD_FRIEND=28114958; DEL_FRIEND=28114960; MAP_ORB=10485809; WORN_WEAPON=25362450   # 429:14, 429:16, 160:49, 387:18
 adb() { "$ADB" -s "$ANDROID_SERIAL" "$@"; }
 alive() { adb shell pidof $PKG >/dev/null 2>&1 || adb shell pidof $PKG >/dev/null 2>&1; }  # adb.exe from WSL fails now and then
@@ -46,7 +46,8 @@ dt() {  # dt <tool> [json arguments]: one osrs-devtools call on the mobile; its 
 import json, sys
 m = json.load(sys.stdin); r = m.get("result") or {}
 t = "".join(c.get("text", "") for c in r.get("content", []))
-if m.get("error") or r.get("isError") or t.startswith("Error"): sys.exit(f"api-probe: {sys.argv[1]}: {m.get(\"error\") or t}")
+e = m.get("error") or (t if r.get("isError") or t.startswith("Error") else None)
+if e: sys.exit(f"api-probe: {sys.argv[1]}: {e}")
 print(t)' "$1"
 }
 field() { python3 -c 'import json,sys; v=json.load(sys.stdin)
