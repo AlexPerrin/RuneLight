@@ -31,6 +31,9 @@ KEYSTORE=$RE/debug.keystore
 KS_PASS=android
 
 [[ -f $HOOK_SO ]] || { echo "build native/ first (missing $HOOK_SO)"; exit 1; }
+# The official pair the native hooks are ported to: store.sha256 names it under re/ (not provided) and pins it.
+(cd "$RE" && sha256sum -c --quiet "$ROOT/store.sha256") || { echo "re/ lacks the official APK pair of store.sha256"; exit 1; }
+BASE_APK=$RE/$(sed -n '1s/^[0-9a-f]*  //p' "$ROOT/store.sha256"); SPLIT_APK=$RE/$(sed -n '2s/^[0-9a-f]*  //p' "$ROOT/store.sha256")
 
 if [[ -n ${OPENRUNE:-} ]]; then
     SERVER=${SERVER:-10.0.2.2:8080}
@@ -42,7 +45,7 @@ mkdir -p "$OUT"
 # 1. Decode classes and resources (the manifest must be text for the telemetry switches; LOCAL_AUTH
 #    also edits the network security config).
 rm -rf "$RE/apk/base"
-$APKTOOL d -q -f "$ROOT/base.apk" -o "$RE/apk/base"
+$APKTOOL d -q -f "$BASE_APK" -o "$RE/apk/base"
 if [[ -n ${LOCAL_AUTH:-} ]]; then
     python3 -I "$ROOT/tools/patch_local_auth.py" "$RE/apk/base"
 fi
@@ -104,7 +107,7 @@ $APKTOOL b -q "$RE/apk/base-single" -o "$OUT/single-unsigned.apk"
 # 3. The game library: consent sync URLs zeroed in every build (patch_telemetry.py --native, so the
 #    app never posts to account.jagex.com), then optionally retargeted at the test server.
 GAME_SO=$OUT/liblibs.hal.system.osclient.so
-unzip -p "$ROOT/split_config.arm64_v8a.apk" lib/arm64-v8a/liblibs.hal.system.osclient.so > "$GAME_SO.orig"
+unzip -p "$SPLIT_APK" lib/arm64-v8a/liblibs.hal.system.osclient.so > "$GAME_SO.orig"
 python3 -I "$ROOT/tools/patch_telemetry.py" --native "$GAME_SO.orig" "$GAME_SO"
 rm "$GAME_SO.orig"
 if [[ -n ${SERVER:-} ]]; then
@@ -119,7 +122,7 @@ if [[ -n ${SERVER:-} ]]; then
 fi
 
 # 4. Add the hook library (and patched game library) to the ABI split, dropping the old signature.
-python3 -I - "$ROOT/split_config.arm64_v8a.apk" "$HOOK_SO" "$OUT/split-unsigned.apk" "$GAME_SO" <<'EOF'
+python3 -I - "$SPLIT_APK" "$HOOK_SO" "$OUT/split-unsigned.apk" "$GAME_SO" <<'EOF'
 import sys, zipfile
 src, so, dst, game_so = sys.argv[1:]
 with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, "w") as zout:

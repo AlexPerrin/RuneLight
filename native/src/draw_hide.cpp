@@ -1,9 +1,9 @@
 // Hiding actors from the scene renderer (Entity Hider). The renderer's drawRenderable (Renderer
-// vtable slot 2 0x72db3c, slot 3 0x72e638 for sub-world-views; ELF, build 241.4) asks the
+// vtable slot 2 0x73ba8c, slot 3 0x73c588 for sub-world-views; ELF, build 242) asks the
 // Renderable for its model through vtable slot 0 (getModel(this, cycle) -> shared_ptr<Model> via
 // x8) and skips the draw (and picking) when the model is null (`cbz` at 0x72dbc0 / 0x72e6a8).
 // The slot-0 wrapper returns an empty model for hidden actors when called from those two sites
-// (return addresses 0x72dbbc / 0x72e6a4) and calls the original otherwise (hulls, our own reads).
+// (return addresses 0x73bb0c / 0x73c5f4) and calls the original otherwise (hulls, our own reads).
 #include "draw_hide.h"
 
 #include <sys/mman.h>
@@ -24,7 +24,7 @@ struct ModelSp {
 };
 using GetModel = ModelSp (*)(uintptr_t, int);
 
-constexpr uintptr_t kDrawRet = 0x72dbbc, kDrawSubRet = 0x72e6a4;
+constexpr uintptr_t kDrawRet = 0x73bb0c, kDrawSubRet = 0x73c5f4;
 constexpr const char* kGameLib = "liblibs.hal.system.osclient.so";
 
 std::mutex g_mutex;

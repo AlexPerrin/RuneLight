@@ -2,7 +2,7 @@
 
 RuneLite plugins running inside the official Old School RuneScape Android app, against a test server.
 
-The project repacks the official Android client (build 241.4) so that it loads a native hook library,
+The project repacks the official Android client (build 242.3) so that it loads a native hook library,
 `libosrsrl.so`. The library hooks the game's own native code, reads the game state, and starts a Java plugin host
 inside the same process. The host implements a subset of the RuneLite client API on Android's runtime (ART), so
 RuneLite plugins that were written for the desktop client run on the phone without changes. There is no emulated
@@ -148,7 +148,7 @@ writing the newest published release, `v0.1.1`, lists no files and `v0.1.0` list
 release that attaches the single APK is planned (see [Status and roadmap](#status-and-roadmap)). Until the release
 you open lists one APK, build it yourself (see [Building from source](#building-from-source)).
 
-**What the APK is.** It is Jagex's Old School RuneScape Android app (build 241.4), repacked by this project: the
+**What the APK is.** It is Jagex's Old School RuneScape Android app (build 242.3), repacked by this project: the
 official app's code, resources and game library are inside it, next to this project's native library
 (`libosrsrl.so`), its plugin host (`host.jar`) and the licence notices (also embedded as
 `assets/THIRD_PARTY_NOTICES.md`). The Jagex content in it is not covered by this project's licence (see
@@ -160,7 +160,7 @@ Requirements:
   emulator with ARM translation. Development and release-gate device: the
   Android Studio emulator (AVD `Agent_Phone`: Medium Phone profile, x86_64 API 37 image with arm64 translation). A real
   phone has not been tested.
-- **An OpenRune-compatible test server** that speaks the Android (revision 241) protocol and a local sign-in
+- **An OpenRune-compatible test server** that speaks the Android (revision 242) protocol and a local sign-in
   provider. The one used in development is OpenRune-Server with this project's Android support (the fork's
   `local/server-tools` branch); upstream OpenRune does not provide the Android protocol on its own. The APK from a
   test server build points the game at `10.0.2.2:43594` (game) and `10.0.2.2:8080` (config), which is the Android
@@ -195,7 +195,7 @@ app, and sign in. Plugin Hub plugins keep their authors' licences, listed under 
 - **Not complete.** About three quarters of the API interfaces it backs are implemented, and the GPU plugin and 117 HD
   do not run (both are feasibility studies only).
 - **Not a product.** There is no installer, no update channel and no support, and any build can break
-  when the game updates. The offsets are specific to build 241.4.
+  when the game updates. The offsets are specific to build 242.3 (`tools/port_offsets.py` maps them from one build to the next).
 - **Not a Jagex mod or a tool that the game accepts.** It changes the official app. Nothing here is approved by
   Jagex.
 - **Not a complete test server.** Content on the server side is partial, and the plugin results above were seen on
@@ -257,7 +257,7 @@ Next (nothing here is promised for a date):
 
 The build needs, besides this repository:
 
-- Official OSRS Android 241.4 `base.apk` and `split_config.arm64_v8a.apk` in the repository root (not provided)
+- Official OSRS Android 242.3 `base.apk` and `split_config.arm64_v8a.apk` under `re/` at the paths `store.sha256` names and pins (not provided)
 - JDK, `apktool` (`~/tools/apktool.jar`), Python 3
 - Android SDK with platform `android-37.0` and build-tools 36.0.0 (`d8`), and NDK r27d with CMake and Ninja
 - RuneLite 1.13.1 `runelite-api` and `client` jars plus the client's runtime dependencies in `re/runelite/`

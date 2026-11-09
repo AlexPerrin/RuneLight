@@ -3,11 +3,11 @@
 #include <string>
 #include <vector>
 
-// ScriptPreFired / ScriptPostFired: inline hooks on the game's CS2 VM (build 241.4).
-//  - runScriptEvent(vm, ScriptEvent*, maxOps) 0x4df54c: a root script (RootPre before, Post after).
-//  - script lookup by id 0x3f5658, when called from the GOSUB case (0x28, return address
-//    0x4dd988): a proc is entered; its arguments are still on the int/object stacks (Pre).
-//  - the locals swap 0x4dfd5c, when called from the RETURN case (0x15, return address 0x4de0e0):
+// ScriptPreFired / ScriptPostFired: inline hooks on the game's CS2 VM (build 242).
+//  - runScriptEvent(vm, ScriptEvent*, maxOps) 0x588988: a root script (RootPre before, Post after).
+//  - script lookup by id 0x3faa9c, when called from the GOSUB case (0x28, return address
+//    0x586d80): a proc is entered; its arguments are still on the int/object stacks (Pre).
+//  - the locals swap 0x5891a0, when called from the RETURN case (0x15, return address 0x587590):
 //    a proc returned, its results are on the stacks (Post).
 // Like RuneLite (ScriptVMMixin: INVOKE → ScriptPreFired, RETURN → ScriptPostFired).
 namespace script_hooks {
@@ -30,7 +30,7 @@ void set_enabled(bool enabled);
 // The ScriptEvent of the innermost root script (valid inside a RootPre callback), or 0.
 uintptr_t current_event();
 
-// Opcode callbacks: the handler of CS2 opcodes >= 100 (0x4e06dc(vm, opcode, ...)) is wrapped;
+// Opcode callbacks: the handler of CS2 opcodes >= 100 (0x589b20(vm, opcode, ...)) is wrapped;
 // for each watched (script id, opcode) pair, executed by that script (the innermost running one),
 // the listener gets OpPre before and OpPost after the instruction, with
 // script_id = opcode << 16 | script. Delivered whether or not set_enabled is on, so RuneLite's

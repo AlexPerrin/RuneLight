@@ -25,8 +25,8 @@ ADB = os.environ.get("ADB", "/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platfor
 SERIAL = os.environ.get("ANDROID_SERIAL") or sys.exit("set ANDROID_SERIAL to your emulator")
 PORT = 27183
 GAME_LIB = "liblibs.hal.system.osclient.so"
-# ELF layout of the 241.4 build (readelf -S): .data + .bss are contiguous.
-DATA_VADDR, DATA_END = 0xA8BBD0, 0xAA6090 + 0x151E000
+# ELF layout of the 242.3 build (readelf -S): .data + .bss are contiguous.
+DATA_VADDR, DATA_END = 0xA9AB48, 0xAB5010 + 0x155ED50
 
 
 def adb(*args):

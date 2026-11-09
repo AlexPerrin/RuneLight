@@ -191,22 +191,22 @@ final class Native {
     static native boolean triggerDialogAbort();
     /** Mouse wheel notches (positive = down, as desktop) at canvas point x,y (the game's mouse for that cycle) for the game's next logged-in cycle. Any thread. */
     static native void addWheel(int rotation, int x, int y);
-    /** IF_CLOSESUB for `group` open in `component` (`0x462384`); false if not open. Client thread. */
+    /** IF_CLOSESUB for `group` open in `component` (`0x4682c8`); false if not open. Client thread. */
     static native boolean closeSubInterface(int component, int group, boolean unload);
-    /** IF_OPENSUB's helper (`0x462640`): opens `group` in `component` with modal `mode`; false on bad ids. Client thread. */
+    /** IF_OPENSUB's helper (`0x468584`): opens `group` in `component` with modal `mode`; false on bad ids. Client thread. */
     static native boolean openSubInterface(int component, int group, int mode);
     // Game-state writes (docs/offsets.md "Game-state writes"). Client thread.
     /** Every widget a target in target mode (the menu builder's flags call gets bit 21); false without the hook. */
     static native boolean setAllOpTargetable(boolean on);
-    /** A widget's flags as the menu builder's target test reads them (`0x460dac`, the setting applied); -1 no widget. */
+    /** A widget's flags as the menu builder's target test reads them (`0x466cf0`, the setting applied); -1 no widget. */
     static native long widgetTargetFlags(int id, int index);
-    /** The layout pass (`0x45ea08`) keeps relative x/y (-1: its own) for this widget; -1, -1 clears. */
+    /** The layout pass (`0x46494c`) keeps relative x/y (-1: its own) for this widget; -1, -1 clears. */
     static native boolean widgetForcePosition(int id, int index, int x, int y);
-    /** Equipment, colours and transformed NPC id into player `index`'s Appearance, then its model hash (`0x5e1bd4`); 0 none. */
+    /** Equipment, colours and transformed NPC id into player `index`'s Appearance, then its model hash (`0x5eede4`); 0 none. */
     static native long playerSetHash(int index, int[] equipment, int[] colors, int npcId);
     /** Player `index`'s Appearance model hash (+0x78); 0 none. */
     static native long playerHash(int index);
-    /** The scenery object with `tag` whose min corner is (plane, x, y) leaves the scene (`0x6dc300`). */
+    /** The scenery object with `tag` whose min corner is (plane, x, y) leaves the scene (`0x6ea264`). */
     static native boolean sceneRemoveGameObject(int plane, int x, int y, long tag);
     /** Empties a scene tile slot (remove), or tells whether the tile is there (!remove). */
     static native boolean sceneRemoveTile(int plane, int x, int y, boolean remove);
@@ -224,7 +224,7 @@ final class Native {
     static native boolean playSound(int id, int loops, int delay);
     /** Plays a sound now at volume 0..127 (the setting wins unless muted); no queue, no event. */
     static native boolean playSoundVolume(int id, int volume);
-    /** Queues an area sound at scene tile x, y (the game's 0x4ae650; AreaSoundEffectPlayed posts). */
+    /** Queues an area sound at scene tile x, y (the game's 0x4b9170; AreaSoundEffectPlayed posts). */
     static native boolean playAreaSound(int id, int x, int y, int range, int delay);
     static native int varcInt(int id);
     static native String varcString(int id);

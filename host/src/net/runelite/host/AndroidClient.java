@@ -622,7 +622,7 @@ public class AndroidClient extends ClientStub {
         return AndroidEnum.lookup(id);
     }
     /**
-     * The game's world map (Client +0x418660, the object behind the CS2 worldmap_* opcodes; static RE
+     * The game's world map (Client +0x4186a0, the object behind the CS2 worldmap_* opcodes; static RE
      * gen 31, docs/offsets.md "World map"): position, zoom, loaded flag, the surface map area test and
      * the smooth jump, and the regions' map icons (gen 32; region tiles are not read).
      */
@@ -930,7 +930,7 @@ public class AndroidClient extends ClientStub {
 
     /**
      * The game's 3D viewport in UI canvas pixels: {zoom, x, y, width, height} from Client +0x46d4 and
-     * +0x46e0..+0x46ec (0x5561e8, RuneLite's viewportZoom/viewport bounds; follows the zoom settings
+     * +0x4720..+0x472c (0x5561e8, RuneLite's viewportZoom/viewport bounds; follows the zoom settings
      * and pinch zoom). Null while unset; `setprop debug.osrsrl.scale N` still wins for getScale.
      */
     private int[] gameViewport() {
@@ -1005,7 +1005,7 @@ public class AndroidClient extends ClientStub {
         }
         if (want != cur && Native.setUiScaling(want)) uiWritten = want;
     }
-    /** As desktop: the canvas is laid out again for the current surface size (the game's own layout, 0x441b88). */
+    /** As desktop: the canvas is laid out again for the current surface size (the game's own layout, 0x448588). */
     @Override public void resizeCanvas() {
         if (isClientThread()) Native.relayout();
         else Host.invoke(Native::relayout);
@@ -1035,7 +1035,7 @@ public class AndroidClient extends ClientStub {
     }
     /**
      * Desktop calls the drawer for every tile while it builds the minimap image, the Rasterizer drawing into it.
-     * Here the game's own build (0x589180) runs first; after each one (seen at the end of the cycle) the drawer is
+     * Here the game's own build (0x549634) runs first; after each one (seen at the end of the cycle) the drawer is
      * called for the same tiles with the Rasterizer on a copy of the game's minimap raster, written back after.
      */
     private net.runelite.api.TileFunction minimapTileDrawer;
@@ -1473,7 +1473,7 @@ public class AndroidClient extends ClientStub {
     // Client +0x3174 / +0x2f64 (the CS2 map_world / worldflags handlers).
     @Override public int getWorld() { return Native.world(); }
     @Override public net.runelite.api.World createWorld() { return new AndroidWorld(); }
-    /** GE item search results that OC_FINDNEXT returns (game Client +0x417ba8; unverified on device). */
+    /** GE item search results that OC_FINDNEXT returns (game Client +0x417be8; unverified on device). */
     @Override public void setGeSearchResultIds(short[] ids) { if (isClientThread()) Native.setGeSearch(ids, Integer.MIN_VALUE, Integer.MIN_VALUE); }
     @Override public void setGeSearchResultCount(int count) { if (isClientThread()) Native.setGeSearch(null, count, Integer.MIN_VALUE); }
     @Override public void setGeSearchResultIndex(int index) { if (isClientThread()) Native.setGeSearch(null, Integer.MIN_VALUE, index); }
@@ -1893,8 +1893,8 @@ public class AndroidClient extends ClientStub {
         return out.toArray(new net.runelite.api.widgets.Widget[0]);
     }
 
-    /** The mobile client's revision (build 241.4). */
-    @Override public int getRevision() { return 241; }
+    /** The mobile client's revision (build 242.3). */
+    @Override public int getRevision() { return 242; }
 
     /**
      * Desktop's IF1 inventory drag delay (5 cycles by default). The mobile drag block
@@ -2024,7 +2024,7 @@ public class AndroidClient extends ClientStub {
     @Override public net.runelite.api.NodeCache getAnimationCache() { return CacheConfig.CACHES[CacheConfig.SEQ]; }
     @Override public net.runelite.api.NodeCache getItemModelCache() { return CacheConfig.CACHES[CacheConfig.ITEM_MODEL]; }
     @Override public net.runelite.api.NodeCache getItemSpriteCache() { return CacheConfig.CACHES[CacheConfig.ITEM_SPRITE]; }
-    /** The game's HealthBarType and health bar sprite caches, cleared by its own clear (0x6604d0). */
+    /** The game's HealthBarType and health bar sprite caches, cleared by its own clear (0x66e060). */
     @Override public void resetHealthBarCaches() { CacheConfig.CACHES[CacheConfig.HEALTH_BAR].reset(); AndroidHealthBarConfig.reset(); }
 
     @Override public net.runelite.api.SpritePixels[] getSprites(net.runelite.api.IndexDataBase source, int archiveId, int fileId) {

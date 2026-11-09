@@ -55,10 +55,10 @@ int friend_list_state();
 std::vector<uint8_t> target_state_bytes(int len);
 bool target_mode(int out[3]);  // {active, selected component, index}
 bool end_target_mode();  // probe: widget target mode state
-// setGameState(LOADING): the game's own settings-changed reload (0x429900(client): when logged in,
+// setGameState(LOADING): the game's own settings-changed reload (0x43014c(client): when logged in,
 // game state 30 -> 25 and the scene is rebuilt). Client thread only; false when not logged in.
 bool reload_scene();
-// Tile.setGroundObject(null): the game's own ground-decoration remover 0x6dca24(scene, plane, x, y)
+// Tile.setGroundObject(null): the game's own ground-decoration remover 0x6ea988(scene, plane, x, y)
 // (LOC_DEL layer 3 calls it from 0x473a10): clears tile +0x118, queues (tag, 3) on the scene's
 // removal list when the renderer flag 0x1d7ddc0 is set, and frees the object. Top-level scene,
 // game thread only; false when there is no tile or no ground decoration there.
@@ -74,7 +74,7 @@ bool scene_terrain(int what, int plane, int x, int y, std::vector<int32_t>& out)
 // what 0: scene field `field` (0 draw distance, 1 min level) = value; 1: paint field `field`
 // (0 sw, 1 se, 2 ne, 3 nw, 4 texture, 5 rgb) of the tile's paint, when it is still `ptr`.
 bool scene_set(int what, int plane, int x, int y, uint64_t ptr, int field, int value);
-// Actor overhead text (+0x2d8, assigned with the game's string assign 0x3f1498) and its timer
+// Actor overhead text (+0x2d8, assigned with the game's string assign 0x3f68a8) and its timer
 // (+0x2f4, ticks left). `text` null keeps the string. Game thread only.
 bool actor_set_overhead(uintptr_t actor, const std::string* text, int cycle);
 // Actor state writes (game thread; Native.actorSet): sequences through the game's setSequence.
@@ -101,7 +101,7 @@ Point player_local_tile();  // tile within the loaded scene
 Point player_fine();        // scene position in 1/128 tile units (RuneLite LocalPoint)
 
 // Actor fields shared by Npc and Player (Actor ctor 0x474a2c; offsets from static RE of NPC_INFO
-// 0x469778 / face tick 0x435240, docs/offsets.md "Actor").
+// 0x46f4c8 / face tick 0x435240, docs/offsets.md "Actor").
 struct ActorState {
     int animation = -1, animation_frame = -1;  // +0x4d8 sequence id, +0x4de frame (s16)
     int orientation = 0, current_orientation = 0;  // +0x3e0 target, +0x270 current (0..2047)
@@ -143,7 +143,7 @@ bool set_camera_target(int which, int value);
 // Writes the camera focal point (Client camera block +0x78/+0x7c/+0x80: x, height, y) on axis 0 x, 1 y,
 // 2 height (RuneLite's setCameraFocalPointX/Y/Z). The game moves it towards the player each frame. Game thread only.
 bool set_camera_focal(int axis, int value);
-// The 3D viewport the scene renderer projects with (drawRenderable 0x72db3c): screen offset =
+// The 3D viewport the scene renderer projects with (drawRenderable 0x73ba8c): screen offset =
 // r * zoom / depth, centre, clip rect, far plane. Reached as renderer = holder->vtbl[3](holder),
 // holder = *(Client +0x90) + 0x1b0 (scene draw caller 0x457128), viewport = *(renderer +0x630c60).
 // Game thread only. Unverified.
@@ -155,9 +155,9 @@ struct Viewport {
     int scene_cam[3] = {}, trig[4] = {};
 };
 Viewport viewport();
-// Queue a synth sound effect as SYNTH_SOUND (0x4ae508(Client +0x2610, id, loops, delay)). Game thread only.
+// Queue a synth sound effect as SYNTH_SOUND (0x4b9028(Client +0x2610, id, loops, delay)). Game thread only.
 bool play_sound_effect(int id, int loops, int delay);
-// Queue an area sound at scene tile x, y of the top-level world view (0x4ae650, as SOUND_AREA). Game thread only.
+// Queue an area sound at scene tile x, y of the top-level world view (0x4b9170, as SOUND_AREA). Game thread only.
 bool play_area_sound(int id, int x, int y, int range, int delay);
 // Play a synth sound now at a volume (0..127) as desktop's playSoundEffect(id, volume): straight into
 // the sound-effect mixer, no queue and no event; the volume setting wins unless muted. Game thread only.
@@ -172,7 +172,7 @@ WidgetGeometry widget_geometry(uintptr_t widget);
 int widget_child_count(int group);  // components in a loaded group (0 if not loaded)
 std::string widget_text(uintptr_t widget);
 // {name (CC_SETOPBASE, +0x2c0), target verb (CC_SETTARGETVERB, +0x330), ops... (CC_SETOP: vector of
-// strings, size +0x2e0, data +0x2e8)} (handlers in 0x4e06dc; setOp 0x5dfae8).
+// strings, size +0x2e0, data +0x2e8)} (handlers in 0x589b20; setOp 0x5eccf8).
 std::vector<std::string> widget_strings(uintptr_t widget);
 // Children created by CC_CREATE: Widget +0xb50 count, +0xb58 array of shared_ptr {ctrl, Widget*}.
 int widget_dynamic_count(uintptr_t widget);
@@ -211,18 +211,18 @@ bool widget_event_ranges(std::vector<int32_t>& out);
 void widget_set_flags(uintptr_t widget, int flags);  // game thread only
 struct SubInterface { int component, group, type; };  // `group` is open inside `component`; type = IF_OPENSUB modal mode (node +8)
 std::vector<SubInterface> open_sub_interfaces();
-// IF_CLOSESUB for an open sub-interface (`0x462384`); false when it isn't open. Game thread only.
+// IF_CLOSESUB for an open sub-interface (`0x4682c8`); false when it isn't open. Game thread only.
 bool close_sub_interface(int component, int group, bool unload);
-// What TRIGGER_ONDIALOGABORT does (`0x4405cc(client, root, 0x17)`): onDialogAbort over the root's tree. Game thread only.
+// What TRIGGER_ONDIALOGABORT does (`0x446fcc(client, root, 0x17)`): onDialogAbort over the root's tree. Game thread only.
 bool trigger_dialog_abort();
 // Wheel notches (desktop's sign: positive scrolls down) for the next logged-in cycle's interface pass. Any thread.
 void add_wheel(int rotation, int x, int y);
-// IF_OPENSUB's helper `0x462640`: opens `group` inside `component` with modal `mode`; false on bad ids. Game thread only.
+// IF_OPENSUB's helper `0x468584`: opens `group` inside `component` with modal `mode`; false on bad ids. Game thread only.
 bool open_sub_interface(int component, int group, int mode);
 // Game-state writes (RuneLite's setAllWidgetsAreOpTargetable, Widget.setForcedPosition,
 // PlayerComposition.setHash, Scene.removeGameObject/removeTile). Game thread only.
 bool set_all_op_targetable(bool on);  // false when the flags hook isn't installed
-int64_t widget_target_flags(int component, int index);  // 0x460dac as the menu builder sees it; -1 no widget
+int64_t widget_target_flags(int component, int index);  // 0x466cf0 as the menu builder sees it; -1 no widget
 bool widget_force_position(int component, int index, int x, int y);  // -1, -1 clears
 uint64_t appearance_set_hash(int index, const int32_t equipment[12], const int32_t colors[5], int npc_id);  // 0: none
 uint64_t appearance_hash(int index);
@@ -262,7 +262,7 @@ struct ChatLine {
 int next_message_id();
 // Looks up a chat message by id (the game keeps the last 100 per type). Game thread only.
 bool read_message(int id, ChatLine& out);
-// Replaces a message's text (string assign 0x3f1498 on Message +0xa0). Game thread only.
+// Replaces a message's text (string assign 0x3f68a8 on Message +0xa0). Game thread only.
 bool message_set_text(int id, const std::string& text);
 
 struct PlayerInfo {
@@ -318,7 +318,7 @@ bool set_script_array(uintptr_t frame, int slot, const int32_t* values, int coun
 // Reads int local `index` (writes *set first when non-null).
 bool script_int_local(uintptr_t frame, int index, int32_t& value, const int32_t* set);
 // Replaces the string at object stack slot `index` (0 = bottom) through the game's string assign
-// 0x3f1498, as CC_SETTEXT stores text. False when the slot isn't a string. Game thread only.
+// 0x3f68a8, as CC_SETTEXT stores text. False when the slot isn't a string. Game thread only.
 bool set_script_string(int index, const std::string& text);
 // True when the top of the running script's object stack is a string starting with `prefix`.
 bool script_top_string_starts_with(const std::string& prefix);
@@ -358,7 +358,7 @@ struct ItemDef {
     std::vector<int16_t> recolor_from, recolor_to, retexture_from, retexture_to;
 };
 bool item_def(int id, ItemDef& out);
-// Item icon as the inventory draws it (createItemSprite 0x63ff9c): 36x32 ARGB pixels, 0 = transparent.
+// Item icon as the inventory draws it (createItemSprite 0x64dccc): 36x32 ARGB pixels, 0 = transparent.
 // border 0/1/2, shadow colour (0 none), text_mode 0 none / 1 quantity, noted. Game thread only.
 // False while the model isn't loaded yet (retry later) or for an unknown id.
 // Sprite by id (frame 0) from the game's sprite cache; false while not loaded. Game thread only.
@@ -371,16 +371,16 @@ bool sprite_info(int id, int out[6]);
 // {w, h, x offset, y offset, canvas w, canvas h, palette length n, w*h pixels (ARGB, or palette indices
 // when n > 0), n palette ARGB}, after a leading frame count. Game thread only.
 bool sprite_array(int which, std::vector<int32_t>& out);
-// The texture provider (Client +0x4710, vtable 0xa75748, built in loader state 10 by 0x6d3bec).
+// The texture provider (Client +0x4710, vtable 0xa846d0, built in loader state 10 by 0x6d3bec).
 // Per texture 8 ints {present, average colour (HSL), flag +0x34, sprite group, animation direction,
 // animation speed, loaded, pixel count}. Game thread only.
 bool textures(std::vector<int32_t>& out);
 // A texture's size*size pixels: load = false reads them only if loaded; load = true goes through the
-// provider's getTexturePixels (vtable slot 2, 0x6d4930), which loads and LRU-evicts as the game does.
+// provider's getTexturePixels (vtable slot 2, 0x6e2850), which loads and LRU-evicts as the game does.
 bool texture_pixels(int id, bool load, std::vector<int32_t>& out);
 // The provider's brightness (+0x38, double; desktop's Rasterizer3D brightness). NaN if absent.
 // The scene's skybox colour: S = *(Client +0x90) (the scene renderer's settings), float RGBA 0..1 at
-// S +0x90..+0x9c, written by the game's setter 0x6b083c(S, r, g, b, a); alpha 0 (the default) = no colour
+// S +0x90..+0x9c, written by the game's setter 0x6be798(S, r, g, b, a); alpha 0 (the default) = no colour
 // set. As ARGB with alpha 0 or 0xff. Game thread only.
 bool skybox_colour(int& argb);
 bool set_skybox_colour(int argb);
@@ -520,11 +520,11 @@ struct WorldEntry { int id = 0, flags = 0, players = 0, location = 0, index = 0;
 bool world_entry(int id, WorldEntry& out);
 // The world list's {entries pointer, count}, to notice a reload. Game thread only.
 std::pair<uintptr_t, uint64_t> world_list_key();
-// Client.changeWorld: the game's setWorld 0x432748 (the login pick's call; desktop's changeWorld) with the
+// Client.changeWorld: the game's setWorld 0x439038 (the login pick's call; desktop's changeWorld) with the
 // listed World of that id, else a World built from id/flags/host. Sets the world the next login connects
 // to (id, flags, host, ports); no game-state change. Game thread only.
 bool change_world(int id, int flags, const std::string& host);
-// A widget op as desktop's CC_OP menuAction: the game's widget-op handler 0x528764(_, component, sub, op
+// A widget op as desktop's CC_OP menuAction: the game's widget-op handler 0x4d28d0(_, component, sub, op
 // 1-based, 0, obj -1, 0) runs the component's onOp listener and sends IF_BUTTONX when the widget's
 // events transmit that op (the key-shortcut path calls it the same way). Game thread only.
 bool widget_op(int component, int sub, int op);
@@ -555,15 +555,15 @@ struct ChatChannel {
 bool friends_chat(ChatChannel& out);
 // which = -1: the listened (guest) clan channel; 0..: the affined channel of that clan id.
 bool clan_channel(int which, ChatChannel& out);
-// Inline hook on the menu-open check 0x58da0c; `cb` runs (game thread) when it is called from the
-// drag block of the cycle (return address 0x41ffe8), i.e. once per cycle while a widget is held,
+// Inline hook on the menu-open check 0x54de74; `cb` runs (game thread) when it is called from the
+// drag block of the cycle (return address 0x4265f4), i.e. once per cycle while a widget is held,
 // before the release is processed.
 void install_drag_hook(void (*cb)());
 // Sound effects (SYNTH_SOUND packet `0x442944`, CS2 sound_synth `0x4ea718`, our play_sound_effect)
-// all go through the queue function `0x4ae508(sys, id, loops, delay)`. The hook sits after its
+// all go through the queue function `0x4b9028(sys, id, loops, delay)`. The hook sits after its
 // loops == 0 early-out; `cb` returns true to drop the sound (RuneLite's SoundEffectPlayed.consume).
 void install_sound_hook(bool (*cb)(int id, int loops, int delay));
-// Area sounds (SOUND_AREA zone prot, actor/loc animation frame sounds) go through `0x4ae650`;
+// Area sounds (SOUND_AREA zone prot, actor/loc animation frame sounds) go through `0x4b9170`;
 // range 0 means a plain sound effect (animation sounds of the local player). Source: for animation
 // sounds, the NPC/player at the animated thing's fine position (kind 1/2), else none (0).
 struct AreaSound {
@@ -627,12 +627,12 @@ bool display(int out[5]);
 // The UiScaling setting (percent, settings +0x16bc, 25..400); set writes it unsaved and lays the UI out again.
 int ui_scaling();
 bool set_ui_scaling(int percent);
-// The game's own UI layout from the surface size and the scaling (0x441b88).
+// The game's own UI layout from the surface size and the scaling (0x448588).
 bool relayout();
 // The frame limit the game sleeps to (Engine +0x18680, its FpsLimit setting applied; 0 = none).
 int fps_limit();
 bool set_fps_limit(int fps);
-// Minimap redraws (0x589180) are recorded while on; minimap_drawn returns the plane drawn since the last call, or -1.
+// Minimap redraws (0x549634) are recorded while on; minimap_drawn returns the plane drawn since the last call, or -1.
 void set_minimap_watch(bool on);
 int minimap_drawn();
 // The minimap raster {size, zoom, ARGB pixels...}; set writes size*size pixels back.
@@ -686,7 +686,7 @@ bool npc_overrides(int index, bool head, NpcOverrides& out);
 // The NPC's head icon archive ids and sprite indices (override object, else its NpcType's); false if none.
 bool npc_head_icons(int index, std::vector<int32_t>& archives, std::vector<int32_t>& sprites);
 long cache_size(int which);
-// js5 archives by id (0..25): a group's file ids; a file's bytes (getFile 0x6be3dc). Game thread only.
+// js5 archives by id (0..25): a group's file ids; a file's bytes (getFile 0x6cc2fc). Game thread only.
 bool archive_file_ids(int id, int group, std::vector<int32_t>& out);
 bool archive_file(int id, int group, int file, std::vector<uint8_t>& out);
 bool cache_reset(int which);
@@ -730,7 +730,7 @@ std::vector<GroundItem> ground_items();  // per tile in stack order (top first)
 // {ctrl, ObjectSound*} at +0xb78 (begin/end/cap), filled by 0x4b1424 (LOC_ADD and loads; LocType
 // +0x1a8/+0x1b0 sound {id, range, ..}, +0x1b8/+0x1c0 random sounds {+0x08 count, +0x10 int* ids,
 // +0x18/+0x1c min/max delay}). ObjectSound: +0x20 sound struct (id at +0), +0x38 random sounds,
-// +0x40 plane, +0x60..+0x6c bounds (local units). 0x4b065c(wv) moves every entry to the pending
+// +0x40 plane, +0x60..+0x6c bounds (local units). 0x4bb16c(wv) moves every entry to the pending
 // vector +0xb90, which the per-cycle updater 0x4b1e90 stops and frees. Game thread only.
 struct AmbientSound {
     uintptr_t obj;  // identity (never dereferenced from Java)
@@ -765,7 +765,7 @@ struct GraphicsObjectInfo {
 std::vector<GraphicsObjectInfo> graphics_objects();  // game thread only  // game thread only; false if obj isn't listed
 std::vector<AmbientSound> ambient_sounds();
 bool ambient_clear();
-// Moves one live entry to the pending vector (as 0x4b065c does for all of them). Game thread.
+// Moves one live entry to the pending vector (as 0x4bb16c does for all of them). Game thread.
 bool ambient_remove(uintptr_t obj);
 // Moves an entry cleared in this cycle (still in the pending vector) back into the live vector.
 bool ambient_restore(uintptr_t obj);

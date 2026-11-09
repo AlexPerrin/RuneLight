@@ -37,7 +37,7 @@ struct Build {
     const char* name;
     uint8_t build_id[20];
     uintptr_t client_ptr;   // global Client* (558 code refs)
-    uintptr_t cycle;        // global int, written only by Client vtable slot 5 (0x411640)
+    uintptr_t cycle;        // global int, written only by Client vtable slot 5 (0x417b0c)
     uint32_t f_game_state;  // Client::gameState
     uintptr_t client_vtable;  // Client vtable; slot 5 = doCycle (only reached through the vtable)
     uintptr_t do_cycle;       // expected value of that slot
@@ -71,7 +71,7 @@ struct Build {
     uint32_t w_x, w_y, w_width, w_height, w_parent, w_group;
     uint32_t f_skill_current, f_skill_real, f_skill_xp;  // Client: int[25] each (UPDATE_STAT, case 2)
     uintptr_t inventories;      // global map inv id -> {ids vector +0x08, quantities vector +0x20, next +0x38}
-    uintptr_t next_message_id;  // global int: id the next chat message gets (0x3f0a04 increments it)
+    uintptr_t next_message_id;  // global int: id the next chat message gets (0x3f5e14 increments it)
     uintptr_t messages_by_id;   // global hash map id -> Message* {?, buckets, u32 count}
     // Script VM (static object; int locals vector +0x08, object locals +0x38, int stack +0x50 with
     // size +0xff0, object stack of 0x28-byte variants +0xff8 with size +0xac38, running flag +0x04)
@@ -79,14 +79,14 @@ struct Build {
     uintptr_t script_vm, run_script_event;
     // shared_ptr<ObjType> getObjType(int id) (result via x8): definition cache lookup/load (OC_* ops).
     uintptr_t get_obj_type;
-    uintptr_t get_npc_type;  // shared_ptr<NpcType> getNpcType(int id), same convention (NPC_INFO 0x469778)
-    uintptr_t op_text;       // const string* opText(opVector*, int index): picks varp/varbit overrides (0x65c798)
+    uintptr_t get_npc_type;  // shared_ptr<NpcType> getNpcType(int id), same convention (NPC_INFO 0x46f4c8)
+    uintptr_t op_text;       // const string* opText(opVector*, int index): picks varp/varbit overrides (0x66a328)
     // Scene (WorldView +0x10): +0x944 planes, +0x948/+0x94c size x/y, +0x3d0 int heights
     // [planes][sx+1][sy+1]; tileSettings(scene, plane, x, y) (bit 2 = bridge).
     uintptr_t tile_settings;
     uintptr_t get_enum_type;  // shared_ptr<EnumType> getEnumType(int id) (ENUM ops 3400-3411)
     // Menus: Client field holding the MenuManager* (built by the Client ctor 0x40c9b4 with
-    // 0x58dab8); the menu model's vtable, whose slot 1 = select(menu, path, x, y, flag) (0x515854); ELF vaddrs.
+    // 0x58dab8); the menu model's vtable, whose slot 1 = select(menu, path, x, y, flag) (0x56427c); ELF vaddrs.
     uint32_t f_menu_manager;
     uintptr_t menu_vtable, menu_select;
     // const shared_ptr<LocType>* getLocType(int id): cache lookup/load (pointer to the cached
@@ -106,7 +106,7 @@ struct Build {
     uintptr_t menu_build_display;
     // The long-press menu build: (MenuManager*, x, y) in UI canvas units (0x54ae24's touch handler).
     uintptr_t menu_build_at;
-    // Scene picking for menus: set the pick point (screen px, mode; 0x72b758 as the touch handler
+    // Scene picking for menus: set the pick point (screen px, mode; 0x7396a8 as the touch handler
     // 0x518840), the "picked" flag the menu build checks, and the pick mode (2 pending, 3 done).
     uintptr_t pick_set, pick_ready, pick_mode;
     uintptr_t mod_icons;  // global shared_ptr obj of the font's <img=N> table (setModIcons 0x431a84)
@@ -118,7 +118,7 @@ struct Build {
     // and the per-cycle walk (0x455f24) drops objects whose state has no sequence (+0x288 == 0).
     uintptr_t seq_set;
     // Model store: shared_ptr<ModelData> load(holder, group = model id, file 0) (x8 result; ObjType::getModel
-    // 0x63f1e8 calls it with x0 = *(*GOT 0xa83dd8)); a fresh ModelData per call (decoder 0x720c4c).
+    // 0x63f1e8 calls it with x0 = *(*GOT 0xa92d40)); a fresh ModelData per call (decoder 0x720c4c).
     uintptr_t model_store, model_store_got;
     // shared_ptr<SeqType> getSeqType(int id) (x8, as getObjType); animate(out x8 {ctrl, Model*}, AnimReq*)
     // (NpcType::getModel 0x6380d8 fills the request; the result is one global scratch Model).
@@ -126,23 +126,23 @@ struct Build {
 };
 
 constexpr Build kBuilds[] = {
-    {"241.4",
-     {0xf0, 0xff, 0xf1, 0x19, 0x1f, 0x3f, 0x23, 0x5d, 0x20, 0x85,
-      0x7c, 0x02, 0x70, 0x44, 0xb9, 0xc9, 0xf7, 0x09, 0xcd, 0x8c},
-     0xaee748, 0xaee6e8, 0x2020, 0xa69fe0, 0x411640, 0x1127ca0, 0x1127c60, 0x3058, 0x413c5c, 0x413cdc,
-     0xecdc, 0xece0, 0xcb78, 0xcb7c, 0xcb80, 0x8950c, 0x89514, 0x5d0040,
-     0xc950, 0x18, 0x24, 0x28, 0x98, 0xa0, 0xd0, 0xd8, 0x68, 0x70, 0xcb0c, 0x718, 0xcb90, 0x730, 0x1fc, 0x200, 0x0, 0x8,
-     0x89488, 0x413a98, 0x413a88, 0x413a60, 0x413a68, 0x78, 0x158, 0x5c, 0x60, 0x64, 0x68, 0x74, 0x6, 0x3210, 0x3274, 0x32d8, 0xaab690, 0xaab658, 0xaab628,
-     0xaef1d0, 0x4df54c, 0x63bfe8, 0x63633c, 0x65c798, 0x6de99c, 0x65cac8,
-     0x4132b0, 0xa6d6c0, 0x515854, 0x62e5ec, 0x43a9c0,
-     0x5d00fc, 0x3f804c, 0x3f8470, 0x64b450,
-     0x514f48, 0x507398, 0x50621c, 0x58fa84,
-     0x72b758, 0x1d2f52d, 0x1d7ddf0,
-     0x18e2130, 0x3f0a04,
-     0x413d64, 0x413de4,
-     0x659274,
-     0x71d824, 0xa83dd8,
-     0x6447a0, 0x6325cc},
+    {"242.3",
+     {0xfd, 0x48, 0xd1, 0x75, 0x73, 0x8b, 0x53, 0x12, 0x7a, 0x48,
+      0x59, 0xbf, 0x54, 0xcd, 0x64, 0x98, 0x92, 0x9c, 0x62, 0x05},
+     0xafd6c8, 0xafd6c0, 0x2020, 0xa78170, 0x417b0c, 0x1136d18, 0x1136ce8, 0x3098, 0x413c9c, 0x413d1c,
+     0xed1c, 0xed20, 0xcbb8, 0xcbbc, 0xcbc0, 0x8954c, 0x89554, 0x5dd250,
+     0xc990, 0x18, 0x24, 0x28, 0x98, 0xa0, 0xd0, 0xd8, 0x68, 0x70, 0xcb4c, 0x718, 0xcbd0, 0x730, 0x1fc, 0x200, 0x0, 0x8,
+     0x894c8, 0x413ad8, 0x413ac8, 0x413aa0, 0x413aa8, 0x78, 0x158, 0x5c, 0x60, 0x64, 0x68, 0x74, 0x6, 0x3250, 0x32b4, 0x3318, 0xaba610, 0xaba5d8, 0xaba5a8,
+     0xafe520, 0x588988, 0x649d18, 0x64406c, 0x66a328, 0x6ec900, 0x66a658,
+     0x4132f0, 0xa7f230, 0x56427c, 0x63bf44, 0x441310,
+     0x5dd30c, 0x3fd490, 0x3fd8b4, 0x658fe0,
+     0x550810, 0x550c44, 0x5589c8, 0x553d54,
+     0x7396a8, 0x1d7f1fd, 0x1dcdac0,
+     0x18f12d8, 0x3f5e14,
+     0x413da4, 0x413e24,
+     0x666e04,
+     0x72b774, 0xa92d40,
+     0x652330, 0x6402fc},
 };
 
 constexpr const char* kGameLib = "liblibs.hal.system.osclient.so";
@@ -251,35 +251,35 @@ int varp(int id) { return g_build ? read_varp_table(g_build->varps, id) : 0; }
 
 // UPDATE_RUNWEIGHT (dispatcher case 0x1a) stores s16 at Client+0x33a4; UPDATE_RUNENERGY (0x66)
 // stores 0..10000 at Client+0x33a0.
-int world() { uintptr_t c = client(); return c ? read_at<int32_t>(c + 0x3174) : 0; }
+int world() { uintptr_t c = client(); return c ? read_at<int32_t>(c + 0x31b4) : 0; }
 bool viewport_zoom(int out[5]) {
     uintptr_t c = client();
     if (!c) return false;
-    out[0] = read_at<int32_t>(c + 0x46d4);
-    for (int i = 0; i < 4; i++) out[1 + i] = read_at<int32_t>(c + 0x46e0 + 4 * i);
+    out[0] = read_at<int32_t>(c + 0x4714);
+    for (int i = 0; i < 4; i++) out[1 + i] = read_at<int32_t>(c + 0x4720 + 4 * i);
     return out[0] > 0 && out[0] < 100000 && out[3] > 0 && out[4] > 0;
 }
-int world_flags() { uintptr_t c = client(); return c ? read_at<int32_t>(c + 0x2f64) : 0; }
+int world_flags() { uintptr_t c = client(); return c ? read_at<int32_t>(c + 0x2fa4) : 0; }
 
 namespace { std::string read_string(uintptr_t addr); }
 
 // World list loaded from slr.ws (parser 0x4320dc): a global container at 0xace6c0 with u64 count
 // +0x08 and World** +0x10; each World (0x68 bytes) is +0x00 id, +0x04 flags, +0x08 players,
-// +0x10 host and +0x28 activity strings, +0x40 location. setWorld (0x432748) copies the picked
+// +0x10 host and +0x28 activity strings, +0x40 location. setWorld (0x439038) copies the picked
 // entry's id/flags/host to Client +0x3174/+0x2f64/+0x3098; the arg parser (0x43d39c) fills the
 // same fields when the game starts on a world from its arguments (the host is --gameaddress).
-// The parser (callers 0x412e78 and the login handler 0x41615c, each only from doCycle 0x411640, and the
+// The parser (callers 0x412e78 and the login handler 0x41615c, each only from doCycle 0x417b0c, and the
 // CS2 world list ops 0x4c2544) frees the old entries and fills the new array in place, so the list is
 // read only on the game thread, like the game's own doCycle readers (offsets.md "World list").
 std::pair<uintptr_t, uint64_t> world_list_key() {
     if (!g_build) return {0, 0};
-    return {read_at<uintptr_t>(g_base + 0xace6d0), read_at<uint64_t>(g_base + 0xace6c8)};
+    return {read_at<uintptr_t>(g_base + 0xadd650), read_at<uint64_t>(g_base + 0xadd648)};
 }
 
 bool world_entry(int id, WorldEntry& out) {
     if (!g_build || id <= 0) return false;
-    auto count = read_at<uint64_t>(g_base + 0xace6c8);
-    auto list = read_at<uintptr_t>(g_base + 0xace6d0);
+    auto count = read_at<uint64_t>(g_base + 0xadd648);
+    auto list = read_at<uintptr_t>(g_base + 0xadd650);
     if (list && count <= 4096) {
         for (uint64_t i = 0; i < count; i++) {
             auto w = read_at<uintptr_t>(list + i * 8);
@@ -295,10 +295,10 @@ bool world_entry(int id, WorldEntry& out) {
         }
     }
     uintptr_t c = client();
-    if (!c || read_at<int32_t>(c + 0x3174) != id) return false;
+    if (!c || read_at<int32_t>(c + 0x31b4) != id) return false;
     out.id = id;
-    out.flags = read_at<int32_t>(c + 0x2f64);
-    out.host = read_string(c + 0x3098);
+    out.flags = read_at<int32_t>(c + 0x2fa4);
+    out.host = read_string(c + 0x30d8);
     out.listed = false;
     return true;
 }
@@ -313,7 +313,7 @@ bool ge_offers(int64_t out[8 * 7]) {
     if (!c) return false;
     for (int i = 0; i < 8; i++) {
         int64_t* o = out + 7 * i;
-        uintptr_t off = read_at<uintptr_t>(c + 0x4185c0 + 8u * static_cast<uintptr_t>(i));
+        uintptr_t off = read_at<uintptr_t>(c + 0x418600 + 8u * static_cast<uintptr_t>(i));
         if (!off) { o[0] = -1; for (int k = 1; k < 7; k++) o[k] = 0; continue; }
         o[0] = read_at<uint8_t>(off);
         o[1] = read_at<uint8_t>(off + 1);
@@ -329,7 +329,7 @@ bool ge_offers(int64_t out[8 * 7]) {
 uintptr_t ge_slot_raw(int slot, uint8_t out[0x28]) {
     uintptr_t c = client();
     if (!c || slot < 0 || slot > 7) return 0;
-    uintptr_t off = read_at<uintptr_t>(c + 0x4185c0 + 8u * static_cast<uintptr_t>(slot));
+    uintptr_t off = read_at<uintptr_t>(c + 0x418600 + 8u * static_cast<uintptr_t>(slot));
     if (!off) return 0;
     for (int i = 0; i < 0x28; i++) out[i] = read_at<uint8_t>(off + i);
     return off;
@@ -342,8 +342,8 @@ uintptr_t ge_slot_raw(int slot, uint8_t out[0x28]) {
 // Touch state Client+0x40e988: 3 held, 4 released (the release runs onDragComplete +0x500 and the
 // swap 0x528b50(…, dragged, dragged-on)).
 namespace {
-constexpr uintptr_t kDragged = 0x413ad8, kDraggedOn = 0x413b00, kDragging = 0x413b20, kDragCycles = 0x413b24,
-                    kTouchState = 0x40e988;
+constexpr uintptr_t kDragged = 0x413b18, kDraggedOn = 0x413b40, kDragging = 0x413b60, kDragCycles = 0x413b64,
+                    kTouchState = 0x40e9c8;
 }
 bool drag_state(int out[7]) {
     uintptr_t c = client();
@@ -377,7 +377,7 @@ namespace { std::string read_string(uintptr_t addr); }
 // name, s8 +0x69 talk rank, s8 +0x6a kick rank; member s8 +0x08 rank, +0x0c world, +0x10 name.
 bool friends_chat(ChatChannel& out) {
     uintptr_t c = client();
-    uintptr_t fc = c ? read_at<uintptr_t>(c + 0x4608) : 0;
+    uintptr_t fc = c ? read_at<uintptr_t>(c + 0x4648) : 0;
     if (!fc) return false;
     out.name = read_string(fc + 0xa8);
     out.owner = read_string(fc + 0xd8);
@@ -396,7 +396,7 @@ bool friends_chat(ChatChannel& out) {
 bool clan_channel(int which, ChatChannel& out) {
     uintptr_t c = client();
     if (!c || which < -1 || which > 7) return false;
-    uintptr_t ch = read_at<uintptr_t>(c + (which < 0 ? 0x4668 : 0x4678 + 0x10u * static_cast<uintptr_t>(which)));
+    uintptr_t ch = read_at<uintptr_t>(c + (which < 0 ? 0x46a8 : 0x46b8 + 0x10u * static_cast<uintptr_t>(which)));
     if (!ch) return false;
     out.name = read_string(ch + 0x50);
     out.talk_rank = read_at<int8_t>(ch + 0x69);
@@ -420,7 +420,7 @@ bool clan_channel(int which, ChatChannel& out) {
 bool instance_templates(bool& instanced, int32_t out[4 * 13 * 13]) {
     uintptr_t c = client();
     if (!c) return false;
-    uintptr_t mgr = read_at<uintptr_t>(c + 0x4868);
+    uintptr_t mgr = read_at<uintptr_t>(c + 0x48a8);
     if (!mgr) return false;
     instanced = read_at<uint8_t>(mgr + 0x54dd) != 0;
     for (int i = 0; i < 4 * 13 * 13; i++) {
@@ -430,8 +430,8 @@ bool instance_templates(bool& instanced, int32_t out[4 * 13 * 13]) {
     }
     return true;
 }
-int weight() { uintptr_t c = client(); return c ? read_at<int16_t>(c + 0x33a4) : 0; }
-int run_energy() { uintptr_t c = client(); return c ? read_at<int32_t>(c + 0x33a0) : 0; }
+int weight() { uintptr_t c = client(); return c ? read_at<int16_t>(c + 0x33e4) : 0; }
+int run_energy() { uintptr_t c = client(); return c ? read_at<int32_t>(c + 0x33e0) : 0; }
 
 static std::vector<int32_t> varp_table(uintptr_t table) {
     if (!g_build) return {};
@@ -474,13 +474,13 @@ bool add_chat_message(int type, const std::string& name, const std::string& text
     reinterpret_cast<void (*)(uintptr_t, int, const void*, const void*)>(g_base + g_build->add_chat_message)(c, type, n.bytes, t.bytes);
     return true;
 }
-// setWorld 0x432748(World*) reads id +0x00, flags +0x04, host +0x10 and the beta-world string +0x48
+// setWorld 0x439038(World*) reads id +0x00, flags +0x04, host +0x10 and the beta-world string +0x48
 // (offsets.md "World list"); it copies them, so a World on the stack is enough.
 bool change_world(int id, int flags, const std::string& host) {
     if (!g_build || !client() || id <= 0) return false;
-    auto set_world = reinterpret_cast<void (*)(const void*)>(g_base + 0x432748);
-    auto count = read_at<uint64_t>(g_base + 0xace6c8);
-    auto list = read_at<uintptr_t>(g_base + 0xace6d0);
+    auto set_world = reinterpret_cast<void (*)(const void*)>(g_base + 0x439038);
+    auto count = read_at<uint64_t>(g_base + 0xadd648);
+    auto list = read_at<uintptr_t>(g_base + 0xadd650);
     for (uint64_t i = 0; list && count <= 4096 && i < count; i++) {
         auto w = read_at<uintptr_t>(list + i * 8);
         if (w && read_at<int32_t>(w) == id) {
@@ -544,7 +544,7 @@ uintptr_t npc_lookup(uintptr_t wv, int index) {
 static uintptr_t varc_entry(int id, int type) {
     uintptr_t c = client();
     if (!c) return 0;
-    uintptr_t store = read_at<uintptr_t>(c + 0x417b68);
+    uintptr_t store = read_at<uintptr_t>(c + 0x417ba8);
     if (!store) return 0;
     uintptr_t b = read_at<uintptr_t>(store + 0x48), e = read_at<uintptr_t>(store + 0x50);
     if (!b || e < b || (e - b) / 0x30 > 100000) return 0;
@@ -573,17 +573,17 @@ bool varc_string(int id, std::string& out) {
 }
 
 // The game's definition/model/sprite caches (one LRU-over-hash-map container each: u64 entry count
-// at base +0x20) and the clear functions its full cache reset 0x429f28 calls (build 241.4, static RE
-// client-api-cache-config): which 0 ObjType (base 0x1217a30; clear 0x642cbc also empties item models
-// and item sprites), 1 LocType (0x1159220; clear 0x633ad8 with the loc caches next to it), 2 SeqType
-// (0x1854100; clear 0x648204), 3 item models (0x1218f28; cleared by 0x642cbc), 4 item sprites
-// (0x1219fc0; clear 0x642ebc), 5 HealthBarType + health bar sprites (0x18d8f80 and 0x18da478;
-// clear 0x6604d0).
+// at base +0x20) and the clear functions its full cache reset 0x429f28 calls (build 242, static RE
+// client-api-cache-config): which 0 ObjType (base 0x1288668; clear 0x6509ec also empties item models
+// and item sprites), 1 LocType (0x11682e0; clear 0x641808 with the loc caches next to it), 2 SeqType
+// (0x18c4d38; clear 0x655d94), 3 item models (0x1289b60; cleared by 0x6509ec), 4 item sprites
+// (0x128abf8; clear 0x650bec), 5 HealthBarType + health bar sprites (0x18e8128 and 0x18e9620;
+// clear 0x66e060).
 namespace {
 struct GameCache { uintptr_t base, base2, clear; };
 constexpr GameCache kCaches[] = {
-    {0x1217a30, 0, 0x642cbc}, {0x1159220, 0, 0x633ad8}, {0x1854100, 0, 0x648204},
-    {0x1218f28, 0, 0x642cbc}, {0x1219fc0, 0, 0x642ebc}, {0x18d8f80, 0x18da478, 0x6604d0},
+    {0x1288668, 0, 0x6509ec}, {0x11682e0, 0, 0x641808}, {0x18c4d38, 0, 0x655d94},
+    {0x1289b60, 0, 0x6509ec}, {0x128abf8, 0, 0x650bec}, {0x18e8128, 0x18e9620, 0x66e060},
 };
 }  // namespace
 
@@ -609,14 +609,14 @@ void release_shared_ptr(uintptr_t ctrl);
 // Client +0x2428, each slot a raw Archive*). Archive: +0x18 index crc (0 = index not loaded), +0x28
 // u64 group count (dense), +0x30 groups (0x70 each: +0x04 version, -1 = absent; +0x28/+0x30 packed
 // bytes {ctrl, Buffer*}; +0x40 u64 file count (dense); +0x48 files, 0x20 each: +0x08 i64 start, -1 =
-// absent; +0x10/+0x18 unpacked {ctrl, Buffer*}). getFile 0x6be3dc(archive, out {ctrl, Buffer*}, group,
-// file, xtea keys, keep) returns a status value (OK = **GOT 0xa828b0); Buffer +0x08 size, +0x10 data,
+// absent; +0x10/+0x18 unpacked {ctrl, Buffer*}). getFile 0x6cc2fc(archive, out {ctrl, Buffer*}, group,
+// file, xtea keys, keep) returns a status value (OK = **GOT 0xa91898); Buffer +0x08 size, +0x10 data,
 // +0x18 pos: the file is data[pos, size).
 namespace {
 uintptr_t archive_at(int id) {
-    static constexpr int16_t kSlot[26] = {0x2330, 0x2340, 0x2348, 0x2358, 0x2360, 0x2368, 0x2370, 0x2378, 0x2388,
-        0x2390, 0x2398, 0x23a0, 0x23a8, 0x23b0, 0x23b8, 0x23c0, 0, 0x23e0, 0x23d0, 0x23c8, 0x23d8, 0x23e8,
-        0x2338, 0x23f0, 0, 0x2380};
+    static constexpr int16_t kSlot[26] = {0x2368, 0x2378, 0x2380, 0x2390, 0x2398, 0x23a0, 0x23a8, 0x23b0, 0x23c0,
+        0x23c8, 0x23d0, 0x23d8, 0x23e0, 0x23e8, 0x23f0, 0x23f8, 0, 0x2418, 0x2408, 0x2400, 0x2410, 0x2420,
+        0x2370, 0x2428, 0, 0x23b8};
     uintptr_t c = client();
     if (!g_build || !c || id < 0 || id >= 26 || !kSlot[id] || game_state() < 10) return 0;
     uintptr_t a = read_at<uintptr_t>(c + kSlot[id]);
@@ -653,8 +653,8 @@ bool archive_file(int id, int group, int file, std::vector<uint8_t>& out) {
     unsigned keep = read_at<uintptr_t>(f + 0x18) ? 1 : 0;
     struct { uintptr_t ctrl, obj; } sp = {0, 0};
     using Fn = uintptr_t (*)(uintptr_t, void*, int, int, const int*, unsigned);
-    uintptr_t status = reinterpret_cast<Fn>(g_base + 0x6be3dc)(a, &sp, group, file, nullptr, keep);
-    uintptr_t ok = read_at<uintptr_t>(read_at<uintptr_t>(g_base + 0xa828b0));
+    uintptr_t status = reinterpret_cast<Fn>(g_base + 0x6cc2fc)(a, &sp, group, file, nullptr, keep);
+    uintptr_t ok = read_at<uintptr_t>(read_at<uintptr_t>(g_base + 0xa91898));
     bool good = status == ok && sp.obj;
     if (good) {
         uint64_t size = read_at<uint64_t>(sp.obj + 8), pos = read_at<uint64_t>(sp.obj + 0x18);
@@ -670,7 +670,7 @@ bool archive_file(int id, int group, int file, std::vector<uint8_t>& out) {
 bool varc_entries(std::vector<VarcEntry>& out) {
     out.clear();
     uintptr_t c = client();
-    uintptr_t store = c ? read_at<uintptr_t>(c + 0x417b68) : 0;
+    uintptr_t store = c ? read_at<uintptr_t>(c + 0x417ba8) : 0;
     if (!store) return false;
     uintptr_t b = read_at<uintptr_t>(store + 0x48), e = read_at<uintptr_t>(store + 0x50);
     if (!b || e < b || (e - b) / 0x30 > 100000) return false;
@@ -815,7 +815,7 @@ uintptr_t live_npc(int index) {
     return 0;
 }
 
-// NPC_INFO model overrides (static RE client-api-cache-config, reader 0x469778): Npc +0x750 head
+// NPC_INFO model overrides (static RE client-api-cache-config, reader 0x46f4c8): Npc +0x750 head
 // (mask 0x10000), +0x758 body (masks 0x100000/0x1000/0x2000000), each an owning pointer to a 0x78-byte
 // object (null = none): +0x08/+0x10 vector<int32> model ids, {u64 count +0x28, int16* +0x30}
 // recolours, {+0x40, +0x48} retextures, u8 +0x54 mirror local player.
@@ -967,13 +967,13 @@ Point player_world() {
 bool play_sound_effect(int id, int loops, int delay) {
     uintptr_t c = client();
     if (!c || id < 0 || id > 0xffff || loops <= 0) return false;
-    // The queue (0x4ae508, Ghidra 005ae508.c) is a vector of 0x28-byte entries at +0xc0/+0xc8 of
+    // The queue (0x4b9028, Ghidra 005ae508.c) is a vector of 0x28-byte entries at +0xc0/+0xc8 of
     // the sound system; the call adds one only while the system's "enabled" callback (slot 0,
     // presumably the sound-effect volume setting) returns non-zero and fewer than 50 are queued.
     // Report whether the game actually queued it, so a muted setting shows up as false.
-    uintptr_t sys = c + 0x2610;
+    uintptr_t sys = c + 0x2650;
     uintptr_t before = read_at<uintptr_t>(sys + 0xc8);
-    reinterpret_cast<void (*)(uintptr_t, uint32_t, char, int)>(g_base + 0x4ae508)(sys, id, static_cast<char>(std::min(loops, 127)), delay);
+    reinterpret_cast<void (*)(uintptr_t, uint32_t, char, int)>(g_base + 0x4b9028)(sys, id, static_cast<char>(std::min(loops, 127)), delay);
     bool queued = read_at<uintptr_t>(sys + 0xc8) != before;
     static int logs = 0;
     if (logs < 10) {
@@ -988,13 +988,13 @@ bool play_area_sound(int id, int x, int y, int range, int delay) {
     uintptr_t wv = c ? read_at<uintptr_t>(c + g_build->f_world_view) : 0;
     if (!wv || id < 0 || id > 0xffff) return false;
     // Desktop queues these as area sounds (position x << 16 | y << 8 | range). Here the game's area-sound
-    // queue 0x4ae650, called as SOUND_AREA does (0x46f99c..0x46f9c0): key = the world view's short id
+    // queue 0x4b9170, called as SOUND_AREA does (0x46f99c..0x46f9c0): key = the world view's short id
     // (+0), drop-off 0 (falloff over the whole range), flag 0. Entered through its hook, so
     // AreaSoundEffectPlayed posts.
-    uintptr_t sys = c + 0x2610;
+    uintptr_t sys = c + 0x2650;
     uintptr_t before = read_at<uintptr_t>(sys + 0xc8);
     reinterpret_cast<void (*)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t)>(
-        g_base + 0x4ae650)(sys, static_cast<uint32_t>(read_at<int16_t>(wv)), id, x & 0xff, y & 0xff, range & 0xff, 0, 1, delay, 0);
+        g_base + 0x4b9170)(sys, static_cast<uint32_t>(read_at<int16_t>(wv)), id, x & 0xff, y & 0xff, range & 0xff, 0, 1, delay, 0);
     return read_at<uintptr_t>(sys + 0xc8) != before;
 }
 
@@ -1003,31 +1003,31 @@ bool play_sound_at_volume(int id, int volume) {
     if (!c || id < 0 || id > 0xffff) return false;
     // Desktop's playSoundEffect(id, volume): straight into the sound-effect mixer (no queue, no event),
     // at the sound-effect volume setting unless that is muted, then at `volume` (both 0..127).
-    int setting = read_at<int32_t>(c + 0x2f60);
+    int setting = read_at<int32_t>(c + 0x2fa0);
     int vol = setting != 0 ? setting : std::clamp(volume, 0, 127);
-    // 0x4ad358(out handle, ctx, id, volume, loops) is the ambient sounds' "play now" (ctx = Client
+    // 0x4b7e78(out handle, ctx, id, volume, loops) is the ambient sounds' "play now" (ctx = Client
     // +0x2ed0: +0 loader, +8 mixer, +0x20 resampler byte); handed the queue consumer's mixer
     // (*(Client +0x25c0)) it plays as a queued plain sound does, at our volume, once (loops 0).
-    uintptr_t ctx[5] = {read_at<uintptr_t>(c + 0x2ed0), read_at<uintptr_t>(c + 0x25c0), 0, 0,
-                        read_at<uint8_t>(c + 0x2ef0)};
+    uintptr_t ctx[5] = {read_at<uintptr_t>(c + 0x2f10), read_at<uintptr_t>(c + 0x25f8), 0, 0,
+                        read_at<uint8_t>(c + 0x2f30)};
     if (!ctx[0] || !ctx[1]) return false;
     uintptr_t handle = 0;
-    reinterpret_cast<void (*)(uintptr_t*, uintptr_t*, int, int, int)>(g_base + 0x4ad358)(&handle, ctx, id, vol, 0);
+    reinterpret_cast<void (*)(uintptr_t*, uintptr_t*, int, int, int)>(g_base + 0x4b7e78)(&handle, ctx, id, vol, 0);
     if (!handle) return false;
     // The mixer holds its own reference; drop the handle as the ambient code does when it replaces one
-    // (release the control block at handle +0: counts at +8/+0xc, then the game's free 0x9f4394).
-    auto add = reinterpret_cast<int (*)(int, uintptr_t)>(g_base + 0x3dc1b0);
+    // (release the control block at handle +0: counts at +8/+0xc, then the game's free 0xa02534).
+    auto add = reinterpret_cast<int (*)(int, uintptr_t)>(g_base + 0x3e15c0);
     if (uintptr_t cb = read_at<uintptr_t>(handle); cb && add(-1, cb + 8) == 1) {
         auto vt = read_at<uintptr_t>(cb);
         reinterpret_cast<void (*)(uintptr_t)>(read_at<uintptr_t>(vt + 0x10))(cb);
         if (add(-1, cb + 0xc) == 1) reinterpret_cast<void (*)(uintptr_t)>(read_at<uintptr_t>(vt + 0x18))(cb);
     }
-    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x9f4394)(handle);
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0xa02534)(handle);
     static int logs = 0;
     if (logs < 10) {
         logs++;
         LOGI("sound %d: played at volume %d (setting %d, asked %d; ambient mixer %s)", id, vol, setting, volume,
-             read_at<uintptr_t>(c + 0x2ed8) == ctx[1] ? "same" : "differs");
+             read_at<uintptr_t>(c + 0x2f18) == ctx[1] ? "same" : "differs");
     }
     return true;
 }
@@ -1099,7 +1099,7 @@ Camera camera() {
     cam.focal_y = read_at<int32_t>(b + 0x80);
     // The camera/player-position code (0x51d0a4) works in the frame of Client[+0xc940]; the NPC
     // readers use Client[+0xc950]. Debug: report the former's base and whether they match.
-    auto rwv = read_at<uintptr_t>(c + 0xc940);
+    auto rwv = read_at<uintptr_t>(c + 0xc980);
     if (rwv) {
         cam.render_base_x = read_at<int32_t>(rwv + g_build->wv_base_x);
         cam.render_base_y = read_at<int32_t>(rwv + g_build->wv_base_y);
@@ -1110,7 +1110,7 @@ Camera camera() {
 
 int root_interface() { return g_build ? field(g_build->f_root_interface) : -1; }
 
-// Mirrors the lookup in 0x5d1ad8 without loading missing groups (that has to happen on
+// Mirrors the lookup in 0x5dece8 without loading missing groups (that has to happen on
 // the game's own terms): groups are {?, u64 child count, slot*}, slots are {?, Widget*}.
 int widget_dynamic_count(uintptr_t w) {
     if (!w) return 0;
@@ -1129,7 +1129,7 @@ uintptr_t widget_dynamic(uintptr_t w, int index) {
 // the IF_SET* packet handlers: scroll x/y (+0x84/+0x88), scroll width/height (+0x8c/+0x90),
 // model zoom (+0x128), model angle x/y/z (+0x11c/+0x120/+0x124), opacity (+0xb0), model type/id
 // (+0xfc/+0x100), sequence (+0x10c).
-// 12..: from the CC_SET* handlers (0x4e06dc, ops 1100-1120): 1105 graphic +0xc8, 1107 tiling
+// 12..: from the CC_SET* handlers (0x589b20, ops 1100-1120): 1105 graphic +0xc8, 1107 tiling
 // +0xec (bool), 1116 outline +0xf0, 1117 graphic shadow +0xf4, 1118/1119 v/h flip +0xf8/+0xf9
 // (bool), 1102 fill +0xa8 (bool), 1115 text shadow +0x194 (bool), 1114 text align x/y +0x18c/
 // +0x190 and line height +0x188, 1113 font +0x150.
@@ -1165,9 +1165,9 @@ void widget_set_color(uintptr_t w, int rgb) {
     auto* colour = reinterpret_cast<volatile int32_t*>(w + 0x98);
     if (*colour == rgb) return;
     *colour = rgb;
-    if (read_at<int32_t>(w + 0xb78) == read_at<int32_t>(c + 0x4132bc)) {
+    if (read_at<int32_t>(w + 0xb78) == read_at<int32_t>(c + 0x4132fc)) {
         int area = read_at<int32_t>(w + 0xb74);
-        if (area >= 0 && area < 0x400) *reinterpret_cast<volatile uint8_t*>(c + 0x4132c0 + area) = 1;
+        if (area >= 0 && area < 0x400) *reinterpret_cast<volatile uint8_t*>(c + 0x413300 + area) = 1;
     }
 }
 
@@ -1175,9 +1175,9 @@ namespace {
 void widget_mark_dirty(uintptr_t w) {
     uintptr_t c = client();
     if (!w || !c) return;
-    if (read_at<int32_t>(w + 0xb78) == read_at<int32_t>(c + 0x4132bc)) {
+    if (read_at<int32_t>(w + 0xb78) == read_at<int32_t>(c + 0x4132fc)) {
         int area = read_at<int32_t>(w + 0xb74);
-        if (area >= 0 && area < 0x400) *reinterpret_cast<volatile uint8_t*>(c + 0x4132c0 + area) = 1;
+        if (area >= 0 && area < 0x400) *reinterpret_cast<volatile uint8_t*>(c + 0x413300 + area) = 1;
     }
 }
 }  // namespace
@@ -1191,16 +1191,16 @@ void widget_set_hidden(uintptr_t w, bool hidden) {
 bool widget_set_text(uintptr_t w, const std::string& text) {
     if (!w || read_at<int32_t>(w + 0x28) == 12) return false;  // type 12 keeps its text elsewhere (+0xba8)
     GameString s(text);
-    // CC_SETTEXT 1112: string assign 0x3f1498(widget +0x158, &text)
-    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f1498)(w + g_build->w_text, s.bytes);
+    // CC_SETTEXT 1112: string assign 0x3f68a8(widget +0x158, &text)
+    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f68a8)(w + g_build->w_text, s.bytes);
     widget_mark_dirty(w);
     return true;
 }
 
 // Name (CC_SETOPBASE 1305, +0x2c0), target verb (CC_SETTARGETVERB 1306, +0x330) or op `which`
-// (0-based, CC_SETOP 1300). An op past the vector's end is first added through setOp 0x5dfae8(widget,
+// (0-based, CC_SETOP 1300). An op past the vector's end is first added through setOp 0x5eccf8(widget,
 // op, string*), which grows the vector (+0x2d8 header, size +0x2e0, data +0x2e8) and swaps the string
-// in (an empty inline one here, so nothing is freed); then the slot is assigned with 0x3f1498 as
+// in (an empty inline one here, so nothing is freed); then the slot is assigned with 0x3f68a8 as
 // CC_SETTEXT does. Game thread only.
 bool widget_set_string(uintptr_t w, int which, const std::string& text) {
     if (!w || which < -2 || which > 31) return false;
@@ -1211,29 +1211,29 @@ bool widget_set_string(uintptr_t w, int which, const std::string& text) {
         if (static_cast<uint64_t>(which) >= read_at<uint64_t>(w + 0x2e0)) {
             if (text.empty()) return true;
             GameString empty{std::string()};
-            reinterpret_cast<void (*)(uintptr_t, int, void*)>(g_base + 0x5dfae8)(w, which, empty.bytes);
+            reinterpret_cast<void (*)(uintptr_t, int, void*)>(g_base + 0x5eccf8)(w, which, empty.bytes);
             if (static_cast<uint64_t>(which) >= read_at<uint64_t>(w + 0x2e0)) return false;
         }
         dst = read_at<uintptr_t>(w + 0x2e8) + static_cast<size_t>(which) * 0x18;
     }
     GameString s(text);
-    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f1498)(dst, s.bytes);
+    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f68a8)(dst, s.bytes);
     return true;
 }
 
 // Event flags kept in the widget (+0x2b0): the fallback of the per-component ranges that
-// IF_SETEVENTS stores (multimap at Client +0x413c30, lookups 0x460dac / 0x460e74). The menu builder
+// IF_SETEVENTS stores (multimap at Client +0x413c30, lookups 0x466cf0 / 0x460e74). The menu builder
 // 0x525c78 adds op i when bit i+1 is set (0x460e74 returns (flags >> 1) & 0x3ff) or the widget has
 // an onOp listener (+0x6a0 / +0x6b0..+0x6b8).
 int widget_flags(uintptr_t w) { return w ? read_at<int32_t>(w + 0x2b0) : 0; }
-// As the lookups 0x460dac / 0x460e74: bucket = component % count (Client +0x413c38) in the table at
+// As the lookups 0x466cf0 / 0x460e74: bucket = component % count (Client +0x413c38) in the table at
 // +0x413c30; walk the chain (next at node +0x18) to the first node of this component, then over its
 // nodes {+0 component, +4 start, +8 end, +0xc flags, +0x10 op mask} for a range holding the index.
 bool widget_events(uintptr_t w, int out[2]) {
     uintptr_t c = client();
     if (!w || !c) return false;
-    uint32_t count = read_at<uint32_t>(c + 0x413c38);
-    uintptr_t buckets = read_at<uintptr_t>(c + 0x413c30);
+    uint32_t count = read_at<uint32_t>(c + 0x413c78);
+    uintptr_t buckets = read_at<uintptr_t>(c + 0x413c70);
     if (!count || !buckets) return false;
     uint32_t comp = read_at<uint32_t>(w + 4);
     int32_t index = read_at<int32_t>(w + 8);
@@ -1254,8 +1254,8 @@ bool widget_event_ranges(std::vector<int32_t>& out) {
     out.clear();
     uintptr_t c = client();
     if (!c) return false;
-    uint32_t count = read_at<uint32_t>(c + 0x413c38);
-    uintptr_t buckets = read_at<uintptr_t>(c + 0x413c30);
+    uint32_t count = read_at<uint32_t>(c + 0x413c78);
+    uintptr_t buckets = read_at<uintptr_t>(c + 0x413c70);
     if (!count || !buckets) return true;  // none set
     if (count > (1u << 20)) return false;
     // Chains may run on into other buckets' nodes (lookups skip to their component): each node once.
@@ -1323,9 +1323,9 @@ bool widget_set_field(int component, int index, uint32_t off, int value) {
         if (f.byte) *reinterpret_cast<volatile uint8_t*>(w + off) = value != 0;
         else *reinterpret_cast<volatile int32_t*>(w + off) = value;
         uintptr_t c = client();
-        if (read_at<int32_t>(w + 0xb78) == read_at<int32_t>(c + 0x4132bc)) {
+        if (read_at<int32_t>(w + 0xb78) == read_at<int32_t>(c + 0x4132fc)) {
             int area = read_at<int32_t>(w + 0xb74);
-            if (area >= 0 && area < 0x400) *reinterpret_cast<volatile uint8_t*>(c + 0x4132c0 + area) = 1;
+            if (area >= 0 && area < 0x400) *reinterpret_cast<volatile uint8_t*>(c + 0x413300 + area) = 1;
         }
         return true;
     }
@@ -1345,7 +1345,7 @@ int widget_get_field(int component, int index, uint32_t off) {
     }
 }
 
-// Drag parent (CC_SETDRAGGABLE 1301 in 0x4e06dc): a shared_ptr {ctrl +0x310, Widget* +0x318} to the
+// Drag parent (CC_SETDRAGGABLE 1301 in 0x589b20): a shared_ptr {ctrl +0x310, Widget* +0x318} to the
 // container slot the widget may be dragged in, read by the drag block of 0x41d0a4.
 bool widget_drag_parent(int component, int index, int* parent, int* parent_index) {
     uintptr_t slot = widget_slot(component, index);
@@ -1373,26 +1373,26 @@ bool widget_set_drag_parent(int component, int index, int parent, int parent_ind
     return true;
 }
 
-// What CC_SETPOSITION/CC_SETSIZE run after storing (0x4e06dc ops 1000/1001): 0x44a788(client, slot),
-// 0x45e304(client, slot), then for layers (type 0) 0x45ebf4(client, children, slot, 0) with the
-// children container from 0x5d38c4(im, group) (static) or the parent's +0xb48 (CC_CREATE child).
+// What CC_SETPOSITION/CC_SETSIZE run after storing (0x589b20 ops 1000/1001): 0x451118(client, slot),
+// 0x464248(client, slot), then for layers (type 0) 0x464b38(client, children, slot, 0) with the
+// children container from 0x5e0ad4(im, group) (static) or the parent's +0xb48 (CC_CREATE child).
 bool widget_revalidate(int component, int index) {
     uintptr_t c = client();
     uintptr_t slot = widget_slot(component, index);
     uintptr_t w = slot ? read_at<uintptr_t>(slot + 8) : 0;
     if (!c || !w) return false;
-    reinterpret_cast<void (*)(uintptr_t, uintptr_t)>(g_base + 0x44a788)(c, slot);
-    reinterpret_cast<void (*)(uintptr_t, uintptr_t)>(g_base + 0x45e304)(c, slot);
-    uintptr_t im = reinterpret_cast<uintptr_t (*)(uintptr_t)>(g_base + 0x459be8)(c);
+    reinterpret_cast<void (*)(uintptr_t, uintptr_t)>(g_base + 0x451118)(c, slot);
+    reinterpret_cast<void (*)(uintptr_t, uintptr_t)>(g_base + 0x464248)(c, slot);
+    uintptr_t im = reinterpret_cast<uintptr_t (*)(uintptr_t)>(g_base + 0x45fb2c)(c);
     if (read_at<int32_t>(w + 0x28) == 0 && im) {
         uintptr_t children;
         if (read_at<int32_t>(w + 8) == -1) {
-            children = reinterpret_cast<uintptr_t (*)(uintptr_t, long)>(g_base + 0x5d38c4)(im, read_at<int16_t>(w + 6));
+            children = reinterpret_cast<uintptr_t (*)(uintptr_t, long)>(g_base + 0x5e0ad4)(im, read_at<int16_t>(w + 6));
         } else {
-            uintptr_t parent = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x5d1ad8)(im, read_at<int32_t>(w + 0x74));
+            uintptr_t parent = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x5dece8)(im, read_at<int32_t>(w + 0x74));
             children = parent ? read_at<uintptr_t>(parent + 8) + 0xb48 : 0;
         }
-        if (children) reinterpret_cast<void (*)(uintptr_t, uintptr_t, uintptr_t, int)>(g_base + 0x45ebf4)(c, children, slot, 0);
+        if (children) reinterpret_cast<void (*)(uintptr_t, uintptr_t, uintptr_t, int)>(g_base + 0x464b38)(c, children, slot, 0);
     }
     return true;
 }
@@ -1427,10 +1427,10 @@ bool widget_ref(uintptr_t w, int* component, int* index) {
     return false;
 }
 
-// CC_CREATE (script op 100 in 0x4e06dc) for Widget.createChild: capacity/replace 0x4f2898(parent
+// CC_CREATE (script op 100 in 0x589b20) for Widget.createChild: capacity/replace 0x59bcec(parent
 // slot, index, 0) (an existing child at the index is deleted, as CC_CREATE without its 4th arg),
-// make_shared<Widget>(out, &parent id) 0x4f290c, the same fields the op writes (+0x00 = 1, +0x08 index,
-// +0x28 type, +0x74 parent id), then the move-assign 0x44a538 into the parent's +0xb58 slot.
+// make_shared<Widget>(out, &parent id) 0x59bd60, the same fields the op writes (+0x00 = 1, +0x08 index,
+// +0x28 type, +0x74 parent id), then the move-assign 0x450ec8 into the parent's +0xb58 slot.
 // Static parents of layer type only; text inputs (type 12) need the op's extra setup. Game thread.
 int widget_create_child(int component, int index, int type) {
     if (!client() || type < 0 || type > 11 || index > 4095) return -1;
@@ -1438,47 +1438,47 @@ int widget_create_child(int component, int index, int type) {
     uintptr_t parent = slot ? read_at<uintptr_t>(slot + 8) : 0;
     if (!parent || read_at<int32_t>(parent + 0x28) != 0) return -1;
     if (index < 0) index = widget_dynamic_count(parent);
-    if (!(reinterpret_cast<uint64_t (*)(uintptr_t, int, bool)>(g_base + 0x4f2898)(slot, index, false) & 1)) return -1;
+    if (!(reinterpret_cast<uint64_t (*)(uintptr_t, int, bool)>(g_base + 0x59bcec)(slot, index, false) & 1)) return -1;
     struct SharedPtr {
         uintptr_t ctrl, obj;
         ~SharedPtr() {}
     };
-    // Not an x8 return: the out pointer is x0 and the id pointer x1 (disassembly at 0x4f290c).
+    // Not an x8 return: the out pointer is x0 and the id pointer x1 (disassembly at 0x59bd60).
     SharedPtr sp{0, 0};
-    reinterpret_cast<void (*)(SharedPtr*, const int32_t*)>(g_base + 0x4f290c)(&sp, reinterpret_cast<const int32_t*>(parent + 4));
+    reinterpret_cast<void (*)(SharedPtr*, const int32_t*)>(g_base + 0x59bd60)(&sp, reinterpret_cast<const int32_t*>(parent + 4));
     if (!sp.obj) return -1;
     *reinterpret_cast<uint8_t*>(sp.obj) = 1;
     *reinterpret_cast<int32_t*>(sp.obj + 8) = index;
     *reinterpret_cast<int32_t*>(sp.obj + 0x28) = type;
     *reinterpret_cast<int32_t*>(sp.obj + 0x74) = read_at<int32_t>(parent + 4);
     uintptr_t dst = read_at<uintptr_t>(parent + 0xb58) + static_cast<size_t>(index) * 0x10;
-    reinterpret_cast<void* (*)(uintptr_t, SharedPtr*)>(g_base + 0x44a538)(dst, &sp);  // moves sp out
+    reinterpret_cast<void* (*)(uintptr_t, SharedPtr*)>(g_base + 0x450ec8)(dst, &sp);  // moves sp out
     return index;
 }
 
 // Widget.setChildren(Arrays.copyOf(children, n)) (Bank Tags' rebuildTabs): the CC_CREATE child
-// vector {?, u64 count +0xb50, data +0xb58} is resized with the game's own resize 0x40a25c(vec, n, 3)
+// vector {?, u64 count +0xb50, data +0xb58} is resized with the game's own resize 0x40f720(vec, n, 3)
 // (flag 2 moves the first n shared_ptrs into the new storage, the rest are released; the same call
-// the capacity check 0x4f2898 makes to grow it). Shrinks only. Game thread.
+// the capacity check 0x59bcec makes to grow it). Shrinks only. Game thread.
 bool widget_truncate_children(int component, int count) {
     uintptr_t slot = widget_slot(component, -1);
     uintptr_t w = slot ? read_at<uintptr_t>(slot + 8) : 0;
     if (!client() || !w || count < 0) return false;
     int n = widget_dynamic_count(w);
     if (count >= n) return count == n;
-    reinterpret_cast<void (*)(uintptr_t, uint64_t, uint32_t)>(g_base + 0x40a25c)(w + 0xb48, static_cast<uint64_t>(count), 3);
+    reinterpret_cast<void (*)(uintptr_t, uint64_t, uint32_t)>(g_base + 0x40f720)(w + 0xb48, static_cast<uint64_t>(count), 3);
     return true;
 }
 
-// CC_DELETEALL (script op 101): 0x5df8e0(widget) releases every CC_CREATE child, then
-// 0x44a788(client, slot) as the op does. Game thread.
+// CC_DELETEALL (script op 101): 0x5ecaf0(widget) releases every CC_CREATE child, then
+// 0x451118(client, slot) as the op does. Game thread.
 bool widget_delete_children(int component) {
     uintptr_t c = client();
     uintptr_t slot = widget_slot(component, -1);
     uintptr_t w = slot ? read_at<uintptr_t>(slot + 8) : 0;
     if (!c || !w) return false;
-    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x5df8e0)(w);
-    reinterpret_cast<void (*)(uintptr_t, uintptr_t)>(g_base + 0x44a788)(c, slot);
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x5ecaf0)(w);
+    reinterpret_cast<void (*)(uintptr_t, uintptr_t)>(g_base + 0x451118)(c, slot);
     return true;
 }
 
@@ -1554,7 +1554,7 @@ std::vector<SubInterface> open_sub_interfaces() {
 }
 
 // Closes the sub-interface `group` mounted in `component`, as IF_CLOSESUB (dispatcher case 0x65) does:
-// `0x462384(client, component, group, unload)` removes the component-table node, unloads the group
+// `0x4682c8(client, component, group, unload)` removes the component-table node, unloads the group
 // when `unload` (bit 0), drops the group's IF_SETEVENTS ranges, marks the parent dirty and lays out
 // the root again. Only called when the node is open (the packet handler checks the same).
 // Game thread only. Verified 2026-10-17 gen 29 (closing the bank, group 12, in 601:27).
@@ -1564,23 +1564,23 @@ bool close_sub_interface(int component, int group, bool unload) {
     bool open = false;
     for (const SubInterface& s : open_sub_interfaces()) open |= s.component == component && s.group == group;
     if (!open) return false;
-    reinterpret_cast<void (*)(uintptr_t, int, uint32_t, uint64_t)>(g_base + 0x462384)(c, component, static_cast<uint32_t>(group), unload ? 1 : 0);
+    reinterpret_cast<void (*)(uintptr_t, int, uint32_t, uint64_t)>(g_base + 0x4682c8)(c, component, static_cast<uint32_t>(group), unload ? 1 : 0);
     return true;
 }
 
-// TRIGGER_ONDIALOGABORT (server packet 107, case 0x6b of 0x441dd4 at 0x444a48): with a root interface
-// (Client +0x413a88 != -1) `0x4405cc(client, root, 0x17)` runs onDialogAbort (+0x8d8) over the root's tree
+// TRIGGER_ONDIALOGABORT (server packet 107, case 0x6b of 0x4487d4 at 0x444a48): with a root interface
+// (Client +0x413a88 != -1) `0x446fcc(client, root, 0x17)` runs onDialogAbort (+0x8d8) over the root's tree
 // and its mounted sub-interfaces (0x45f5dc). Game thread only.
 bool trigger_dialog_abort() {
     uintptr_t c = client();
     if (!c) return false;
-    int root = read_at<int32_t>(c + 0x413a88);
+    int root = read_at<int32_t>(c + 0x413ac8);
     if (root == -1) return false;
-    reinterpret_cast<void (*)(uintptr_t, int, int)>(g_base + 0x4405cc)(c, root, 0x17);
+    reinterpret_cast<void (*)(uintptr_t, int, int)>(g_base + 0x446fcc)(c, root, 0x17);
     return true;
 }
 
-// RuneLite's Client.openInterface: IF_OPENSUB's helper `0x462640(client, component, group, mode)` adds (or
+// RuneLite's Client.openInterface: IF_OPENSUB's helper `0x468584(client, component, group, mode)` adds (or
 // re-uses) the component-table node, loads `group` into `component`, runs its onLoad and lays out the root.
 // Like desktop it doesn't close a node already in `component` (the packet handler does that first). It
 // dereferences the lookup of `component` unchecked, so both ids are validated first. Game thread only.
@@ -1589,21 +1589,21 @@ bool open_sub_interface(int component, int group, int mode) {
     if (!c || group < 0 || group > 0xffff || !widget_slot(component, -1)) return false;
     auto im = read_at<uintptr_t>(c + g_build->f_interfaces);
     if (!im || static_cast<uint64_t>(group) >= read_at<uint64_t>(im + 0x6888)) return false;
-    reinterpret_cast<uintptr_t (*)(uintptr_t, int, int, int)>(g_base + 0x462640)(c, component, group, mode);
+    reinterpret_cast<uintptr_t (*)(uintptr_t, int, int, int)>(g_base + 0x468584)(c, component, group, mode);
     return true;
 }
 
 // Minimap (`mm = *(Client+0x40e970)`, built by 0x58776c/0x589120): ARGB raster {u64 pixel count
 // +0x6440, int* pixels +0x6450, width/height +0x6458/+0x645c}, zoom (px per tile) +0x6470, image
 // size zoom*104 + 96; +0xc = the plane drawn into it (the cycle redraws when the render world
-// view's plane, Client[+0xc940]+0x18, differs: 0x41f22c). 0x589180(mm, plane, Scene*) clears it to
+// view's plane, Client[+0xc940]+0x18, differs: 0x41f22c). 0x549634(mm, plane, Scene*) clears it to
 // 0xff000000 and draws every tile, wall and map scenery of `plane` (desktop's minimap renderer).
 // Static RE gen 29 (subagent). Verified 2026-10-17 gen 29 with Instance Map (planes 0 and 2).
 bool draw_minimap(int plane, std::vector<int32_t>& out) {
     uintptr_t c = client();
     if (!c || plane < 0 || plane > 3) return false;
-    uintptr_t mm = read_at<uintptr_t>(c + 0x40e970);
-    uintptr_t wv = read_at<uintptr_t>(c + 0xc940);
+    uintptr_t mm = read_at<uintptr_t>(c + 0x40e9b0);
+    uintptr_t wv = read_at<uintptr_t>(c + 0xc980);
     uintptr_t scene = wv ? read_at<uintptr_t>(wv + 0x10) : 0;
     if (!mm || !scene || !read_at<uintptr_t>(mm + 0x65b8)) return false;
     auto* px = read_at<int32_t*>(mm + 0x6450);
@@ -1613,7 +1613,7 @@ bool draw_minimap(int plane, std::vector<int32_t>& out) {
     if (!px || zoom < 2 || zoom > 8 || w != size || h != size || count != static_cast<uint64_t>(size) * size) return false;
     int shown = read_at<int32_t>(mm + 0xc);
     using Render = void (*)(uintptr_t, int, uintptr_t);
-    auto render = reinterpret_cast<Render>(g_base + 0x589180);
+    auto render = reinterpret_cast<Render>(g_base + 0x549634);
     render(mm, plane, scene);
     // Desktop layout: the extended scene (184 tiles, 4 px each = 736 px); the mobile scene's 104
     // tiles are its middle (5 chunks in: 160 px), which is what Instance Map crops with
@@ -1627,7 +1627,7 @@ bool draw_minimap(int plane, std::vector<int32_t>& out) {
             if (sx < size && sy < size) out[(160 + y) * kInstanceMapSize + 160 + x] = px[sy * size + sx] & 0xffffff;
         }
     }
-    // Put the game's image back (0x589180 doesn't touch +0xc; at -1 the cycle redraws anyway).
+    // Put the game's image back (0x549634 doesn't touch +0xc; at -1 the cycle redraws anyway).
     if (shown >= 0 && shown <= 3) render(mm, shown, scene);
     return true;
 }
@@ -1674,7 +1674,7 @@ std::vector<Inventory> read_inventories() {
 
 int next_message_id() { return g_build ? read_at<int32_t>(g_base + g_build->next_message_id) : -1; }
 
-// Message (built by 0x3f0a04): +0x08 cycle, +0x40 type, +0x48 name, +0x70 sender, +0xa0 text.
+// Message (built by 0x3f5e14): +0x08 cycle, +0x40 type, +0x48 name, +0x70 sender, +0xa0 text.
 bool read_message(int id, ChatLine& out) {
     if (!g_build) return false;
     uintptr_t map = g_base + g_build->messages_by_id;
@@ -1709,22 +1709,22 @@ bool message_set_text(int id, const std::string& text) {
         auto msg = read_at<uintptr_t>(node + 0x10);
         if (!msg) return false;
         GameString s(text);
-        reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f1498)(msg + 0xa0, s.bytes);
+        reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f68a8)(msg + 0xa0, s.bytes);
         return true;
     }
     return false;
 }
 
-// Chat channels (global map 0xaab5e0, same layout as messages_by_id; node {int type; +0x08
+// Chat channels (global map 0xaba560, same layout as messages_by_id; node {int type; +0x08
 // channel*; +0x10 next}): a ring of 100 {ctrl*, Message*} pairs, +0x640 count, +0x644 newest
-// index (0x3ef964 adds). 0x43aacc(client) bumps the chat cycle (Client +0x413e6c) so the chatbox
+// index (0x3ef964 adds). 0x44141c(client) bumps the chat cycle (Client +0x413e6c) so the chatbox
 // rebuilds, as after any new message.
 namespace {
-constexpr uintptr_t kChatChannels = 0xaab5e0, kChatChanged = 0x43aacc;
-// All messages in arrival order: libc++ std::list {prev, next, size} at 0xaab610, newest first
-// (push_front in the Message constructor 0x3f0a04); node {prev, next, int id}; Message +0 = node.
+constexpr uintptr_t kChatChannels = 0xaba560, kChatChanged = 0x44141c;
+// All messages in arrival order: libc++ std::list {prev, next, size} at 0xaba590, newest first
+// (push_front in the Message constructor 0x3f5e14); node {prev, next, int id}; Message +0 = node.
 // The chatbox's All tab walks it by uid (chat_getprevuid 0x3f061c / chat_getnextuid 0x3f0694).
-constexpr uintptr_t kChatList = 0xaab610;
+constexpr uintptr_t kChatList = 0xaba590;
 uintptr_t chat_channel(int type) {
     uintptr_t map = g_base + kChatChannels;
     auto buckets = read_at<uintptr_t>(map + 8);
@@ -1746,7 +1746,7 @@ uintptr_t chat_channel(int type) {
 // regionLowX/Y (+0x50/+0x58) * 64 (0x4b795c/0x4b797c), current map 6616 = *(int*)area (area = wm+0xb8),
 // coordinmap 6621 = area lookup by id in the wm+0x78 bucket table (0x4b6be0) and the area's sections
 // (+0x68..+0x70, 16-byte {ctrl, section*}) vtable slot 6 contains(level, x, z) (0x5c57f4).
-static constexpr uintptr_t kClientWorldMap = 0x418660;
+static constexpr uintptr_t kClientWorldMap = 0x4186a0;
 
 static uintptr_t world_map() {
     uintptr_t c = client();
@@ -1805,7 +1805,7 @@ int world_map_contains(int map, int level, int x, int z) {
 bool world_map_jump(int level, int x, int z) {
     uintptr_t wm = world_map();
     if (!g_build || !wm) return false;
-    reinterpret_cast<void (*)(uintptr_t, int, int, int)>(g_base + 0x4b7854)(wm, level, x, z);
+    reinterpret_cast<void (*)(uintptr_t, int, int, int)>(g_base + 0x4c2364)(wm, level, x, z);
     return true;
 }
 
@@ -1874,8 +1874,8 @@ bool world_map_icons(int& rows, int& cols, std::vector<int>& out) {
 // 0x1212620 (filled by the config loader 0x634394; opcode 19 = category +0x180, sprite +4, textsize +0x30).
 bool map_element(int id, int& category, int& sprite) {
     if (!g_build || id < 0) return false;
-    uint64_t count = read_at<uint64_t>(g_base + 0x1212628);
-    uintptr_t data = read_at<uintptr_t>(g_base + 0x1212630);
+    uint64_t count = read_at<uint64_t>(g_base + 0x1283260);
+    uintptr_t data = read_at<uintptr_t>(g_base + 0x1283268);
     if (!data || static_cast<uint64_t>(id) >= count) return false;
     uintptr_t mel = read_at<uintptr_t>(data + static_cast<uintptr_t>(id) * 8);
     if (!mel) return false;
@@ -1887,13 +1887,13 @@ bool map_element(int id, int& category, int& sprite) {
 int afk_timeout_minutes() {
     uintptr_t c = client();
     if (!g_build || !c) return -1;
-    auto settings = read_at<uintptr_t>(c + 0x2278);
+    auto settings = read_at<uintptr_t>(c + 0x22b0);
     return settings ? read_at<int32_t>(settings + 0x154c) : -1;
 }
 bool set_afk_timeout_minutes(int minutes) {
     uintptr_t c = client();
     if (!g_build || !c || minutes < 1 || minutes > 35000) return false;
-    auto settings = read_at<uintptr_t>(c + 0x2278);
+    auto settings = read_at<uintptr_t>(c + 0x22b0);
     if (!settings) return false;
     *reinterpret_cast<int32_t*>(settings + 0x154c) = minutes;
     return true;
@@ -1905,8 +1905,8 @@ bool set_afk_timeout_minutes(int minutes) {
 bool world_list(std::vector<WorldEntry>& out) {
     out.clear();
     if (!g_build) return false;
-    auto count = read_at<uint64_t>(g_base + 0xace6c8);
-    auto list = read_at<uintptr_t>(g_base + 0xace6d0);
+    auto count = read_at<uint64_t>(g_base + 0xadd648);
+    auto list = read_at<uintptr_t>(g_base + 0xadd650);
     if (!list || count > 4096) return false;
     for (uint64_t i = 0; i < count; i++) {
         auto w = read_at<uintptr_t>(list + i * 8);
@@ -1925,14 +1925,14 @@ bool world_list(std::vector<WorldEntry>& out) {
     return true;
 }
 
-// The connected world's host and game ports, as setWorld (0x432748) / the arg parser (0x43d39c)
+// The connected world's host and game ports, as setWorld (0x439038) / the arg parser (0x43d39c)
 // store them: host string Client +0x3098, ports +0x30b0/+0x30b4.
 bool connection(std::string& host, int ports[2]) {
     uintptr_t c = client();
     if (!c) return false;
-    host = read_string(c + 0x3098);
-    ports[0] = read_at<int32_t>(c + 0x30b0);
-    ports[1] = read_at<int32_t>(c + 0x30b4);
+    host = read_string(c + 0x30d8);
+    ports[0] = read_at<int32_t>(c + 0x30f0);
+    ports[1] = read_at<int32_t>(c + 0x30f4);
     return true;
 }
 
@@ -1941,13 +1941,13 @@ bool connection(std::string& host, int ports[2]) {
 namespace {
 struct ClientInt { uint32_t off; bool byte; };
 constexpr ClientInt kClientInts[] = {
-    {0x894bc, false},  // 0 oculus orb state / camera mode (CAM_MODE writes it; 0x41d0a4 acts on 1 and 2)
-    {0x89500, false},  // 1 oculus orb focal point X (local units)
-    {0x89508, false},  // 2 oculus orb focal point Y
-    {0x413e6c, false}, // 3 chat cycle (refreshChat's 0x43aacc sets it; the chatbox rebuilds when it changes)
-    {0x413de4, false}, // 4 changed-skills ring count (241.4's f_changed_skill_count; queueChangedSkill bumps it)
-    {0x894c4, false},  // 5 orb/free camera normal speed (12; 0x41d0a4 moves the focal point this many units a cycle in modes 1 and 2)
-    {0x8951c, true},   // 6 pitch relaxer (u8; pitch range 0x001..0x1040 instead of 0x400..0xbf8; packet case 0x80 sets it)
+    {0x894fc, false},  // 0 oculus orb state / camera mode (CAM_MODE writes it; 0x41d0a4 acts on 1 and 2)
+    {0x89540, false},  // 1 oculus orb focal point X (local units)
+    {0x89548, false},  // 2 oculus orb focal point Y
+    {0x413eac, false}, // 3 chat cycle (refreshChat's 0x44141c sets it; the chatbox rebuilds when it changes)
+    {0x413e24, false}, // 4 changed-skills ring count (f_changed_skill_count; queueChangedSkill bumps it)
+    {0x89504, false},  // 5 orb/free camera normal speed (12; 0x41d0a4 moves the focal point this many units a cycle in modes 1 and 2)
+    {0x8955c, true},   // 6 pitch relaxer (u8; pitch range 0x001..0x1040 instead of 0x400..0xbf8; packet case 0x80 sets it)
 };
 }  // namespace
 bool client_int(int which, int& out) {
@@ -1970,31 +1970,31 @@ bool set_client_int(int which, int value) {
 // drag's pixel deltas by it into the pitch/yaw deltas (+0x894ac/+0x894b0) while the touch state is 8.
 bool camera_sensitivity(float& out) {
     uintptr_t c = client();
-    uintptr_t s = c ? read_at<uintptr_t>(c + 0x2280) : 0;
+    uintptr_t s = c ? read_at<uintptr_t>(c + 0x22b8) : 0;
     if (!s) return false;
     out = read_at<float>(s + 0x82c);
     return true;
 }
 bool set_camera_sensitivity(float v) {
     uintptr_t c = client();
-    uintptr_t s = c ? read_at<uintptr_t>(c + 0x2280) : 0;
+    uintptr_t s = c ? read_at<uintptr_t>(c + 0x22b8) : 0;
     if (!s) return false;
     *reinterpret_cast<volatile float*>(s + 0x82c) = v;
     return true;
 }
 
 // Music volume 0-255 (Client +0x2f58; every song/jingle request copies it, a request is dropped at 0).
-// Setting it as desktop does: the field, then the player's volume on every playing song (0x68ff50,
-// as the settings observer 0x441a80 does once the music system is ready, 0x68e948).
+// Setting it as desktop does: the field, then the player's volume on every playing song (0x69deac,
+// as the settings observer 0x441a80 does once the music system is ready, 0x69c8a4).
 int music_volume() {
     uintptr_t c = client();
-    return c ? read_at<int32_t>(c + 0x2f58) : -1;
+    return c ? read_at<int32_t>(c + 0x2f98) : -1;
 }
 bool set_music_volume(int v) {
     uintptr_t c = client();
     if (!g_build || !c || v < 0 || v > 255) return false;
-    *reinterpret_cast<volatile int32_t*>(c + 0x2f58) = v;
-    if (reinterpret_cast<bool (*)()>(g_base + 0x68e948)()) reinterpret_cast<void (*)(int)>(g_base + 0x68ff50)(v);
+    *reinterpret_cast<volatile int32_t*>(c + 0x2f98) = v;
+    if (reinterpret_cast<bool (*)()>(g_base + 0x69c8a4)()) reinterpret_cast<void (*)(int)>(g_base + 0x69deac)(v);
     return true;
 }
 
@@ -2002,7 +2002,7 @@ bool set_music_volume(int v) {
 // 005f3e8c.c). Settings S = *(Client+0x2278); each setting is an option object whose vtable +0x40 validates,
 // then the value is written and the observer *(opt+8) slot +0x18 notified (+0x30 would commit and save it).
 // Display *(Client+0x90): 0x6b0698(scale, disp) sets the UI canvas +0x6c/+0x70 from the surface +0x30/+0x34
-// divided by the scale +0x84 (uniform, held at a minimum size); 0x441b88(client) calls it with UiScaling/100
+// divided by the scale +0x84 (uniform, held at a minimum size); 0x448588(client) calls it with UiScaling/100
 // and lays the root interface out at the new canvas size.
 bool display(int out[5]) {
     uintptr_t c = client();
@@ -2017,7 +2017,7 @@ bool display(int out[5]) {
 }
 static uintptr_t settings_obj() {
     uintptr_t c = client();
-    return c && g_build ? read_at<uintptr_t>(c + 0x2278) : 0;
+    return c && g_build ? read_at<uintptr_t>(c + 0x22b0) : 0;
 }
 int ui_scaling() {
     uintptr_t s = settings_obj();
@@ -2026,7 +2026,7 @@ int ui_scaling() {
 bool relayout() {
     uintptr_t c = client();
     if (!c || !read_at<uintptr_t>(c + 0x90) || !settings_obj()) return false;
-    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x441b88)(c);
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x448588)(c);
     return true;
 }
 bool set_ui_scaling(int percent) {
@@ -2035,10 +2035,10 @@ bool set_ui_scaling(int percent) {
     *reinterpret_cast<volatile int32_t*>(s + 0x16bc) = percent;
     return relayout();
 }
-// The frame limit the frame function 0x86bdc8 sleeps to (Engine +0x18680, Engine = *(0x1fa1070); 60 at start,
+// The frame limit the frame function 0x86bdc8 sleeps to (Engine +0x18680, Engine = *(0x1ff0d40); 60 at start,
 // 0 = no wait); the FpsLimit setting (settings +0x45c, console fpslimit) is pushed into it by 0x41c524 through
 // 0x5a8c74. Static RE run 302 (re/decomp/006a8c74.c). Written directly: the setting itself is left as it is.
-static uintptr_t engine_obj() { return g_build ? read_at<uintptr_t>(g_base + 0x1fa1070) : 0; }
+static uintptr_t engine_obj() { return g_build ? read_at<uintptr_t>(g_base + 0x1ff0d40) : 0; }
 int fps_limit() {
     uintptr_t e = engine_obj();
     return e ? read_at<int32_t>(e + 0x18680) : -1;
@@ -2050,11 +2050,11 @@ bool set_fps_limit(int fps) {
     return true;
 }
 
-// The minimap build 0x589180(mm, plane, scene) (draw_minimap above), hooked so a plugin's tile drawer runs after
+// The minimap build 0x549634(mm, plane, scene) (draw_minimap above), hooked so a plugin's tile drawer runs after
 // each redraw. Static RE run 302 (re/decomp/00689180.c): it calls the tile draw 0x6de9d4 for tiles 1..102 at
 // pixel offset 48*size + 48 + x*zoom + (103-y)*zoom*size.
 namespace {
-constexpr uintptr_t kMinimapBuild = 0x589180;
+constexpr uintptr_t kMinimapBuild = 0x549634;
 constexpr uint32_t kMinimapBuildCode[4] = {0xd10203ff, 0xa9027bfd, 0xa9036ffc, 0xa90467fa};
 using MinimapBuildFn = void (*)(uintptr_t, int, uintptr_t);
 MinimapBuildFn g_minimap_build = nullptr;
@@ -2076,7 +2076,7 @@ void set_minimap_watch(bool on) {
 int minimap_drawn() { return g_minimap_drawn.exchange(-1); }
 bool minimap_raster(std::vector<int32_t>& out) {
     uintptr_t c = client();
-    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e970) : 0;
+    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e9b0) : 0;
     if (!mm) return false;
     auto* px = read_at<int32_t*>(mm + 0x6450);
     int zoom = read_at<int32_t>(mm + 0x6470), w = read_at<int32_t>(mm + 0x6458), size = zoom * 104 + 96;
@@ -2089,20 +2089,20 @@ bool minimap_raster(std::vector<int32_t>& out) {
 bool set_minimap_raster(const int32_t* src, size_t n) {
     std::vector<int32_t> cur;
     if (!minimap_raster(cur) || n != cur.size() - 2) return false;
-    uintptr_t mm = read_at<uintptr_t>(client() + 0x40e970);
+    uintptr_t mm = read_at<uintptr_t>(client() + 0x40e9b0);
     std::copy(src, src + n, read_at<int32_t*>(mm + 0x6450));
     return true;
 }
 
-// The music player's playing list (global vector 0x18e1cc8 of {ctrl, MusicSong*}): song +0x08 group id
+// The music player's playing list (global vector 0x18f0e70 of {ctrl, MusicSong*}): song +0x08 group id
 // in its archive, +0x00 the archive (Client +0x23a0 = the jingle archive, +0x2370 = music).
 bool midi_requests(std::vector<std::pair<int, bool>>& out) {
     out.clear();
     uintptr_t c = client();
     if (!g_build || !c) return false;
-    auto begin = read_at<uintptr_t>(g_base + 0x18e1cc8), end = read_at<uintptr_t>(g_base + 0x18e1cd0);
+    auto begin = read_at<uintptr_t>(g_base + 0x18f0e70), end = read_at<uintptr_t>(g_base + 0x18f0e78);
     if (end < begin || end - begin > 16 * 64) return false;
-    uintptr_t jingles = read_at<uintptr_t>(c + 0x23a0);
+    uintptr_t jingles = read_at<uintptr_t>(c + 0x23d8);
     for (uintptr_t e = begin; e < end; e += 16) {
         auto song = read_at<uintptr_t>(e + 8);
         if (song) out.emplace_back(read_at<int32_t>(song + 8), read_at<uintptr_t>(song) == jingles);
@@ -2115,7 +2115,7 @@ bool midi_requests(std::vector<std::pair<int, bool>>& out) {
 void clear_camera_shake() {
     uintptr_t c = client();
     if (!c) return;
-    for (int i = 0; i < 5; i++) *reinterpret_cast<volatile uint8_t*>(c + 0x894cd + i) = 0;
+    for (int i = 0; i < 5; i++) *reinterpret_cast<volatile uint8_t*>(c + 0x8950d + i) = 0;
 }
 
 // Camera drag inversion (Client.setInvertPitch/setInvertYaw). In touch state 8 the cycle 0x41d0a4 turns the
@@ -2129,29 +2129,29 @@ void invert_camera_drag(bool pitch, bool yaw) {
     if (!c) return;
     auto f = [c](uint32_t off) { return reinterpret_cast<volatile int32_t*>(c + off); };
     if (yaw) {
-        int step = *f(0x894a8);
-        *f(0x894a0) = (*f(0x894a0) - 2 * step) & 0x3fff;
-        *f(0x894a8) = -step;
-        *f(0x894ac) = -*f(0x894ac);
+        int step = *f(0x894e8);
+        *f(0x894e0) = (*f(0x894e0) - 2 * step) & 0x403f;
+        *f(0x894e8) = -step;
+        *f(0x894ec) = -*f(0x894ec);
     }
     if (pitch) {
-        bool relaxed = read_at<uint8_t>(c + 0x8951c) != 0;
+        bool relaxed = read_at<uint8_t>(c + 0x8955c) != 0;
         int lo = relaxed ? 1 : 0x400, hi = relaxed ? 0x1040 : 0xbf8;
-        int step = *f(0x894a4), now = *f(0x8949c);
+        int step = *f(0x894e4), now = *f(0x894dc);
         // shortcut: a step clamped at the limit it pushed towards is taken as starting there (exact but for
         // the one cycle that reaches the limit, off by less than the step)
         int before = (now == hi && step > 0) || (now == lo && step < 0) ? now : now - step;
-        *f(0x8949c) = std::min(hi, std::max(lo, before - step));
-        *f(0x894a4) = -step;
-        *f(0x894b0) = -*f(0x894b0);
+        *f(0x894dc) = std::min(hi, std::max(lo, before - step));
+        *f(0x894e4) = -step;
+        *f(0x894f0) = -*f(0x894f0);
     }
 }
 
-// 64-bit varps (VARP_LONG, case 53): beside the int tables, full-length long tables (server 0x1127c78,
-// client 0x1127c38) and a per-id flag table (0x1127c20, 1 = the varp is long: readers take the long
+// 64-bit varps (VARP_LONG, case 53): beside the int tables, full-length long tables (server 0x1136d00,
+// client 0x1136cc0) and a per-id flag table (0x1136ca8, 1 = the varp is long: readers take the long
 // table, else the int one), all {?, u64 count, data*}. Values are read as the game's readers do.
 namespace {
-constexpr uintptr_t kVarpLongServer = 0x1127c78, kVarpLongClient = 0x1127c38, kVarpIsLong = 0x1127c20;
+constexpr uintptr_t kVarpLongServer = 0x1136d00, kVarpLongClient = 0x1136cc0, kVarpIsLong = 0x1136ca8;
 }
 bool varps_long(bool server, std::vector<int64_t>& out) {
     out.clear();
@@ -2185,33 +2185,33 @@ bool set_varp_long(int id, int64_t v) {
 bool cross_world_ids(int64_t out[100], int& index) {
     uintptr_t c = client();
     if (!c) return false;
-    for (int i = 0; i < 100; i++) out[i] = read_at<int64_t>(c + 0x33e8 + 8 * i);
-    index = read_at<int32_t>(c + 0x3708);
+    for (int i = 0; i < 100; i++) out[i] = read_at<int64_t>(c + 0x3428 + 8 * i);
+    index = read_at<int32_t>(c + 0x3748);
     return true;
 }
 
-// Login screen globals (desktop's static Login fields): page 0xace678 (the draw 0x4233b0 and input
-// handler 0x41615c switch on it at gameState 10), input field 0xaae4f4 (0 username, 1 password).
-int login_index() { return g_build ? read_at<int32_t>(g_base + 0xace678) : -1; }
-int login_field() { return g_build ? read_at<int32_t>(g_base + 0xaae4f4) : -1; }
+// Login screen globals (desktop's static Login fields): page 0xadd5f8 (the draw 0x4233b0 and input
+// handler 0x41615c switch on it at gameState 10), input field 0xabd474 (0 username, 1 password).
+int login_index() { return g_build ? read_at<int32_t>(g_base + 0xadd5f8) : -1; }
+int login_field() { return g_build ? read_at<int32_t>(g_base + 0xabd474) : -1; }
 
 // The login screen's text (desktop's Login.username/password/otp): global 24-byte strings, username
-// 0xace660, password 0xaeeba8, authenticator PIN 0xaeebd8 (typed by 0x479adc, drawn by 0x4233b0, sent by
-// the submit 0x47bfd0). Written with the game's string assign 0x3f1498, as CC_SETTEXT. Game thread only.
+// 0xadd5e0, password 0xafdb38, authenticator PIN 0xafdb68 (typed by 0x479adc, drawn by 0x4233b0, sent by
+// the submit 0x47bfd0). Written with the game's string assign 0x3f68a8, as CC_SETTEXT. Game thread only.
 // shortcut: an Android text field already showing (0x479770) keeps its old text until refocused.
-static const uintptr_t kLoginText[3] = {0xace660, 0xaeeba8, 0xaeebd8};
+static const uintptr_t kLoginText[3] = {0xadd5e0, 0xafdb38, 0xafdb68};
 std::string login_text(int which) {
     return g_build && which >= 0 && which < 3 ? read_string(g_base + kLoginText[which]) : std::string();
 }
 bool set_login_text(int which, const std::string& text) {
     if (!g_build || which < 0 || which > 2) return false;
     GameString s(text);
-    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f1498)(g_base + kLoginText[which], s.bytes);
+    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f68a8)(g_base + kLoginText[which], s.bytes);
     return true;
 }
 
 // Title background (desktop's Login.leftTitleSprite/rightTitleSprite): the loader 0x42e5fc decodes
-// titlewide.png into the Sprite at *0xaee8b8 and its mirror at *0xaee8c8 (Sprite: +0x10 u32* ARGB
+// titlewide.png into the Sprite at *0xafd848 and its mirror at *0xafd858 (Sprite: +0x10 u32* ARGB
 // pixels, +0x18 w, +0x1c h); the login draw puts them side by side, the mirror right. A plugin's
 // background is stretched over both (left half, right half), the game's pixels kept to restore; the
 // loader re-creates them, so it is re-applied whenever the sprite changes. Game thread (after a cycle).
@@ -2222,7 +2222,7 @@ int g_bg_w, g_bg_h;
 bool g_bg_dirty;
 uintptr_t g_bg_applied;      // the left Sprite the plugin's pixels are in, 0 = none
 std::vector<uint32_t> g_bg_saved[2];
-uintptr_t title_sprite(int i) { return read_at<uintptr_t>(g_base + (i ? 0xaee8c8 : 0xaee8b8)); }
+uintptr_t title_sprite(int i) { return read_at<uintptr_t>(g_base + (i ? 0xafd858 : 0xafd848)); }
 }  // namespace
 void set_login_background(const int32_t* rgb, int w, int h) {
     std::lock_guard lock(g_bg_mutex);
@@ -2278,7 +2278,7 @@ bool login_background(int32_t out[6]) {
     return true;
 }
 
-// The login screen's fire (desktop's loginScreenRunesAnimation): 0x4d5f30(anim, x, cycle, renderer)
+// The login screen's fire (desktop's loginScreenRunesAnimation): 0x52b2c4(anim, x, cycle, renderer)
 // steps and draws it, called twice by the title draw (0x427218/0x427230) and for content type 1402
 // (0x45a3b0). While off, the hook returns at once (desktop's shouldRenderLoginScreenFire false).
 namespace {
@@ -2288,7 +2288,7 @@ std::atomic<bool> g_fire_on{true};
 void hook_fire(void* anim, int x, int cycle, void* r) {
     if (g_fire_on.load(std::memory_order_relaxed)) g_fire_orig(anim, x, cycle, r);
 }
-constexpr uintptr_t kFireDraw = 0x4d5f30;
+constexpr uintptr_t kFireDraw = 0x52b2c4;
 constexpr uint32_t kFireDrawCode[4] = {0xa9bd7bfd, 0xf9000bf5, 0xa9024ff4, 0x910003fd};
 }  // namespace
 void install_fire_hook() {
@@ -2299,27 +2299,27 @@ void set_login_fire(bool on) { g_fire_on.store(on, std::memory_order_relaxed); }
 bool login_fire() { return g_fire_on.load(std::memory_order_relaxed); }
 
 // Minimap zoom (px per tile, int 2..8 at mm +0x6470, mm = *(Client+0x40e970)) and its zoom-input flag
-// (u8 mm +0x64b4, CS2 7250/7251). The game's setter 0x463528(client, zoom) (CS2 7252) clamps, resizes
+// (u8 mm +0x64b4, CS2 7250/7251). The game's setter 0x46946c(client, zoom) (CS2 7252) clamps, resizes
 // the minimap image and redraws it with the render world view's scene and plane.
 int minimap_zoom() {
     uintptr_t c = client();
-    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e970) : 0;
+    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e9b0) : 0;
     return mm ? read_at<int32_t>(mm + 0x6470) : -1;
 }
 bool set_minimap_zoom(int zoom) {
     uintptr_t c = client();
-    if (!g_build || !c || !read_at<uintptr_t>(c + 0x40e970) || !read_at<uintptr_t>(c + 0xc940)) return false;
-    reinterpret_cast<void (*)(uintptr_t, int)>(g_base + 0x463528)(c, zoom);
+    if (!g_build || !c || !read_at<uintptr_t>(c + 0x40e9b0) || !read_at<uintptr_t>(c + 0xc980)) return false;
+    reinterpret_cast<void (*)(uintptr_t, int)>(g_base + 0x46946c)(c, zoom);
     return true;
 }
 int minimap_zoom_input() {
     uintptr_t c = client();
-    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e970) : 0;
+    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e9b0) : 0;
     return mm ? read_at<uint8_t>(mm + 0x64b4) : -1;
 }
 bool set_minimap_zoom_input(bool on) {
     uintptr_t c = client();
-    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e970) : 0;
+    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e9b0) : 0;
     if (!mm) return false;
     *reinterpret_cast<volatile uint8_t*>(mm + 0x64b4) = on ? 1 : 0;
     return true;
@@ -2329,12 +2329,12 @@ bool set_minimap_zoom_input(bool on) {
 // menu model); drags and flings write it and the next layout clamps it (0x66ee64).
 int menu_scroll() {
     uintptr_t c = client();
-    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x4132b0) : 0;
+    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x4132f0) : 0;
     return mm ? read_at<int32_t>(mm + 0x2b8) : 0;
 }
 bool set_menu_scroll(int v) {
     uintptr_t c = client();
-    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x4132b0) : 0;
+    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x4132f0) : 0;
     if (!mm) return false;
     *reinterpret_cast<volatile int32_t*>(mm + 0x2b8) = v;
     return true;
@@ -2344,7 +2344,7 @@ bool set_menu_scroll(int v) {
 // own enter 0x5025c8 also sets the widget, verb and name and runs onTargetEnter).
 bool begin_target_mode() {
     uintptr_t c = client();
-    uintptr_t holder = c ? read_at<uintptr_t>(c + 0x4132b0) : 0;
+    uintptr_t holder = c ? read_at<uintptr_t>(c + 0x4132f0) : 0;
     if (!holder) return false;
     *reinterpret_cast<volatile uint8_t*>(holder + 2000 + 0x9f) = 1;
     return true;
@@ -2358,8 +2358,8 @@ bool set_server_tick(int tick) {
     return true;
 }
 
-// Members world. setWorld (0x432748), run when a world is picked from the world list or by a
-// world-switch packet, sets Client+0x2070 = flags & 1 and calls setMembersWorld (0x642f14), which
+// Members world. setWorld (0x439038), run when a world is picked from the world list or by a
+// world-switch packet, sets Client+0x2070 = flags & 1 and calls setMembersWorld (0x650c44), which
 // flushes the obj cache and sets the global members byte (0x1221e90: "(Members)" item names and
 // hidden ops when 0). The jav_config path that starts the game on its world only writes the flags
 // (Client+0x2f64), so a members world started that way stays free-to-play. Complete that step with
@@ -2367,12 +2367,12 @@ bool set_server_tick(int tick) {
 void sync_members_world() {
     uintptr_t c = client();
     if (!g_build || !c || game_state() < 10) return;
-    bool members = read_at<int32_t>(c + 0x2f64) & 1;
+    bool members = read_at<int32_t>(c + 0x2fa4) & 1;
     auto* cached = reinterpret_cast<uint8_t*>(c + 0x2070);
     if (static_cast<bool>(*cached & 1) == members) return;
     *cached = members ? 1 : 0;
-    reinterpret_cast<void (*)(bool)>(g_base + 0x642f14)(members);
-    LOGI("game: members world %d (flags %#x)", members ? 1 : 0, read_at<int32_t>(c + 0x2f64));
+    reinterpret_cast<void (*)(bool)>(g_base + 0x650c44)(members);
+    LOGI("game: members world %d (flags %#x)", members ? 1 : 0, read_at<int32_t>(c + 0x2fa4));
 }
 
 void chat_changed() {
@@ -2439,7 +2439,7 @@ bool actor_set_overhead(uintptr_t a, const std::string* text, int cycle) {
     if (!a) return false;
     if (text) {
         GameString s(*text);
-        reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f1498)(a + 0x2d8, s.bytes);
+        reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f68a8)(a + 0x2d8, s.bytes);
     }
     if (cycle >= 0) *reinterpret_cast<int32_t*>(a + 0x2f4) = cycle;
     return true;
@@ -2512,18 +2512,18 @@ bool actor_spot_anim_set(uintptr_t a, int slot, int field, int value) {
     return false;
 }
 
-// The game's adder 0x4714e8(actor, slot, id, height, delay, cycle, loop), as PLAYER_SPOTANIM_SPECIFIC
+// The game's adder 0x47745c(actor, slot, id, height, delay, cycle, loop), as PLAYER_SPOTANIM_SPECIFIC
 // (dispatcher case 0x62): replaces the slot's spot anim, starting at cycle + delay; id -1 removes the slot.
 bool actor_create_spot_anim(uintptr_t a, int slot, int id, int height, int delay) {
     if (!a || !g_build) return false;
-    reinterpret_cast<void (*)(uintptr_t, int, int, int, int, int, int)>(g_base + 0x4714e8)(a, slot, id, height, delay, cycle(), 0);
+    reinterpret_cast<void (*)(uintptr_t, int, int, int, int, int, int)>(g_base + 0x47745c)(a, slot, id, height, delay, cycle(), 0);
     return true;
 }
 
 bool reload_scene() {
     uintptr_t c = client();
     if (!c || game_state() != 30) return false;
-    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x429900)(c);
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x43014c)(c);
     return true;
 }
 
@@ -2533,7 +2533,7 @@ bool reload_scene() {
 std::vector<uint8_t> target_state_bytes(int len) {
     std::vector<uint8_t> out;
     uintptr_t c = client();
-    uintptr_t holder = c ? read_at<uintptr_t>(c + 0x4132b0) : 0;
+    uintptr_t holder = c ? read_at<uintptr_t>(c + 0x4132f0) : 0;
     if (!holder || len <= 0 || len > 0x400) return out;
     out.resize(len);
     for (int i = 0; i < len; i++) out[i] = read_at<uint8_t>(holder + 2000 + i);
@@ -2545,7 +2545,7 @@ std::vector<uint8_t> target_state_bytes(int len) {
 // Wiki's 0x13800), +0x9f non-zero while target mode is on (Cancel clears it), +0x20 verb, +0x68 selected name.
 bool target_mode(int out[3]) {
     uintptr_t c = client();
-    uintptr_t holder = c ? read_at<uintptr_t>(c + 0x4132b0) : 0;
+    uintptr_t holder = c ? read_at<uintptr_t>(c + 0x4132f0) : 0;
     if (!holder) return false;
     uintptr_t st = holder + 2000;
     out[0] = read_at<uint8_t>(st + 0x9f) != 0;
@@ -2558,7 +2558,7 @@ bool target_mode(int out[3]) {
 // also reset other fields there; the menu builders only test +0x9f).
 bool end_target_mode() {
     uintptr_t c = client();
-    uintptr_t holder = c ? read_at<uintptr_t>(c + 0x4132b0) : 0;
+    uintptr_t holder = c ? read_at<uintptr_t>(c + 0x4132f0) : 0;
     if (!holder) return false;
     *reinterpret_cast<volatile uint8_t*>(holder + 2000 + 0x9f) = 0;
     return true;
@@ -2566,14 +2566,14 @@ bool end_target_mode() {
 
 int friend_list_state() {
     uintptr_t c = client();
-    auto fm = c ? read_at<uintptr_t>(c + 0x46c0) : 0;
+    auto fm = c ? read_at<uintptr_t>(c + 0x4700) : 0;
     return fm ? read_at<int32_t>(fm + 0x150) : 0;
 }
 
 bool friend_list(bool ignores, std::vector<FriendEntry>& out) {
     out.clear();
     uintptr_t c = client();
-    auto fm = c ? read_at<uintptr_t>(c + 0x46c0) : 0;
+    auto fm = c ? read_at<uintptr_t>(c + 0x4700) : 0;
     if (!fm || read_at<int32_t>(fm + 0x150) != 2) return false;
     uintptr_t box = fm + (ignores ? 0xb8 : 0x08);
     int n = read_at<int32_t>(box + 0xc);
@@ -2603,7 +2603,7 @@ bool friend_list(bool ignores, std::vector<FriendEntry>& out) {
 bool pending_logins(std::vector<PendingLogin>& out) {
     out.clear();
     uintptr_t c = client();
-    auto fm = c ? read_at<uintptr_t>(c + 0x46c0) : 0;
+    auto fm = c ? read_at<uintptr_t>(c + 0x4700) : 0;
     if (!fm) return false;
     uintptr_t b = read_at<uintptr_t>(fm + 0xa0), e = read_at<uintptr_t>(fm + 0xa8);
     if (!b || e < b || (e - b) % 0x38 || (e - b) / 0x38 > 400) return false;
@@ -2618,7 +2618,7 @@ bool pending_logins(std::vector<PendingLogin>& out) {
 // client-api-host-gaps-reach of the appearance decoder 0x4762d4 and the setter 0x5e4648): Appearance +0x90 u64
 // count, +0x98 {ctrl, obj} per slot (null obj = none, 12 slots); obj (0x60 bytes, ctor 0x642f9c): recolour-to
 // {+0x10 count, +0x18 int16*}, retexture-to {+0x28 count, +0x30 int16*}, defaults copied from the ObjType's
-// replace arrays; the model hash 0x5e1bd4 and build 0x5e2658 read them. Game thread.
+// replace arrays; the model hash 0x5eede4 and build 0x5e2658 read them. Game thread.
 bool appearance_overrides(uintptr_t player, ObjOverride out[12]) {
     for (int i = 0; i < 12; i++) out[i] = {};
     uintptr_t app = player ? read_at<uintptr_t>(player + 0x728) : 0;
@@ -2644,7 +2644,7 @@ Point walk_destination() {
     // The map flag (SET_MAP_FLAG_V2 and the client's own walk): Client +0x40e970 -> {scene x, y},
     // 0,0 when cleared (setter 0x4410b0). OpenRune flags every route; the older Client +0xecdc pair
     // only showed client-side walks on our old server.
-    if (auto flag = read_at<uintptr_t>(client() + 0x40e970)) {
+    if (auto flag = read_at<uintptr_t>(client() + 0x40e9b0)) {
         int x = read_at<int32_t>(flag), y = read_at<int32_t>(flag + 4);
         if (x > 0 || y > 0) return {x, y};
     }
@@ -2709,7 +2709,7 @@ bool run_script(const std::vector<ScriptArg>& args, ScriptResult& out, std::stri
             vars[i].type = 1;
         }
     }
-    // ScriptEvent, as runScriptEvent (0x4df54c) reads it: +0x08 argc, +0x10 args, +0x40 source
+    // ScriptEvent, as runScriptEvent (0x588988) reads it: +0x08 argc, +0x10 args, +0x40 source
     // widget, +0x48.. mouse/op values for the magic int args, +0x60 drag target, +0x70 opbase
     // string, +0x88 copied to vm+0xe0cc, +0x8c trigger type (0 = look the script up by id).
     alignas(16) uint8_t ev[0x100] = {};
@@ -2872,21 +2872,21 @@ bool set_script_string(int index, const std::string& text) {
     uintptr_t v = vm + 0xff8 + static_cast<uintptr_t>(index) * 0x28;
     if (read_at<uint32_t>(v + 0x20) != 2) return false;
     GameString s(text);
-    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f1498)(v, s.bytes);
+    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f68a8)(v, s.bytes);
     return true;
 }
 
 // Text width in a game font, as CS2 PARAWIDTH (4109, case 0x100d of Ghidra 005ef2ec.c): font =
-// 0x43cce0(client, font id) (the font cache at Client +0x414fc8, loads on a miss), and the
-// per-line width 0x685370(font, string*, 1) that PARAWIDTH's 0x6871ec takes the max of over the
+// 0x443630(client, font id) (the font cache at Client +0x414fc8, loads on a miss), and the
+// per-line width 0x6932cc(font, string*, 1) that PARAWIDTH's 0x6871ec takes the max of over the
 // wrapped lines. -1 when the font isn't available. Game thread. Static RE (gen 22).
 int text_width(int font_id, const std::string& text) {
     uintptr_t c = client();
     if (!c || font_id < 0) return -1;
-    uintptr_t font = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x43cce0)(c, font_id);
+    uintptr_t font = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x443630)(c, font_id);
     if (!font) return -1;
     GameString s(text);
-    return reinterpret_cast<int (*)(uintptr_t, const void*, int)>(g_base + 0x685370)(font, s.bytes, 1);
+    return reinterpret_cast<int (*)(uintptr_t, const void*, int)>(g_base + 0x6932cc)(font, s.bytes, 1);
 }
 
 // A game font's ascent (RuneLite FontTypeFace.getBaseline): Font +0x00, written by the metrics decoder
@@ -2895,13 +2895,13 @@ int text_width(int font_id, const std::string& text) {
 int font_ascent(int font_id) {
     uintptr_t c = client();
     if (!c || font_id < 0) return -1;
-    uintptr_t font = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x43cce0)(c, font_id);
+    uintptr_t font = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x443630)(c, font_id);
     return font ? read_at<int32_t>(font) : -1;
 }
 
 // The VM's active components (RuneLite's scriptActiveWidget / scriptDotWidget): {ctrl, Widget*}
 // pairs at vm +0xded8 (cc_*) and +0xdee8 (.cc_*, the opcode's isLong flag), set by CC_CREATE /
-// CC_FIND and read by every CC_* handler in 0x4e06dc (case 0x65 null-checks +0 and bumps its
+// CC_FIND and read by every CC_* handler in 0x589b20 (case 0x65 null-checks +0 and bumps its
 // count at +8, so +0 is the control block). widget_ref validates the pointer. Static RE (gen 22).
 bool script_active_widget(bool dot, int* component, int* index) {
     if (!g_build || !g_build->script_vm) return false;
@@ -2941,14 +2941,14 @@ void release_shared_ptr(uintptr_t ctrl);
 // column << 4), tuple index; pushes the tuple's values onto the int (+0x50/+0xff0), object
 // (+0xff8/+0xac38) and long (+0xac40/+0xcb80) stacks. DBRowType 0x74f824 (+0x30 table id),
 // DBTableType 0x6eb2c4, column types 0x6ec320(table, column) → {+0x08 count, +0x10 type*[]},
-// each type's +0x08 = the int/long/string descriptor (globals 0x1d8aff8/0x1d8b000/0x1d8b008).
+// each type's +0x08 = the int/long/string descriptor (globals 0x1ddacc8/0x1ddacd0/0x1ddacd8).
 int db_row_table(int row) {
     if (!g_build || !g_build->script_vm || row < 0 || row > 0xffff) return -1;
     struct SharedPtr {
         uintptr_t ctrl, obj;
         ~SharedPtr() {}
     };
-    SharedPtr r = reinterpret_cast<SharedPtr (*)(int)>(g_base + 0x64f824)(row);
+    SharedPtr r = reinterpret_cast<SharedPtr (*)(int)>(g_base + 0x65d3b4)(row);
     int table = r.obj ? read_at<int32_t>(r.obj + 0x30) : -1;
     release_shared_ptr(r.ctrl);
     return table;
@@ -2965,9 +2965,9 @@ int db_field_count(int row, int column) {
         ~SharedPtr() {}
     };
     // The column must exist (the handler reads its type list).
-    SharedPtr t = reinterpret_cast<SharedPtr (*)(int)>(g_base + 0x5eb2c4)(table);
+    SharedPtr t = reinterpret_cast<SharedPtr (*)(int)>(g_base + 0x5f84d4)(table);
     if (!t.obj) { release_shared_ptr(t.ctrl); return -1; }
-    uintptr_t types = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x5ec320)(t.obj, column);
+    uintptr_t types = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x5f9530)(t.obj, column);
     uint64_t ntypes = types ? read_at<uint64_t>(types + 8) : 0;
     release_shared_ptr(t.ctrl);
     if (ntypes == 0) return -1;
@@ -2975,7 +2975,7 @@ int db_field_count(int row, int column) {
     *reinterpret_cast<int32_t*>(vm + 0xff0) = 2;
     ints[0] = row;
     ints[1] = (table << 12) | (column << 4);
-    int ok = reinterpret_cast<int (*)(uintptr_t, int)>(g_base + 0x4cd7f4)(vm, 7503);
+    int ok = reinterpret_cast<int (*)(uintptr_t, int)>(g_base + 0x5229b0)(vm, 7503);
     int n = read_at<int32_t>(vm + 0xff0);
     int count = ok == 1 && n == 1 ? ints[0] : -1;
     *reinterpret_cast<int32_t*>(vm + 0xff0) = 0;
@@ -2993,16 +2993,16 @@ bool db_field(int row, int column, int tuple, std::vector<DbValue>& out) {
         uintptr_t ctrl, obj;
         ~SharedPtr() {}
     };
-    SharedPtr r = reinterpret_cast<SharedPtr (*)(int)>(g_base + 0x64f824)(row);
+    SharedPtr r = reinterpret_cast<SharedPtr (*)(int)>(g_base + 0x65d3b4)(row);
     if (!r.obj) { release_shared_ptr(r.ctrl); return false; }
     int table = read_at<int32_t>(r.obj + 0x30);
     release_shared_ptr(r.ctrl);
-    SharedPtr t = reinterpret_cast<SharedPtr (*)(int)>(g_base + 0x5eb2c4)(table);
+    SharedPtr t = reinterpret_cast<SharedPtr (*)(int)>(g_base + 0x5f84d4)(table);
     if (!t.obj) { release_shared_ptr(t.ctrl); return false; }
-    uintptr_t types = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x5ec320)(t.obj, column);
+    uintptr_t types = reinterpret_cast<uintptr_t (*)(uintptr_t, int)>(g_base + 0x5f9530)(t.obj, column);
     std::vector<int> kinds;
-    uintptr_t int_t = read_at<uintptr_t>(g_base + 0x1d8aff8), long_t = read_at<uintptr_t>(g_base + 0x1d8b000),
-              str_t = read_at<uintptr_t>(g_base + 0x1d8b008);
+    uintptr_t int_t = read_at<uintptr_t>(g_base + 0x1ddacc8), long_t = read_at<uintptr_t>(g_base + 0x1ddacd0),
+              str_t = read_at<uintptr_t>(g_base + 0x1ddacd8);
     uint64_t n = types ? read_at<uint64_t>(types + 8) : 0;
     uintptr_t arr = types ? read_at<uintptr_t>(types + 0x10) : 0;
     for (uint64_t k = 0; arr && k < n && k < 64; k++) {
@@ -3019,7 +3019,7 @@ bool db_field(int row, int column, int tuple, std::vector<DbValue>& out) {
     ints[0] = row;
     ints[1] = (table << 12) | (column << 4);
     ints[2] = tuple;
-    int ok = reinterpret_cast<int (*)(uintptr_t, int)>(g_base + 0x4cd7f4)(vm, 7502);
+    int ok = reinterpret_cast<int (*)(uintptr_t, int)>(g_base + 0x5229b0)(vm, 7502);
     int ni = read_at<int32_t>(vm + 0xff0), no = read_at<int32_t>(vm + 0xac38), nl = read_at<int32_t>(vm + 0xcb80);
     auto reset = [vm] {
         *reinterpret_cast<int32_t*>(vm + 0xff0) = 0;
@@ -3088,8 +3088,8 @@ bool varbit_def(int id, VarbitDef& out) {
 // std::vector<uint16_t> ids {begin, end, cap}, +0x417bc0 next index, +0x417bc4 count.
 // Static RE (gen 21). // unverified: no plugin path exercised on the device yet
 namespace {
-constexpr uint32_t kGeIds = 0x417ba8, kGeIndex = 0x417bc0, kGeCount = 0x417bc4;
-constexpr uintptr_t kOperatorNew = 0x9f4384, kOperatorDelete = 0x9f43f4;
+constexpr uint32_t kGeIds = 0x417be8, kGeIndex = 0x417c00, kGeCount = 0x417c04;
+constexpr uintptr_t kOperatorNew = 0xa02524, kOperatorDelete = 0xa02594;
 }  // namespace
 
 bool set_ge_search_ids(const int16_t* ids, int n) {
@@ -3130,7 +3130,7 @@ bool set_ge_search_int(bool index, int value) {
 // Minimap dot styles (the `setminimapdotstyle` console command 0x594634): Minimap = *(Client
 // +0x40e970) (also the map flag holder); per category 0-6 a shared_ptr dot sprite at +0x64c0 +
 // cat*0x10 and dot colour / outline colour / outline thickness at +0x6530 / +0x6534 / +0x6538
-// + cat*0x10. setDotStyle(minimap, cat, dot rgb, outline rgb, thickness) 0x588eac rebuilds the
+// + cat*0x10. setDotStyle(minimap, cat, dot rgb, outline rgb, thickness) 0x549360 rebuilds the
 // sprite from the base dot (+0x6610 +0x60). Static RE (gen 21); recolouring verified on device (gen 22)
 // The base dot (*(mm +0x6610)) only exists once the minimap is set up after login; with it null,
 // setDotStyle's rebuild reads null+0x88 (crashed the game at startup, gen 22). Both functions
@@ -3138,7 +3138,7 @@ bool set_ge_search_int(bool index, int value) {
 static uintptr_t minimap_ready() {
     uintptr_t c = client();
     if (!c) return 0;
-    uintptr_t mm = read_at<uintptr_t>(c + 0x40e970);
+    uintptr_t mm = read_at<uintptr_t>(c + 0x40e9b0);
     if (!mm || !read_at<uintptr_t>(mm + 0x6610)) return 0;
     return mm;
 }
@@ -3147,7 +3147,7 @@ bool minimap_dot_style(int cat, int dot_rgb, int outline_rgb, int thickness) {
     if (cat < 0 || cat > 6 || thickness < 0) return false;
     uintptr_t mm = minimap_ready();
     if (!mm) return false;
-    reinterpret_cast<void (*)(uintptr_t, unsigned, int, int, int)>(g_base + 0x588eac)(mm, cat, dot_rgb, outline_rgb, thickness);
+    reinterpret_cast<void (*)(uintptr_t, unsigned, int, int, int)>(g_base + 0x549360)(mm, cat, dot_rgb, outline_rgb, thickness);
     return true;
 }
 
@@ -3184,7 +3184,7 @@ bool set_varp(int id, int value) {
 
 static uintptr_t varc_store() {
     uintptr_t c = client();
-    return c ? read_at<uintptr_t>(c + 0x417b68) : 0;
+    return c ? read_at<uintptr_t>(c + 0x417ba8) : 0;
 }
 
 bool set_varc_int(int id, int value) {
@@ -3208,7 +3208,7 @@ bool set_varc_string(int id, const std::string& value) {
 
 
 // Sprite (graphic) by id through the game's sprite cache: getSprite(cache, id, outline, vflip,
-// hflip, shadow, bool* ok) at 0x5d4074 returns (x0) a pointer to the cached {ctrl, Sprite*} slot,
+// hflip, shadow, bool* ok) at 0x5e1284 returns (x0) a pointer to the cached {ctrl, Sprite*} slot,
 // not add-ref'd; ok stays false while the sprites archive (8) isn't loaded. Cache = Client +0x413a98.
 // Frame 0 only. Pixels are ARGB with alpha 0xff (0 = transparent).
 bool sprite(int id, std::vector<uint32_t>& pixels, int& width, int& height) {
@@ -3216,11 +3216,11 @@ bool sprite(int id, std::vector<uint32_t>& pixels, int& width, int& height) {
     if (!g_build || !c || id < 0 || id > 0xfffff) return false;
     // Only once the game is past its loading screens (state >= 10) and the cache has its
     // sprites archive (+0x10): a call during startup crashed the game thread.
-    auto cache = read_at<uintptr_t>(c + 0x413a98);
+    auto cache = read_at<uintptr_t>(c + 0x413ad8);
     if (!cache || game_state() < 10 || !read_at<uintptr_t>(cache + 0x10)) return false;
     bool ok = false;
     using Fn = const uintptr_t* (*)(uintptr_t, int, int, bool, bool, int, bool*);
-    const uintptr_t* slot = reinterpret_cast<Fn>(g_base + 0x5d4074)(cache, id, 0, false, false, 0, &ok);
+    const uintptr_t* slot = reinterpret_cast<Fn>(g_base + 0x5e1284)(cache, id, 0, false, false, 0, &ok);
     if (!ok || !slot || !slot[1]) return false;
     uintptr_t spr = slot[1];
     width = read_at<int32_t>(spr + 0x18);
@@ -3236,11 +3236,11 @@ bool sprite(int id, std::vector<uint32_t>& pixels, int& width, int& height) {
 bool sprite_info(int id, int out[6]) {
     uintptr_t c = client();
     if (!g_build || !c || id < 0 || id > 0xfffff) return false;
-    auto cache = read_at<uintptr_t>(c + 0x413a98);
+    auto cache = read_at<uintptr_t>(c + 0x413ad8);
     if (!cache || game_state() < 10 || !read_at<uintptr_t>(cache + 0x10)) return false;
     bool ok = false;
     using Fn = const uintptr_t* (*)(uintptr_t, int, int, bool, bool, int, bool*);
-    const uintptr_t* slot = reinterpret_cast<Fn>(g_base + 0x5d4074)(cache, id, 0, false, false, 0, &ok);
+    const uintptr_t* slot = reinterpret_cast<Fn>(g_base + 0x5e1284)(cache, id, 0, false, false, 0, &ok);
     if (!ok || !slot || !slot[1]) return false;
     uintptr_t spr = slot[1];
     for (int i = 0; i < 6; i++) out[i] = read_at<int32_t>(spr + 0x18 + 4 * i);
@@ -3250,7 +3250,7 @@ bool sprite_info(int id, int out[6]) {
 bool sprite_array(int which, std::vector<int32_t>& out) {
     uintptr_t c = client();
     if (!g_build || !c || which < 0 || which > 1 || game_state() < 10) return false;
-    uintptr_t obj = read_at<uintptr_t>(c + (which == 0 ? 0x2510 : 0x24b8));
+    uintptr_t obj = read_at<uintptr_t>(c + (which == 0 ? 0x2548 : 0x24f0));
     if (!obj) return false;
     uint64_t n = read_at<uint64_t>(obj + 8);
     uintptr_t arr = read_at<uintptr_t>(obj + 0x10);
@@ -3280,8 +3280,8 @@ namespace {
 uintptr_t texture_provider() {
     uintptr_t c = client();
     if (!g_build || !c || game_state() < 10) return 0;
-    uintptr_t p = read_at<uintptr_t>(c + 0x4710);
-    return p && read_at<uintptr_t>(p) == g_base + 0xa75748 ? p : 0;  // its vtable, else not built yet
+    uintptr_t p = read_at<uintptr_t>(c + 0x4750);
+    return p && read_at<uintptr_t>(p) == g_base + 0xa846d0 ? p : 0;  // its vtable, else not built yet
 }
 uintptr_t texture_at(uintptr_t p, int id) {
     uintptr_t b = read_at<uintptr_t>(p + 8), e = read_at<uintptr_t>(p + 0x10);
@@ -3318,7 +3318,7 @@ bool texture_pixels(int id, bool load, std::vector<int32_t>& out) {
     };
     uintptr_t ctrl = 0, obj = read_at<uintptr_t>(t + 0x58);
     if (load) {
-        SharedPtr r = reinterpret_cast<SharedPtr (*)(uintptr_t, int)>(g_base + 0x6d4930)(p, id);
+        SharedPtr r = reinterpret_cast<SharedPtr (*)(uintptr_t, int)>(g_base + 0x6e2850)(p, id);
         ctrl = r.ctrl;
         obj = r.obj;
     }
@@ -3347,7 +3347,7 @@ bool set_skybox_colour(int argb) {
     uintptr_t sc = c ? read_at<uintptr_t>(c + 0x90) : 0;
     if (!sc) return false;
     auto f = [&](int shift) { return static_cast<float>((static_cast<uint32_t>(argb) >> shift) & 0xff) / 255.0f; };
-    reinterpret_cast<void (*)(uintptr_t, float, float, float, float)>(g_base + 0x6b083c)(sc, f(16), f(8), f(0), f(24));
+    reinterpret_cast<void (*)(uintptr_t, float, float, float, float)>(g_base + 0x6be798)(sc, f(16), f(8), f(0), f(24));
     return true;
 }
 
@@ -3370,11 +3370,11 @@ bool sprite_write(int id, const uint32_t* pixels, int width, int height) {
     if (!g_build || !c || id < 0 || id > 0xfffff) return false;
     // Only once the game is past its loading screens (state >= 10) and the cache has its
     // sprites archive (+0x10): a call during startup crashed the game thread.
-    auto cache = read_at<uintptr_t>(c + 0x413a98);
+    auto cache = read_at<uintptr_t>(c + 0x413ad8);
     if (!cache || game_state() < 10 || !read_at<uintptr_t>(cache + 0x10)) return false;
     bool ok = false;
     using Fn = const uintptr_t* (*)(uintptr_t, int, int, bool, bool, int, bool*);
-    const uintptr_t* slot = reinterpret_cast<Fn>(g_base + 0x5d4074)(cache, id, 0, false, false, 0, &ok);
+    const uintptr_t* slot = reinterpret_cast<Fn>(g_base + 0x5e1284)(cache, id, 0, false, false, 0, &ok);
     if (!ok || !slot || !slot[1]) return false;
     uintptr_t spr = slot[1];
     auto px = read_at<uintptr_t>(spr + 0x10);
@@ -3403,7 +3403,7 @@ bool item_sprite(int id, int quantity, int border, int shadow, int text_mode, bo
     // Only 36x32 is safe (the note overlay and text assume that stride).
     GameString empty{std::string()};
     using Fn = SharedPtr (*)(int, int, int, int, int, int, int, int, const void*);
-    SharedPtr r = reinterpret_cast<Fn>(g_base + 0x63ff9c)(id, quantity, border, shadow, text_mode, noted ? 1 : 0, 36, 32, empty.bytes);
+    SharedPtr r = reinterpret_cast<Fn>(g_base + 0x64dccc)(id, quantity, border, shadow, text_mode, noted ? 1 : 0, 36, 32, empty.bytes);
     uintptr_t ctrl = r.ctrl, spr = r.obj;
     if (!spr) { release_shared(ctrl); return false; }
     width = read_at<int32_t>(spr + 0x18);
@@ -3439,7 +3439,7 @@ bool item_def(int id, ItemDef& out) {
     out.weight = read_at<int32_t>(o + 0x2d0);
     out.category = read_at<int32_t>(o + 0x278);
     out.tradeable_guess = read_at<uint8_t>(o + 0x308) != 0;
-    // Icon view, as CC_SETOBJECT (0x4e06dc) copies it into the widget's model zoom/angles: zoom2d +0xbc,
+    // Icon view, as CC_SETOBJECT (0x589b20) copies it into the widget's model zoom/angles: zoom2d +0xbc,
     // xan2d/yan2d/zan2d +0xc0/+0xc4/+0xc8 (static RE).
     out.zoom2d = read_at<int32_t>(o + 0xbc);
     out.xan2d = read_at<int32_t>(o + 0xc0);
@@ -3447,7 +3447,7 @@ bool item_def(int id, ItemDef& out) {
     out.zan2d = read_at<int32_t>(o + 0xc8);
     auto iops = read_at<uintptr_t>(o + 0x108);
     for (int i = 0; i < 5; i++) out.inventory_actions[i] = iops ? read_string(iops + i * 0x18) : std::string();
-    // Model fields (static RE of the decoder 0x63bfe8 and ObjType::getModel 0x63f1e8): +0x04 inventory
+    // Model fields (static RE of the decoder 0x649d18 and ObjType::getModel 0x63f1e8): +0x04 inventory
     // model (mobile opcode 0x2c, int32; noted items copy their template's), ambient +0x2c4 (op 113),
     // contrast +0x2c8 (op 114, stored * 5 as on desktop). Recolour / retexture arrays (ops 40/41):
     // {u64 count, int16* data} at +0x60/+0x68 (find), +0x78/+0x80 (replace), +0x90/+0x98, +0xa8/+0xb0.
@@ -3768,7 +3768,7 @@ void drawlog_cycle() {
         drawn.swap(g_drawn);
         caller = g_draw_caller;
     }
-    int px = read_at<int32_t>(c + 0xcb7c), py = read_at<int32_t>(c + 0xcb80);
+    int px = read_at<int32_t>(c + 0xcbbc), py = read_at<int32_t>(c + 0xcbc0);
     int bx = read_at<int32_t>(wv + g_build->wv_base_x), by = read_at<int32_t>(wv + g_build->wv_base_y);
     int count = read_at<int32_t>(wv + g_build->wv_npc_count);
     auto indices = read_at<const int32_t*>(wv + g_build->wv_npc_indices);
@@ -3900,12 +3900,12 @@ bool object_model(int plane, int sx, int sy, int layer, uint64_t tag, ObjectMode
 // Animated locs (RuneLite DynamicObject; static RE client-api-host-gaps-reach of the constructor 0x71328c and
 // getModel 0x7136dc): the loc adder 0x710de4 and LOC_ANIM build one for a loc with an animation (LocType +0xd8)
 // or a multiloc, in any renderable slot object_model reads (game object +0x230, wall A/B, wall decoration A/B,
-// ground decoration), else a static Model. Object (block +0x20 of a 0xa8 make_shared), vptr 0xa77620: +0x28 loc
+// ground decoration), else a static Model. Object (block +0x20 of a 0xa8 make_shared), vptr 0xa865a8: +0x28 loc
 // id, +0x2c shape, +0x30 orientation, +0x34 plane, +0x38/+0x3c scene x/y, AnimationState +0x40 {+0x48 SeqType*,
 // +0x50 seq id (-1 none), +0x54 u16 frame cycle, +0x56 u16 frame}, a second state +0x60 (the replaced loc's
 // animation), +0x80 last cycle (desktop's cycleStart; getModel advances from it and stores the cycle).
 namespace {
-constexpr uintptr_t kDynamicObjectVtable = 0xa77620;
+constexpr uintptr_t kDynamicObjectVtable = 0xa865a8;
 
 uintptr_t object_renderable(int plane, int sx, int sy, int layer, uint64_t tag, int slot) {
     uintptr_t c = client();
@@ -4034,7 +4034,7 @@ bool read_param(uintptr_t map, int key, TypeParam& out) {
 }  // namespace
 
 // Params of an obj (kind 0, ObjType +0x2d8), npc (1, NpcType +0x170), loc (2, LocType +0x160) or
-// struct (3, StructType +0x08; getStructType 0x64a69c loads config group 34, returns via x8).
+// struct (3, StructType +0x08; getStructType 0x65822c loads config group 34, returns via x8).
 // `f(definition)` runs while the definition is held; locs stay referenced by their cache.
 template <typename F>
 static bool with_type(int kind, int id, F f) {
@@ -4044,7 +4044,7 @@ static bool with_type(int kind, int id, F f) {
         auto sp = reinterpret_cast<const uintptr_t* (*)(int)>(g_base + g_build->get_loc_type)(id);
         return sp && sp[1] && f(sp[1]);
     }
-    constexpr uintptr_t kGetStructType = 0x64a69c;  // build 241.4
+    constexpr uintptr_t kGetStructType = 0x65822c;  // build 242
     uintptr_t fn = kind == 0 ? g_build->get_obj_type : kind == 1 ? g_build->get_npc_type : kind == 3 ? kGetStructType : 0;
     if (!fn) return false;
     struct SharedPtr {
@@ -4373,7 +4373,7 @@ std::vector<MenuEntry> read_menu(uintptr_t menu) {
     return out;
 }
 
-// Mirrors the walk in select (0x515854): path[0] indexes the top-level nodes, later elements
+// Mirrors the walk in select (0x56427c): path[0] indexes the top-level nodes, later elements
 // index the children vector of the previous node.
 bool menu_entry_for_path(uintptr_t menu, const uint64_t* path, size_t len, MenuEntry& out) {
     if (!menu || !len) return false;
@@ -4395,7 +4395,7 @@ bool menu_entry_for_path(uintptr_t menu, const uint64_t* path, size_t len, MenuE
 namespace {
 // Menu entry strings (+0x50 target, +0xb8 option) are the game's arena-backed string: the usual
 // 24-byte layout (inline when byte 23 >= 0, else {char*, size, cap | 1 << 63}) followed by an arena
-// whose address is at +0x20; the entry constructor (0x4bc564) fills them with append 0x48e860(str,
+// whose address is at +0x20; the entry constructor (0x4bc564) fills them with append 0x494d6c(str,
 // begin, end), which reallocates past the capacity and frees the old buffer unless it is the arena.
 void set_entry_string(uintptr_t str, const std::string& value) {
     auto* b = reinterpret_cast<uint8_t*>(str);
@@ -4408,7 +4408,7 @@ void set_entry_string(uintptr_t str, const std::string& value) {
         b[23] = 23;
     }
     if (!value.empty())
-        reinterpret_cast<void* (*)(uintptr_t, const char*, const char*)>(g_base + 0x48e860)(str, value.data(), value.data() + value.size());
+        reinterpret_cast<void* (*)(uintptr_t, const char*, const char*)>(g_base + 0x494d6c)(str, value.data(), value.data() + value.size());
 }
 }  // namespace
 
@@ -4490,7 +4490,7 @@ bool remove_ground_decoration(int plane, int x, int y) {
     if (!slots || plane < 0 || plane >= planes || x < 0 || x >= sx || y < 0 || y >= sy) return false;
     uintptr_t tile = read_at<uintptr_t>(slots + ((static_cast<size_t>(plane) * sx + x) * sy + y) * 0x10 + 8);
     if (!tile || !read_at<uintptr_t>(tile + 0x118)) return false;
-    reinterpret_cast<void (*)(uintptr_t, int, int, int)>(g_base + 0x6dca24)(scene, plane, x, y);
+    reinterpret_cast<void (*)(uintptr_t, int, int, int)>(g_base + 0x6ea988)(scene, plane, x, y);
     return read_at<uintptr_t>(tile + 0x118) == 0;
 }
 
@@ -4510,8 +4510,8 @@ uintptr_t scene_tile(uintptr_t scene, int plane, int x, int y) {
 }
 
 // The loader frees the map arrays after the build, so they are copied whenever it builds a plane
-// of the top-level scene (0x70d30c(scene, map data, ..., plane); map data 0x1d10e78).
-constexpr uintptr_t kSceneLoad = 0x70d30c, kMapData = 0x1d10e78;
+// of the top-level scene (0x71b25c(scene, map data, ..., plane); map data 0x1d60b48).
+constexpr uintptr_t kSceneLoad = 0x71b25c, kMapData = 0x1d60b48;
 constexpr uint32_t kSceneLoadCode[4] = {0xd106c3ff, 0x6d1423e9, 0xa9157bfd, 0xa9166ffc};
 using SceneLoadFn = void (*)(uintptr_t, uintptr_t, uint64_t, int, int, int);
 SceneLoadFn g_scene_load = nullptr;
@@ -4585,8 +4585,8 @@ bool scene_terrain(int what, int plane, int x, int y, std::vector<int32_t>& out)
         return !out.empty();
     case 6: {
         uintptr_t m = read_at<uintptr_t>(scene + 0x54dc8);
-        // Only a static Model (vptr 0xa778f0) has the layout pack_mesh reads.
-        return m && read_at<uintptr_t>(m) == g_base + 0xa778f0 && pack_mesh(m, kModel, out);
+        // Only a static Model (vptr 0xa86878) has the layout pack_mesh reads.
+        return m && read_at<uintptr_t>(m) == g_base + 0xa86878 && pack_mesh(m, kModel, out);
     }
     default: return false;
     }
@@ -4595,10 +4595,10 @@ bool scene_terrain(int what, int plane, int x, int y, std::vector<int32_t>& out)
 // Mouse wheel: the cycle function zeroes Client +0x413248 (wheel rotation, +0x41324c a scroll layer's own)
 // at 0x41d218 each logged-in cycle and nothing on Android sets it, though the interface pass 0x44ae24 reads
 // it for onScrollWheel and scroll layers (and 0x58d438 for the minimap zoom). The call right after the
-// zeroing (0x73f8f4, return address 0x41d220) is hooked to put the notches the host took from the app's
+// zeroing (0x74d894, return address 0x42380c) is hooked to put the notches the host took from the app's
 // ACTION_SCROLL events there, as desktop's MouseWheel.useRotation at the start of the cycle.
 namespace {
-constexpr uintptr_t kAfterWheelReset = 0x73f8f4, kAfterWheelResetRet = 0x41d220;
+constexpr uintptr_t kAfterWheelReset = 0x74d894, kAfterWheelResetRet = 0x42380c;
 constexpr uint32_t kAfterWheelResetCode[4] = {0xa9bf7bfd, 0x910003fd, 0x9100a001, 0x2a1f03e0};
 using AfterWheelResetFn = int (*)(uintptr_t);
 AfterWheelResetFn g_after_wheel_reset = nullptr;
@@ -4609,14 +4609,14 @@ int hook_after_wheel_reset(uintptr_t x0) {
         int r = g_wheel.exchange(0);
         if (r) {
             uintptr_t c = x0 - 0x1c80;  // x0 = Client + 0x1c80
-            *reinterpret_cast<volatile int32_t*>(c + 0x413248) = r;
+            *reinterpret_cast<volatile int32_t*>(c + 0x413288) = r;
             // a wheel turns where the mouse is: a touch released left the game's mouse off the widget, so the
             // notch's own point is the mouse for this cycle's interface pass, as desktop's mouse over the widget
             int x = g_wheel_x.load(), y = g_wheel_y.load();
-            LOGI("game: wheel %d at %d,%d (mouse was %d,%d)", r, x, y, read_at<int32_t>(c + 0x40e9c0), read_at<int32_t>(c + 0x40e9d0));
+            LOGI("game: wheel %d at %d,%d (mouse was %d,%d)", r, x, y, read_at<int32_t>(c + 0x40ea00), read_at<int32_t>(c + 0x40ea10));
             if (x >= 0) {
-                *reinterpret_cast<volatile int32_t*>(c + 0x40e9c0) = x;
-                *reinterpret_cast<volatile int32_t*>(c + 0x40e9d0) = y;
+                *reinterpret_cast<volatile int32_t*>(c + 0x40ea00) = x;
+                *reinterpret_cast<volatile int32_t*>(c + 0x40ea10) = y;
             }
         }
     }
@@ -4663,7 +4663,7 @@ std::vector<ProjectileInfo> projectiles() {
     std::vector<ProjectileInfo> out;
     uintptr_t c = client();
     if (!c) return out;
-    uintptr_t head = c + 0xcb30;
+    uintptr_t head = c + 0xcb70;
     uint64_t n = read_at<uint64_t>(head + 0x10);
     if (n > 4096) return out;
     uintptr_t node = read_at<uintptr_t>(head);
@@ -4748,19 +4748,19 @@ bool projectile_set_end_cycle(uintptr_t obj, int cycle) {
     return false;
 }
 
-// PROJANIM_SPECIFIC's tail (0x4467cc): make_shared 0x46e490(&sp, &struct) (sp = {ctrl, obj}, ctor
-// 0x477b14), list push_back 0x46e5d4(Client + 0xcb30, &sp) (copies sp, ref + 1), release 0x46e64c(ctrl).
+// PROJANIM_SPECIFIC's tail (0x4467cc): make_shared 0x474150(&sp, &struct) (sp = {ctrl, obj}, ctor
+// 0x477b14), list push_back 0x474294(Client + 0xcb30, &sp) (copies sp, ref + 1), release 0x47430c(ctrl).
 uintptr_t projectile_create(const int32_t (&s)[15]) {
     uintptr_t c = client();
     if (!c || game_state() != 30) return 0;
     alignas(16) int32_t st[16] = {};
     memcpy(st, s, sizeof s);
     alignas(16) uintptr_t sp[2] = {0, 0};
-    reinterpret_cast<void (*)(uintptr_t*, const int32_t*)>(g_base + 0x46e490)(sp, st);
+    reinterpret_cast<void (*)(uintptr_t*, const int32_t*)>(g_base + 0x474150)(sp, st);
     if (!sp[0]) return 0;
-    reinterpret_cast<void (*)(uintptr_t, uintptr_t*)>(g_base + 0x46e5d4)(c + 0xcb30, sp);
+    reinterpret_cast<void (*)(uintptr_t, uintptr_t*)>(g_base + 0x474294)(c + 0xcb70, sp);
     uintptr_t obj = sp[1];
-    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x46e64c)(sp[0]);
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x47430c)(sp[0]);
     return obj;
 }
 
@@ -4793,7 +4793,7 @@ std::vector<AmbientSound> ambient_sounds() {
 bool ambient_clear() {
     uintptr_t wv = top_world_view();
     if (!wv) return false;
-    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x4b065c)(wv);
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x4bb16c)(wv);
     return true;
 }
 
@@ -4805,13 +4805,13 @@ bool ambient_remove(uintptr_t obj) {
     for (uintptr_t p = live[0]; p && p < live[1]; p += 16) {
         if (read_at<uintptr_t>(p + 8) != obj) continue;
         uintptr_t ctrl = read_at<uintptr_t>(p);
-        // Copy into pending (+1 owner), as 0x4b065c: inline when there is room, else its push_back 0x4bb59c.
+        // Copy into pending (+1 owner), as 0x4bb16c: inline when there is room, else its push_back 0x4cb3d4.
         if (pending[0] && pending[1] + 16 <= pending[2]) {
             std::memcpy(reinterpret_cast<void*>(pending[1]), reinterpret_cast<void*>(p), 16);
             pending[1] += 16;
             if (ctrl) __atomic_fetch_add(reinterpret_cast<int32_t*>(ctrl + 8), 1, __ATOMIC_ACQ_REL);
         } else {
-            reinterpret_cast<void (*)(uintptr_t, uintptr_t)>(g_base + 0x4bb59c)(wv + kAmbientPending, p);
+            reinterpret_cast<void (*)(uintptr_t, uintptr_t)>(g_base + 0x4cb3d4)(wv + kAmbientPending, p);
         }
         // Erase from live (-1 owner; pending still holds one, so it never reaches zero here).
         std::memmove(reinterpret_cast<void*>(p), reinterpret_cast<void*>(p + 16), live[1] - p - 16);
@@ -5031,7 +5031,7 @@ std::mutex g_msg_inv_mutex;
 std::unordered_map<int, std::vector<Inventory>> g_msg_inv;  // message id -> inventories at creation
 
 uintptr_t hook_message_ctor(uintptr_t self, uintptr_t type, uintptr_t name, uintptr_t sender, uintptr_t text) {
-    // The constructor takes id = counter, then increments it (0x3f0a04: iVar7 = counter; counter++),
+    // The constructor takes id = counter, then increments it (0x3f5e14: iVar7 = counter; counter++),
     // so the new line's id is the counter's current value. (Was +1: each line replayed the
     // inventories of the previous line's creation; Consumable Cooldowns got a pre-spawn inventory.)
     int id = next_message_id();
@@ -5053,7 +5053,7 @@ void install_message_hook() {
 }
 
 namespace {
-constexpr uintptr_t kMenuOpenCheck = 0x58da0c, kDragCheckRet = 0x41ffe8;
+constexpr uintptr_t kMenuOpenCheck = 0x54de74, kDragCheckRet = 0x4265f4;
 constexpr uint32_t kMenuOpenCheckCode[4] = {0xf943e008, 0xf100011f, 0x1a9f07e0, 0xd65f03c0};
 void (*g_drag_cb)() = nullptr;
 }
@@ -5077,9 +5077,9 @@ void install_drag_hook(void (*cb)()) {
 }
 
 namespace {
-// 0x4ae508 starts `tst w2, #0xff; b.eq` (PC-relative), so the hook goes at 0x4ae510, where no stack
-// or register has changed yet: returning from the replacement returns to 0x4ae508's caller.
-constexpr uintptr_t kSoundQueueBody = 0x4ae510;
+// 0x4b9028 starts `tst w2, #0xff; b.eq` (PC-relative), so the hook goes at 0x4b9030, where no stack
+// or register has changed yet: returning from the replacement returns to 0x4b9028's caller.
+constexpr uintptr_t kSoundQueueBody = 0x4b9030;
 constexpr uint32_t kSoundQueueBodyCode[4] = {0xd101c3ff, 0xa9037bfd, 0xf90023f7, 0xa90557f6};
 using SoundQueueFn = void (*)(uintptr_t, uint32_t, uint32_t, uint32_t);
 SoundQueueFn g_sound_orig = nullptr;
@@ -5099,17 +5099,17 @@ void install_sound_hook(bool (*cb)(int id, int loops, int delay)) {
 }
 
 namespace {
-// Area sounds: 0x4ae650(sys, plane, id, x, z, range, dropOff, loops, delay, flag) appends a
-// 0x28-byte entry to the same queue as 0x4ae508 (x/z are scene tiles, packed as bytes). Callers:
+// Area sounds: 0x4b9170(sys, plane, id, x, z, range, dropOff, loops, delay, flag) appends a
+// 0x28-byte entry to the same queue as 0x4b9028 (x/z are scene tiles, packed as bytes). Callers:
 // the SOUND_AREA zone prot (0x46f9c0, in the zone handler 0x46edb0) and the animation frame-sound
-// handler (0x480168 in 0x47ff8c). Its prologue has no PC-relative code, so the hook sits on entry.
-constexpr uintptr_t kAreaSound = 0x4ae650;
+// handler (0x480168 in 0x486170). Its prologue has no PC-relative code, so the hook sits on entry.
+constexpr uintptr_t kAreaSound = 0x4b9170;
 constexpr uint32_t kAreaSoundCode[4] = {0xd10243ff, 0xa9037bfd, 0xa9046ffc, 0xa90567fa};
 // Frame-sound handler: a stack object {vtable 0xa6c5a8, +0x08 plane*, +0x10/+0x14 fine x/z of the
 // animated thing, +0x18 "is the local player", +0x20 sound system} built by the actor update
 // (0x435240: x/z = actor +0x268/+0x26c), loc animations (0x49af40: the loc's x/z) and others, and
-// passed to the sequence advance 0x659534, which calls slot 2 = 0x47ff8c(handler, SeqType*, frame).
-constexpr uintptr_t kFrameSoundSlot = 0xa6c5b8;
+// passed to the sequence advance 0x659534, which calls slot 2 = 0x486170(handler, SeqType*, frame).
+constexpr uintptr_t kFrameSoundSlot = 0xa7a758;
 using AreaSoundFn = void (*)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 using FrameSoundFn = void (*)(uintptr_t, uintptr_t, int);
 AreaSoundFn g_area_orig = nullptr;
@@ -5185,7 +5185,7 @@ void install_area_sound_hook(bool (*cb)(const AreaSound&)) {
     g_area_cb = cb;
     g_area_orig = reinterpret_cast<AreaSoundFn>(inline_hook(g_base + kAreaSound, kAreaSoundCode, reinterpret_cast<void*>(hook_area_sound)));
     auto** slot = reinterpret_cast<void**>(g_base + kFrameSoundSlot);
-    if (g_area_orig && *slot == reinterpret_cast<void*>(g_base + 0x47ff8c)) {
+    if (g_area_orig && *slot == reinterpret_cast<void*>(g_base + 0x486170)) {
         long page = sysconf(_SC_PAGESIZE);
         auto start = reinterpret_cast<void*>((g_base + kFrameSoundSlot) & ~static_cast<uintptr_t>(page - 1));
         if (mprotect(start, page, PROT_READ | PROT_WRITE) == 0) {
@@ -5210,14 +5210,14 @@ bool take_message_inventories(int id, std::vector<Inventory>& out) {
 
 namespace {
 // RuneLite's allWidgetsAreOpTargetable: the menu builder 0x525c78 takes a widget as a target only when
-// the flags from 0x460dac(client, Widget_sp*) have bit 21 (0x200000); that call returns to 0x525ce0.
-constexpr uintptr_t kWidgetFlags = 0x460dac, kTargetFlagsRet = 0x525ce0;
-constexpr uint32_t kWidgetFlagsCode[4] = {0xf9400428, 0x91504c09, 0xb94c392a, 0xf9461929};
-// The widget position layout 0x45ea08(clamp, Widget*, parent width, parent height) writes +0x5c/+0x60.
-constexpr uintptr_t kWidgetAlign = 0x45ea08;
+// the flags from 0x466cf0(client, Widget_sp*) have bit 21 (0x200000); that call returns to 0x4d006c.
+constexpr uintptr_t kWidgetFlags = 0x466cf0, kTargetFlagsRet = 0x4d006c;
+constexpr uint32_t kWidgetFlagsCode[4] = {0xf9400428, 0x91504c09, 0xb94c792a, 0xf9463929};
+// The widget position layout 0x46494c(clamp, Widget*, parent width, parent height) writes +0x5c/+0x60.
+constexpr uintptr_t kWidgetAlign = 0x46494c;
 constexpr uint32_t kWidgetAlignCode[4] = {0xb9403c28, 0x7100051f, 0x5400026d, 0x7100091f};
 volatile bool g_all_op_targetable = false;
-bool g_flags_query = false;  // game thread: widget_target_flags asks 0x460dac as the menu builder does
+bool g_flags_query = false;  // game thread: widget_target_flags asks 0x466cf0 as the menu builder does
 struct Forced { uint32_t comp; int32_t index; int x, y; };
 std::unordered_map<uintptr_t, Forced> g_forced;  // by Widget*; game thread only
 }  // namespace
@@ -5257,7 +5257,7 @@ bool set_all_op_targetable(bool on) {
     return osrsrl_widget_flags_orig != nullptr;
 }
 
-// The flags 0x460dac gives the menu builder for a widget (its IF_SETEVENTS range, else +0x2b0), with
+// The flags 0x466cf0 gives the menu builder for a widget (its IF_SETEVENTS range, else +0x2b0), with
 // setAllWidgetsAreOpTargetable applied as it is there; -1 for no widget. Game thread.
 int64_t widget_target_flags(int component, int index) {
     uintptr_t c = client(), slot = widget_slot(component, index);
@@ -5279,7 +5279,7 @@ bool widget_force_position(int component, int index, int x, int y) {
 }
 
 // RuneLite's PlayerComposition.setHash: the composition's equipment, colours and transformed NPC id
-// into the player's Appearance (Player +0x728), then its model hash 0x5e1bd4(Appearance*), which stores
+// into the player's Appearance (Player +0x728), then its model hash 0x5eede4(Appearance*), which stores
 // +0x78 and drops the old hash's cached model (the next draw builds the new one). Returns the hash, 0
 // with no appearance. Game thread.
 uint64_t appearance_set_hash(int index, const int32_t equipment[12], const int32_t colors[5], int npc_id) {
@@ -5288,7 +5288,7 @@ uint64_t appearance_set_hash(int index, const int32_t equipment[12], const int32
     for (int i = 0; i < 12; i++) *reinterpret_cast<volatile int32_t*>(app + 4 * i) = equipment[i];
     for (int i = 0; i < 5; i++) *reinterpret_cast<volatile int32_t*>(app + 0x60 + 4 * i) = colors[i];
     *reinterpret_cast<volatile int32_t*>(app + 0x74) = npc_id;
-    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x5e1bd4)(app);
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x5eede4)(app);
     return read_at<uint64_t>(app + 0x78);
 }
 uint64_t appearance_hash(int index) {
@@ -5297,7 +5297,7 @@ uint64_t appearance_hash(int index) {
 }
 
 // RuneLite's Scene.removeGameObject: the scenery object whose min corner is (plane, x, y) with `tag`
-// (+0x1f0) leaves every tile it covers through the game's own removal 0x6dc300(scene, obj, 0), the
+// (+0x1f0) leaves every tile it covers through the game's own removal 0x6ea264(scene, obj, 0), the
 // scene-only half of LOC_DEL (collision stays). The object may be freed by it. Game thread.
 bool scene_remove_game_object(int plane, int x, int y, uint64_t tag) {
     uintptr_t scene = top_scene(), t = scene ? scene_tile(scene, plane, x, y) : 0;
@@ -5308,7 +5308,7 @@ bool scene_remove_game_object(int plane, int x, int y, uint64_t tag) {
     for (int i = 0; i < n; i++) {
         uintptr_t o = read_at<uintptr_t>(objs + static_cast<size_t>(i) * 0x10 + 8);
         if (!o || read_at<uint64_t>(o + 0x1f0) != tag || read_at<int32_t>(o + 0x210) != x || read_at<int32_t>(o + 0x218) != y) continue;
-        reinterpret_cast<void (*)(uintptr_t, uintptr_t, uint64_t)>(g_base + 0x6dc300)(scene, o, 0);
+        reinterpret_cast<void (*)(uintptr_t, uintptr_t, uint64_t)>(g_base + 0x6ea264)(scene, o, 0);
         return true;
     }
     return false;
@@ -5334,7 +5334,7 @@ bool scene_remove_tile(int plane, int x, int y, bool remove) {
 bool widget_op(int component, int sub, int op) {
     uintptr_t c = client();
     if (!g_build || !c || op < 1 || op > 10 || !widget_slot(component, sub)) return false;
-    reinterpret_cast<void (*)(uintptr_t, uint32_t, int, int, int, int, uint8_t)>(g_base + 0x528764)(c, component, sub, op, 0, -1, 0);
+    reinterpret_cast<void (*)(uintptr_t, uint32_t, int, int, int, int, uint8_t)>(g_base + 0x4d28d0)(c, component, sub, op, 0, -1, 0);
     return true;
 }
 }  // namespace game
