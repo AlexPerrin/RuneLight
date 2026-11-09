@@ -85,7 +85,7 @@ undo() {  # the set-up undone while the mobile plays; the desktop stopped
     [[ " $(held) " != *" $SCYTHE "* ]] || dt click_component "{\"componentId\":$INV_TAB}" >/dev/null
     while [[ " $(held) " == *" $SCYTHE "* ]]; do   # dropped, each step on the screen it reads: Drop, the valuable prompt, "Put it down."
       case $(dt get_dialogue | field type) in
-        none) dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Drop\"}" >/dev/null; dt wait_for '{"condition":"dialogue","timeoutMs":60000}' >/dev/null ;;
+        none) dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Drop\"}" >/dev/null || true; dt wait_for '{"condition":"dialogue","timeoutMs":60000}' >/dev/null ;;
         item) dt continue_dialogue >/dev/null ;;
         options) dt select_option '{"option":1}' >/dev/null ;;
       esac
