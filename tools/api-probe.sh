@@ -102,10 +102,10 @@ trap 'undo || true' EXIT
 # the mobile: the fight (from here on the server keeps it in combat: no idle logout while the desktop starts), the world map
 chat "::item scythe_of_vitur"; until [[ " $(held) " == *" $SCYTHE "* ]]; do sleep 1; done
 for s in attack:1986068 strength:5346332 hitpoints:13034431; do   # 80 and 90 wield it; 99 hitpoints outlast the dummy's hits
-  xp0[${s%:*}]=$(xp "${s%:*}"); chat "::setxp ${s%:*} ${s#*:}"
+  xp0[${s%:*}]=$(xp "${s%:*}"); chat "::setxp ${s%:*} ${s#*:}"; until [ "$(xp "${s%:*}")" = "${s#*:}" ]; do sleep 1; done
 done
-dt click_component "{\"componentId\":$INV_TAB}" >/dev/null; dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Wield\"}" >/dev/null
-until [[ " $(worn) " == *" $SCYTHE "* ]]; do sleep 1; done
+dt click_component "{\"componentId\":$INV_TAB}" >/dev/null
+until [[ " $(worn) " == *" $SCYTHE "* ]]; do dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Wield\"}" >/dev/null || true; sleep 1; done
 chat "::npc 6000 poh_combat_dummy_npc"
 until npc=$(dt list_npcs | python3 -c 'import json,sys; n=[n for n in json.load(sys.stdin)["npcs"] if "Combat dummy" in (n.get("name") or "")]; n.sort(key=lambda n: n["distance"]); print(n[0]["index"])' 2>/dev/null); do sleep 1; done
 dt interact_npc "{\"npcIndex\":$npc,\"option\":\"Attack\"}" >/dev/null
