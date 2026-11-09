@@ -33,8 +33,11 @@ landscape, canvas = screen points) on a fresh install (client-login-index-log, e
 | 10 | welcome, signed in | Play Now [973,475][1422,612]; Sign out [1048,645][1350,727] |
 
 On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
-and World / Tap to switch at [450,925][655,995]: never tap there. The api-probe at this build (no reach set-up, logged
-in idle at spawn) is 92.2% (1154/1252).
+and World / Tap to switch at [450,925][655,995]: never tap there. The api-probe at this build (logged in at spawn,
+attacking a combat dummy) is 92.1% (1153/1252): openInterface, setAllWidgetsAreOpTargetable, setInventoryDragDelay,
+PlayerComposition.setHash, Scene.removeGameObject/removeTile and Widget.setForcedPosition write the game's own state
+(offsets.md "Game-state writes") and pass; the 10 GraphicsObject rows are unreached when no spot anim plays in the
+scene while it runs (main's 1154 had one), no other pass lost.
 
 ## Releases and tooling
 
