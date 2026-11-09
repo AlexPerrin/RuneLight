@@ -63,8 +63,8 @@ final class Native {
     static native Object[] connection();
     /** Writes the SERVER_TICK_END count serverTick() reads; game thread only. */
     static native boolean setServerTick(int tick);
-    /** Client int fields by index (game.cpp kClientInts): ORB_STATE, ORB_X, ORB_Y, CHAT_CYCLE, CHANGED_SKILL_COUNT. Set: game thread only. */
-    static final int ORB_STATE = 0, ORB_X = 1, ORB_Y = 2, CHAT_CYCLE = 3, CHANGED_SKILL_COUNT = 4;
+    /** Client int fields by index (game.cpp kClientInts): ORB_STATE, ORB_X, ORB_Y, CHAT_CYCLE, CHANGED_SKILL_COUNT, ORB_SPEED, PITCH_RELAXER. Set: game thread only. */
+    static final int ORB_STATE = 0, ORB_X = 1, ORB_Y = 2, CHAT_CYCLE = 3, CHANGED_SKILL_COUNT = 4, ORB_SPEED = 5, PITCH_RELAXER = 6;
     static native int clientInt(int which);
     static native boolean setClientInt(int which, int value);
     /** Music volume 0-255 (Client +0x2f58); set applies it to the playing songs; game thread only. */
@@ -74,7 +74,13 @@ final class Native {
     static native int[] midiRequests();
     /** While on, the camera shake flags are cleared after every cycle. */
     static native void setCameraShakeDisabled(boolean off);
+    /** Client.setCameraSpeed: the touch camera's drag sensitivity is the game's own times this, kept each cycle. */
+    static native void setCameraSpeed(float multiplier);
+    /** The touch camera's drag sensitivity (settings +0x82c); 0 before the settings exist. */
+    static native float cameraSensitivity();
     static native boolean cameraShakeDisabled();
+    /** Axis 0 pitch, 1 yaw: while on, the touch camera drag turns that axis the other way. */
+    static native void setCameraInvert(int axis, boolean on);
     /** Every varp as a long (the long table where the game flags it long, else the int table). */
     static native long[] varpsLong(boolean server);
     /** Client.setVarpLongValue; game thread only. */

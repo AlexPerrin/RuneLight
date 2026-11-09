@@ -596,9 +596,12 @@ bool connection(std::string& host, int ports[2]);
 // Writes the SERVER_TICK_END count (Client +0x3058) that server_tick() reads.
 bool set_server_tick(int tick);
 // Client int fields by index (game.cpp kClientInts: 0 oculus orb state, 1/2 orb focal point X/Y, 3 chat
-// cycle, 4 changed-skills count).
+// cycle, 4 changed-skills count, 5 orb/free camera speed, 6 pitch relaxer).
 bool client_int(int which, int& out);
 bool set_client_int(int which, int value);
+// The touch camera's drag sensitivity (settings +0x82c).
+bool camera_sensitivity(float& out);
+bool set_camera_sensitivity(float v);
 // Music volume 0-255 (Client +0x2f58); set also applies it to the playing songs.
 int music_volume();
 bool set_music_volume(int v);
@@ -606,6 +609,8 @@ bool set_music_volume(int v);
 bool midi_requests(std::vector<std::pair<int, bool>>& out);
 // Clears the camera shake flags (as CAM_RESET).
 void clear_camera_shake();
+// After a camera-drag cycle (touch state 8): the inverted axes' steps and deltas turned the other way.
+void invert_camera_drag(bool pitch, bool yaw);
 // Every varp as a long (long table where the varp is long, else the int table); client or server copy.
 bool varps_long(bool server, std::vector<int64_t>& out);
 bool set_varp_long(int id, int64_t v);

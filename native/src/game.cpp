@@ -1837,26 +1837,50 @@ bool connection(std::string& host, int ports[2]) {
     return true;
 }
 
-// Plain int fields of the Client the API reads and writes as they are (docs/offsets.md "Client state").
+// Plain int fields of the Client the API reads and writes as they are (docs/offsets.md "Client state");
+// a field of one byte is read and written as one byte (+0x8951d next to the pitch relaxer is the game's).
 namespace {
-constexpr uint32_t kClientInts[] = {
-    0x894bc,  // 0 oculus orb state / camera mode (CAM_MODE writes it; 0x41d0a4 acts on 1 and 2)
-    0x89500,  // 1 oculus orb focal point X (local units)
-    0x89508,  // 2 oculus orb focal point Y
-    0x413e6c, // 3 chat cycle (refreshChat's 0x43aacc sets it; the chatbox rebuilds when it changes)
-    0x413de4, // 4 changed-skills ring count (241.4's f_changed_skill_count; queueChangedSkill bumps it)
+struct ClientInt { uint32_t off; bool byte; };
+constexpr ClientInt kClientInts[] = {
+    {0x894bc, false},  // 0 oculus orb state / camera mode (CAM_MODE writes it; 0x41d0a4 acts on 1 and 2)
+    {0x89500, false},  // 1 oculus orb focal point X (local units)
+    {0x89508, false},  // 2 oculus orb focal point Y
+    {0x413e6c, false}, // 3 chat cycle (refreshChat's 0x43aacc sets it; the chatbox rebuilds when it changes)
+    {0x413de4, false}, // 4 changed-skills ring count (241.4's f_changed_skill_count; queueChangedSkill bumps it)
+    {0x894c4, false},  // 5 orb/free camera normal speed (12; 0x41d0a4 moves the focal point this many units a cycle in modes 1 and 2)
+    {0x8951c, true},   // 6 pitch relaxer (u8; pitch range 0x001..0x1040 instead of 0x400..0xbf8; packet case 0x80 sets it)
 };
 }  // namespace
 bool client_int(int which, int& out) {
     uintptr_t c = client();
     if (!c || which < 0 || which >= static_cast<int>(sizeof kClientInts / sizeof kClientInts[0])) return false;
-    out = read_at<int32_t>(c + kClientInts[which]);
+    const ClientInt& f = kClientInts[which];
+    out = f.byte ? read_at<uint8_t>(c + f.off) : read_at<int32_t>(c + f.off);
     return true;
 }
 bool set_client_int(int which, int value) {
     uintptr_t c = client();
     if (!c || which < 0 || which >= static_cast<int>(sizeof kClientInts / sizeof kClientInts[0])) return false;
-    *reinterpret_cast<volatile int32_t*>(c + kClientInts[which]) = value;
+    const ClientInt& f = kClientInts[which];
+    if (f.byte) *reinterpret_cast<volatile uint8_t*>(c + f.off) = static_cast<uint8_t>(value);
+    else *reinterpret_cast<volatile int32_t*>(c + f.off) = value;
+    return true;
+}
+
+// Touch camera drag sensitivity: float +0x82c of the settings object *(Client+0x2280); 0x41d0a4 scales the
+// drag's pixel deltas by it into the pitch/yaw deltas (+0x894ac/+0x894b0) while the touch state is 8.
+bool camera_sensitivity(float& out) {
+    uintptr_t c = client();
+    uintptr_t s = c ? read_at<uintptr_t>(c + 0x2280) : 0;
+    if (!s) return false;
+    out = read_at<float>(s + 0x82c);
+    return true;
+}
+bool set_camera_sensitivity(float v) {
+    uintptr_t c = client();
+    uintptr_t s = c ? read_at<uintptr_t>(c + 0x2280) : 0;
+    if (!s) return false;
+    *reinterpret_cast<volatile float*>(s + 0x82c) = v;
     return true;
 }
 
@@ -1897,6 +1921,35 @@ void clear_camera_shake() {
     uintptr_t c = client();
     if (!c) return;
     for (int i = 0; i < 5; i++) *reinterpret_cast<volatile uint8_t*>(c + 0x894cd + i) = 0;
+}
+
+// Camera drag inversion (Client.setInvertPitch/setInvertYaw). In touch state 8 the cycle 0x41d0a4 turns the
+// drag's pixel deltas into the pitch delta +0x894b0 and yaw delta +0x894ac (no sign flag of its own), stores
+// half of each (+0x894a4 pitch, +0x894a8 yaw, truncated) and adds that to the targets: pitch +0x8949c clamped
+// to 0x400..0xbf8 (0x001..0x1040 with the relaxer +0x8951c), yaw +0x894a0 & 0x3fff. After release the deltas
+// halve each cycle (the glide). Run after a drag cycle: each inverted axis's step is applied the other way and
+// its delta negated, so the glide that follows goes the inverted way too.
+void invert_camera_drag(bool pitch, bool yaw) {
+    uintptr_t c = client();
+    if (!c) return;
+    auto f = [c](uint32_t off) { return reinterpret_cast<volatile int32_t*>(c + off); };
+    if (yaw) {
+        int step = *f(0x894a8);
+        *f(0x894a0) = (*f(0x894a0) - 2 * step) & 0x3fff;
+        *f(0x894a8) = -step;
+        *f(0x894ac) = -*f(0x894ac);
+    }
+    if (pitch) {
+        bool relaxed = read_at<uint8_t>(c + 0x8951c) != 0;
+        int lo = relaxed ? 1 : 0x400, hi = relaxed ? 0x1040 : 0xbf8;
+        int step = *f(0x894a4), now = *f(0x8949c);
+        // shortcut: a step clamped at the limit it pushed towards is taken as starting there (exact but for
+        // the one cycle that reaches the limit, off by less than the step)
+        int before = (now == hi && step > 0) || (now == lo && step < 0) ? now : now - step;
+        *f(0x8949c) = std::min(hi, std::max(lo, before - step));
+        *f(0x894a4) = -step;
+        *f(0x894b0) = -*f(0x894b0);
+    }
 }
 
 // 64-bit varps (VARP_LONG, case 53): beside the int tables, full-length long tables (server 0x1127c78,
