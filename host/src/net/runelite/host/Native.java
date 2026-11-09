@@ -90,6 +90,16 @@ final class Native {
     /** Login screen page and input field (0 username, 1 password). */
     static native int loginIndex();
     static native int loginField();
+    /** Login screen text: 0 username, 1 password, 2 authenticator PIN; the setter on the game thread only. */
+    static native String loginText(int which);
+    static native boolean setLoginText(int which, String text);
+    /** A plugin's title background (RGB pixels, 0 transparent; null = the game's own), applied after the next cycle. */
+    static native void setLoginBackground(int[] pixels, int width, int height);
+    /** Game thread: the title sprites {w, h, left (0,0), right (0,0), hash of both}, or null while none is loaded. */
+    static native int[] loginBackground();
+    /** The login screen fire: drawn while on. */
+    static native void setLoginFire(boolean on);
+    static native boolean loginFire();
     /** Minimap zoom (px per tile, 2..8; -1 before the minimap exists); set through the game's setter, game thread only. */
     static native int minimapZoom();
     static native boolean setMinimapZoom(int zoom);

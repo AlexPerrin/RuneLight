@@ -3,6 +3,7 @@
 #include <elf.h>
 #include <link.h>
 
+#include <atomic>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,6 +24,7 @@
 namespace game {
 void install_message_hook();
 void install_scene_load_hook();
+void install_fire_hook();
 void install_state_write_hooks();
 namespace {
 
@@ -201,6 +203,7 @@ bool init() {
             LOGI("game: build %s recognised", b.name);
             install_message_hook();
             install_scene_load_hook();
+            install_fire_hook();
             install_state_write_hooks();
             return true;
         }
@@ -1999,6 +2002,99 @@ bool cross_world_ids(int64_t out[100], int& index) {
 // handler 0x41615c switch on it at gameState 10), input field 0xaae4f4 (0 username, 1 password).
 int login_index() { return g_build ? read_at<int32_t>(g_base + 0xace678) : -1; }
 int login_field() { return g_build ? read_at<int32_t>(g_base + 0xaae4f4) : -1; }
+
+// The login screen's text (desktop's Login.username/password/otp): global 24-byte strings, username
+// 0xace660, password 0xaeeba8, authenticator PIN 0xaeebd8 (typed by 0x479adc, drawn by 0x4233b0, sent by
+// the submit 0x47bfd0). Written with the game's string assign 0x3f1498, as CC_SETTEXT. Game thread only.
+// shortcut: an Android text field already showing (0x479770) keeps its old text until refocused.
+static const uintptr_t kLoginText[3] = {0xace660, 0xaeeba8, 0xaeebd8};
+std::string login_text(int which) {
+    return g_build && which >= 0 && which < 3 ? read_string(g_base + kLoginText[which]) : std::string();
+}
+bool set_login_text(int which, const std::string& text) {
+    if (!g_build || which < 0 || which > 2) return false;
+    GameString s(text);
+    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f1498)(g_base + kLoginText[which], s.bytes);
+    return true;
+}
+
+// Title background (desktop's Login.leftTitleSprite/rightTitleSprite): the loader 0x42e5fc decodes
+// titlewide.png into the Sprite at *0xaee8b8 and its mirror at *0xaee8c8 (Sprite: +0x10 u32* ARGB
+// pixels, +0x18 w, +0x1c h); the login draw puts them side by side, the mirror right. A plugin's
+// background is stretched over both (left half, right half), the game's pixels kept to restore; the
+// loader re-creates them, so it is re-applied whenever the sprite changes. Game thread (after a cycle).
+namespace {
+std::mutex g_bg_mutex;
+std::vector<uint32_t> g_bg;  // the plugin's ARGB pixels (0 transparent), empty = the game's own
+int g_bg_w, g_bg_h;
+bool g_bg_dirty;
+uintptr_t g_bg_applied;      // the left Sprite the plugin's pixels are in, 0 = none
+std::vector<uint32_t> g_bg_saved[2];
+uintptr_t title_sprite(int i) { return read_at<uintptr_t>(g_base + (i ? 0xaee8c8 : 0xaee8b8)); }
+}  // namespace
+void set_login_background(const int32_t* rgb, int w, int h) {
+    std::lock_guard lock(g_bg_mutex);
+    g_bg.clear();
+    if (rgb && w > 0 && h > 0)
+        for (int i = 0; i < w * h; i++) g_bg.push_back(rgb[i] ? 0xff000000u | static_cast<uint32_t>(rgb[i]) : 0);
+    g_bg_w = w; g_bg_h = h; g_bg_dirty = true;
+}
+void login_background_cycle() {
+    if (!g_build) return;
+    std::lock_guard lock(g_bg_mutex);
+    uintptr_t s[2] = {title_sprite(0), title_sprite(1)};
+    if (s[0] != g_bg_applied && g_bg_applied) { g_bg_applied = 0; g_bg_dirty = true; }  // freed or reloaded: the game's own pixels
+    if (!g_bg_dirty || !s[0] || !s[1]) return;
+    int w = read_at<int32_t>(s[0] + 0x18), h = read_at<int32_t>(s[0] + 0x1c);
+    if (w <= 0 || h <= 0 || read_at<int32_t>(s[1] + 0x18) != w || read_at<int32_t>(s[1] + 0x1c) != h) return;
+    uint32_t* px[2] = {read_at<uint32_t*>(s[0] + 0x10), read_at<uint32_t*>(s[1] + 0x10)};
+    if (!px[0] || !px[1]) return;
+    if (g_bg_applied) for (int i = 0; i < 2; i++) std::copy(g_bg_saved[i].begin(), g_bg_saved[i].end(), px[i]);
+    g_bg_applied = 0;
+    if (!g_bg.empty()) {
+        for (int i = 0; i < 2; i++) {
+            g_bg_saved[i].assign(px[i], px[i] + static_cast<size_t>(w) * h);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    px[i][y * w + x] = g_bg[static_cast<size_t>(y) * g_bg_h / h * g_bg_w + static_cast<size_t>(i * w + x) * g_bg_w / (2 * w)];
+        }
+        g_bg_applied = s[0];
+    }
+    g_bg_dirty = false;
+}
+// {w, h, left pixel (0,0), right pixel (0,0), hash of both sprites' pixels}; false with no title sprite.
+bool login_background(int32_t out[5]) {
+    if (!g_build) return false;
+    uintptr_t s[2] = {title_sprite(0), title_sprite(1)};
+    if (!s[0] || !s[1]) return false;
+    int w = read_at<int32_t>(s[0] + 0x18), h = read_at<int32_t>(s[0] + 0x1c);
+    const uint32_t* px[2] = {read_at<const uint32_t*>(s[0] + 0x10), read_at<const uint32_t*>(s[1] + 0x10)};
+    if (w <= 0 || h <= 0 || !px[0] || !px[1]) return false;
+    uint32_t hash = 0;
+    for (int i = 0; i < 2; i++) for (size_t k = 0; k < static_cast<size_t>(w) * h; k++) hash = hash * 31 + px[i][k];
+    out[0] = w; out[1] = h; out[2] = static_cast<int32_t>(px[0][0]); out[3] = static_cast<int32_t>(px[1][0]); out[4] = static_cast<int32_t>(hash);
+    return true;
+}
+
+// The login screen's fire (desktop's loginScreenRunesAnimation): 0x4d5f30(anim, x, cycle, renderer)
+// steps and draws it, called twice by the title draw (0x427218/0x427230) and for content type 1402
+// (0x45a3b0). While off, the hook returns at once (desktop's shouldRenderLoginScreenFire false).
+namespace {
+using FireFn = void (*)(void*, int, int, void*);
+FireFn g_fire_orig;
+std::atomic<bool> g_fire_on{true};
+void hook_fire(void* anim, int x, int cycle, void* r) {
+    if (g_fire_on.load(std::memory_order_relaxed)) g_fire_orig(anim, x, cycle, r);
+}
+constexpr uintptr_t kFireDraw = 0x4d5f30;
+constexpr uint32_t kFireDrawCode[4] = {0xa9bd7bfd, 0xf9000bf5, 0xa9024ff4, 0x910003fd};
+}  // namespace
+void install_fire_hook() {
+    g_fire_orig = reinterpret_cast<FireFn>(inline_hook(g_base + kFireDraw, kFireDrawCode, reinterpret_cast<void*>(hook_fire)));
+    LOGI("game: login fire hook %s", g_fire_orig ? "installed" : "FAILED");
+}
+void set_login_fire(bool on) { g_fire_on.store(on, std::memory_order_relaxed); }
+bool login_fire() { return g_fire_on.load(std::memory_order_relaxed); }
 
 // Minimap zoom (px per tile, int 2..8 at mm +0x6470, mm = *(Client+0x40e970)) and its zoom-input flag
 // (u8 mm +0x64b4, CS2 7250/7251). The game's setter 0x463528(client, zoom) (CS2 7252) clamps, resizes

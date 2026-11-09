@@ -1150,6 +1150,50 @@ public class ApiProbePlugin extends Plugin {
         };
         SPECIAL.put("Client.setOculusOrbNormalSpeed1", orbSpeed);
         SPECIAL.put("Client.setFreeCameraSpeed1", orbSpeed);
+        // Login screen text: the game's own field (Native.loginText 0 username, 1 password, 2 PIN), set, read, restored;
+        // a username set is also what getUsername reads.
+        Special loginText = (p, row, inst) -> {
+            int which = row.name.equals("setUsername") ? 0 : row.name.equals("setPassword") ? 1 : 2;
+            Class<?>[] i = {int.class};
+            String old = (String) host("Native", "loginText", i, which), alt = which == 2 ? "123456" : "probe~" + which;
+            row.m.invoke(inst, alt);
+            String read = (String) host("Native", "loginText", i, which);
+            String user = which == 0 ? ((Client) inst).getUsername() : alt;
+            row.m.invoke(inst, old);
+            String back = (String) host("Native", "loginText", i, which);
+            p.set(row, alt.equals(read) && alt.equals(user) && old.equals(back) ? "pass" : "mismatch",
+                "login field " + which + " " + describe(old) + " -> set " + describe(alt) + " -> " + describe(read) + (which == 0 ? " (getUsername " + describe(user) + ")" : "") + " -> restored " + describe(back));
+        };
+        SPECIAL.put("Client.setUsername1", loginText);
+        SPECIAL.put("Client.setPassword1", loginText);
+        SPECIAL.put("Client.setOtp1", loginText);
+        // Title background: the game's two title sprites' pixels (Native.loginBackground {w, h, left(0,0), right(0,0),
+        // hash}) after a cycle with a two-colour background (left half green, right half blue), then the game's own again.
+        SPECIAL.put("Client.setLoginScreen1", (p, row, inst) -> {
+            Client c = (Client) inst;
+            int[] old = (int[]) host("Native", "loginBackground", new Class<?>[0]);
+            if (old == null) { p.set(row, "mismatch", "no title sprite loaded"); return; }
+            c.setLoginScreen(c.createSpritePixels(new int[] {0x00ff00, 0x0000ff}, 2, 1));
+            p.later(row, () -> {
+                int[] read = (int[]) host("Native", "loginBackground", new Class<?>[0]);
+                c.setLoginScreen(null);
+                p.later(row, () -> {
+                    int[] back = (int[]) host("Native", "loginBackground", new Class<?>[0]);
+                    boolean ok = read != null && read[2] == 0xff00ff00 && read[3] == 0xff0000ff && back != null && back[4] == old[4];
+                    p.set(row, ok ? "pass" : "mismatch", "title sprites {w, h, left(0,0), right(0,0), hash} " + Arrays.toString(old)
+                        + " -> setLoginScreen(green|blue) -> " + Arrays.toString(read) + " -> setLoginScreen(null) -> " + Arrays.toString(back));
+                });
+            });
+        });
+        // Login fire: the hook on its draw (0x4d5f30) draws it only while on; read back, restored.
+        SPECIAL.put("Client.setShouldRenderLoginScreenFire1", (p, row, inst) -> {
+            boolean old = (Boolean) host("Native", "loginFire", new Class<?>[0]);
+            ((Client) inst).setShouldRenderLoginScreenFire(!old);
+            boolean read = (Boolean) host("Native", "loginFire", new Class<?>[0]);
+            ((Client) inst).setShouldRenderLoginScreenFire(old);
+            boolean back = (Boolean) host("Native", "loginFire", new Class<?>[0]);
+            p.set(row, read == !old && back == old ? "pass" : "mismatch", "fire drawn " + old + " -> " + read + " -> restored " + back);
+        });
         // The touch camera's drag sensitivity (settings +0x82c): the game's own times the multiplier.
         SPECIAL.put("Client.setCameraSpeed1", (p, row, inst) -> {
             float old = (Float) host("Native", "cameraSensitivity", new Class<?>[0]);
