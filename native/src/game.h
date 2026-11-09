@@ -157,6 +157,11 @@ struct Viewport {
 Viewport viewport();
 // Queue a synth sound effect as SYNTH_SOUND (0x4ae508(Client +0x2610, id, loops, delay)). Game thread only.
 bool play_sound_effect(int id, int loops, int delay);
+// Queue an area sound at scene tile x, y of the top-level world view (0x4ae650, as SOUND_AREA). Game thread only.
+bool play_area_sound(int id, int x, int y, int range, int delay);
+// Play a synth sound now at a volume (0..127) as desktop's playSoundEffect(id, volume): straight into
+// the sound-effect mixer, no queue and no event; the volume setting wins unless muted. Game thread only.
+bool play_sound_at_volume(int id, int volume);
 
 int root_interface();
 // Widget object for a component id (group << 16 | child), or 0 if its group isn't loaded.
@@ -208,6 +213,10 @@ struct SubInterface { int component, group, type; };  // `group` is open inside 
 std::vector<SubInterface> open_sub_interfaces();
 // IF_CLOSESUB for an open sub-interface (`0x462384`); false when it isn't open. Game thread only.
 bool close_sub_interface(int component, int group, bool unload);
+// What TRIGGER_ONDIALOGABORT does (`0x4405cc(client, root, 0x17)`): onDialogAbort over the root's tree. Game thread only.
+bool trigger_dialog_abort();
+// Wheel notches (desktop's sign: positive scrolls down) for the next logged-in cycle's interface pass. Any thread.
+void add_wheel(int rotation, int x, int y);
 // IF_OPENSUB's helper `0x462640`: opens `group` inside `component` with modal `mode`; false on bad ids. Game thread only.
 bool open_sub_interface(int component, int group, int mode);
 // Game-state writes (RuneLite's setAllWidgetsAreOpTargetable, Widget.setForcedPosition,
@@ -613,6 +622,22 @@ bool set_camera_sensitivity(float v);
 // Music volume 0-255 (Client +0x2f58); set also applies it to the playing songs.
 int music_volume();
 bool set_music_volume(int v);
+// Display *(Client+0x90): {surface width, height, UI canvas width, height, scale * 1000}.
+bool display(int out[5]);
+// The UiScaling setting (percent, settings +0x16bc, 25..400); set writes it unsaved and lays the UI out again.
+int ui_scaling();
+bool set_ui_scaling(int percent);
+// The game's own UI layout from the surface size and the scaling (0x441b88).
+bool relayout();
+// The frame limit the game sleeps to (Engine +0x18680, its FpsLimit setting applied; 0 = none).
+int fps_limit();
+bool set_fps_limit(int fps);
+// Minimap redraws (0x589180) are recorded while on; minimap_drawn returns the plane drawn since the last call, or -1.
+void set_minimap_watch(bool on);
+int minimap_drawn();
+// The minimap raster {size, zoom, ARGB pixels...}; set writes size*size pixels back.
+bool minimap_raster(std::vector<int32_t>& out);
+bool set_minimap_raster(const int32_t* px, size_t n);
 // The music player's playing songs: {group id, jingle}.
 bool midi_requests(std::vector<std::pair<int, bool>>& out);
 // Clears the camera shake flags (as CAM_RESET).
@@ -627,6 +652,18 @@ bool cross_world_ids(int64_t out[100], int& index);
 // Login screen page and input field (globals).
 int login_index();
 int login_field();
+// Login screen text: 0 username, 1 password, 2 authenticator PIN (game thread for the setter).
+std::string login_text(int which);
+bool set_login_text(int which, const std::string& text);
+// A plugin's title background (RGB, 0 transparent; null = the game's own), applied after each cycle;
+// the title sprites read back as {w, h, left (0,0), right (0,0), hash, 0}; with none loaded (in game)
+// the background held for them, as the sprites would take it, {w, h, left (0,0), right (0,0), hash, 1}.
+void set_login_background(const int32_t* rgb, int w, int h);
+void login_background_cycle();
+bool login_background(int32_t out[6]);
+// The login screen fire: drawn while on.
+void set_login_fire(bool on);
+bool login_fire();
 // Minimap zoom (2..8, set through the game's setter) and its zoom-input flag.
 int minimap_zoom();
 bool set_minimap_zoom(int zoom);

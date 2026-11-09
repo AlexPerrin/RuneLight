@@ -17,6 +17,7 @@
 #include "draw_hide.h"
 #include "frame_capture.h"
 #include "game.h"
+#include "got_hook.h"
 #include "log.h"
 #include "overlay.h"
 #include "script_hooks.h"
@@ -180,6 +181,36 @@ jint n_music_volume(JNIEnv*, jclass) { return game::music_volume(); }
 jboolean n_set_music_volume(JNIEnv*, jclass, jint v) {
     return client_thread::on_client_thread() && game::set_music_volume(v);
 }
+// {surface w, h, UI canvas w, h, scale * 1000}; null before the display exists.
+jintArray n_display(JNIEnv* env, jclass) {
+    int d[5];
+    if (!game::display(d)) return nullptr;
+    jintArray out = env->NewIntArray(5);
+    if (out) env->SetIntArrayRegion(out, 0, 5, d);
+    return out;
+}
+jint n_ui_scaling(JNIEnv*, jclass) { return game::ui_scaling(); }
+jboolean n_set_ui_scaling(JNIEnv*, jclass, jint p) { return client_thread::on_client_thread() && game::set_ui_scaling(p); }
+jboolean n_relayout(JNIEnv*, jclass) { return client_thread::on_client_thread() && game::relayout(); }
+jint n_fps_limit(JNIEnv*, jclass) { return game::fps_limit(); }
+jboolean n_set_fps_limit(JNIEnv*, jclass, jint v) { return client_thread::on_client_thread() && game::set_fps_limit(v); }
+void n_set_minimap_watch(JNIEnv*, jclass, jboolean on) { game::set_minimap_watch(on); }
+jint n_minimap_drawn(JNIEnv*, jclass) { return game::minimap_drawn(); }
+// {size, zoom, ARGB pixels...}; null off the client thread or before the minimap exists.
+jintArray n_minimap_raster(JNIEnv* env, jclass) {
+    std::vector<int32_t> v;
+    if (!client_thread::on_client_thread() || !game::minimap_raster(v)) return nullptr;
+    jintArray out = env->NewIntArray(static_cast<jsize>(v.size()));
+    if (out) env->SetIntArrayRegion(out, 0, static_cast<jsize>(v.size()), v.data());
+    return out;
+}
+jboolean n_set_minimap_raster(JNIEnv* env, jclass, jintArray px) {
+    if (!px || !client_thread::on_client_thread()) return false;
+    jsize n = env->GetArrayLength(px);
+    std::vector<int32_t> v(static_cast<size_t>(n));
+    env->GetIntArrayRegion(px, 0, n, v.data());
+    return game::set_minimap_raster(v.data(), v.size());
+}
 // {group id, jingle (0/1)} per playing song; null off the client thread.
 jintArray n_midi_requests(JNIEnv* env, jclass) {
     std::vector<std::pair<int, bool>> r;
@@ -217,6 +248,29 @@ jlongArray n_cross_world_ids(JNIEnv* env, jclass) {
 }
 jint n_login_index(JNIEnv*, jclass) { return game::login_index(); }
 jint n_login_field(JNIEnv*, jclass) { return game::login_field(); }
+jstring n_login_text(JNIEnv* env, jclass, jint which) { return env->NewStringUTF(game::login_text(which).c_str()); }
+jboolean n_set_login_text(JNIEnv* env, jclass, jint which, jstring text) {
+    if (!client_thread::on_client_thread() || !text) return false;
+    const char* c = env->GetStringUTFChars(text, nullptr);
+    bool ok = c && game::set_login_text(which, c);
+    if (c) env->ReleaseStringUTFChars(text, c);
+    return ok;
+}
+void n_set_login_background(JNIEnv* env, jclass, jintArray px, jint w, jint h) {
+    if (!px || env->GetArrayLength(px) < w * h) { game::set_login_background(nullptr, 0, 0); return; }
+    jint* p = env->GetIntArrayElements(px, nullptr);
+    game::set_login_background(p, w, h);
+    env->ReleaseIntArrayElements(px, p, JNI_ABORT);
+}
+jintArray n_login_background(JNIEnv* env, jclass) {
+    int32_t v[6];
+    if (!client_thread::on_client_thread() || !game::login_background(v)) return nullptr;
+    jintArray out = env->NewIntArray(6);
+    env->SetIntArrayRegion(out, 0, 6, v);
+    return out;
+}
+void n_set_login_fire(JNIEnv*, jclass, jboolean on) { game::set_login_fire(on); }
+jboolean n_login_fire(JNIEnv*, jclass) { return game::login_fire(); }
 jint n_minimap_zoom(JNIEnv*, jclass) { return game::minimap_zoom(); }
 jboolean n_set_minimap_zoom(JNIEnv*, jclass, jint z) { return client_thread::on_client_thread() && game::set_minimap_zoom(z); }
 jint n_minimap_zoom_input(JNIEnv*, jclass) { return game::minimap_zoom_input(); }
@@ -972,6 +1026,37 @@ jboolean n_widget_clear_listener(JNIEnv*, jclass, jint id, jint index, jint offs
     return true;
 }
 
+// A plugin's Java listener in a slot the game dispatches itself (the kSlots below): the slot gets one
+// int argument, script id script_hooks::kJavaListener | kind, and the widget's hasListener byte +0x348,
+// so the game's own event dispatch (0x44ae24 for the mouse kinds, 0x45f5dc for onDialogAbort) queues it
+// as it would a CS2 listener; script_hooks runs the Java listener instead of a script. The argument
+// array comes from the game's operator new (0x9f4454), which the game frees when it rewrites the slot
+// or deletes the widget. The slot's previous arguments are leaked, as clearing does. kind < 0 clears.
+jboolean n_widget_set_java_listener(JNIEnv*, jclass, jint id, jint index, jint offset, jint kind) {
+    static constexpr int kSlots[] = {0x380, 0x3e0, 0x410, 0x440, 0x470, 0x4a0, 0x6f8, 0x8d8};
+    static auto game_new = reinterpret_cast<void* (*)(size_t)>(module_base("liblibs.hal.system.osclient.so") + 0x9f4454);
+    if (!client_thread::on_client_thread()) return false;
+    bool ok = false;
+    for (int o : kSlots) ok |= o == offset;
+    uintptr_t w = ok ? widget_or_child(id, index) : 0;
+    if (!w) return false;
+    if (kind < 0) {
+        *reinterpret_cast<uint64_t*>(w + offset + 8) = 0;
+        *reinterpret_cast<uint64_t*>(w + offset + 0x10) = 0;
+        return true;
+    }
+    auto* v = static_cast<uint8_t*>(game_new(0x28));
+    if (!v) return false;
+    memset(v, 0, 0x28);
+    int32_t script = script_hooks::kJavaListener | kind;
+    memcpy(v, &script, 4);
+    *reinterpret_cast<uint32_t*>(v + 0x20) = 1;  // int variant
+    *reinterpret_cast<uint64_t*>(w + offset + 0x10) = reinterpret_cast<uintptr_t>(v);
+    *reinterpret_cast<uint64_t*>(w + offset + 8) = 1;
+    *reinterpret_cast<uint8_t*>(w + 0x348) = 1;
+    return true;
+}
+
 // A widget's transmit trigger list (the varps/invs/stats its onVarTransmit/onInvTransmit/
 // onStatTransmit listener waits on): a std::vector<int32_t> {begin, end, cap} right after the
 // listener slot (docs/offsets.md "Widget listeners"). null when unset.
@@ -1197,6 +1282,10 @@ jbyteArray n_target_state(JNIEnv* env, jclass, jint len) {
 }
 jboolean n_close_sub_interface(JNIEnv*, jclass, jint component, jint group, jboolean unload) {
     return client_thread::on_client_thread() && game::close_sub_interface(component, group, unload);
+}
+void n_add_wheel(JNIEnv*, jclass, jint rotation, jint x, jint y) { game::add_wheel(rotation, x, y); }
+jboolean n_trigger_dialog_abort(JNIEnv*, jclass) {
+    return client_thread::on_client_thread() && game::trigger_dialog_abort();
 }
 jboolean n_open_sub_interface(JNIEnv*, jclass, jint component, jint group, jint mode) {
     return client_thread::on_client_thread() && game::open_sub_interface(component, group, mode);
@@ -1659,6 +1748,14 @@ jboolean n_play_sound(JNIEnv*, jclass, jint id, jint loops, jint delay) {
     return client_thread::on_client_thread() && game::play_sound_effect(id, loops, delay);
 }
 
+jboolean n_play_sound_volume(JNIEnv*, jclass, jint id, jint volume) {
+    return client_thread::on_client_thread() && game::play_sound_at_volume(id, volume);
+}
+
+jboolean n_play_area_sound(JNIEnv*, jclass, jint id, jint x, jint y, jint range, jint delay) {
+    return client_thread::on_client_thread() && game::play_area_sound(id, x, y, range, delay);
+}
+
 jstring n_property(JNIEnv* env, jclass, jstring name) {
     const char* n = env->GetStringUTFChars(name, nullptr);
     char value[PROP_VALUE_MAX] = "";
@@ -2047,6 +2144,8 @@ const JNINativeMethod kNatives[] = {
     {"setCameraFocal", "(II)Z", reinterpret_cast<void*>(n_set_camera_focal)},
     {"viewport", "()[I", reinterpret_cast<void*>(n_viewport)},
     {"playSound", "(III)Z", reinterpret_cast<void*>(n_play_sound)},
+    {"playSoundVolume", "(II)Z", reinterpret_cast<void*>(n_play_sound_volume)},
+    {"playAreaSound", "(IIIII)Z", reinterpret_cast<void*>(n_play_area_sound)},
     {"screenSize", "()[I", reinterpret_cast<void*>(n_screen_size)},
     {"walkDestination", "()[I", reinterpret_cast<void*>(n_walk_destination)},
     {"friends", "(Z)[Ljava/lang/Object;", reinterpret_cast<void*>(n_friends)},
@@ -2073,6 +2172,8 @@ const JNINativeMethod kNatives[] = {
     {"subInterfaces", "()[I", reinterpret_cast<void*>(n_sub_interfaces)},
     {"drawMinimap", "(I)[I", reinterpret_cast<void*>(n_draw_minimap)},
     {"closeSubInterface", "(IIZ)Z", reinterpret_cast<void*>(n_close_sub_interface)},
+    {"triggerDialogAbort", "()Z", reinterpret_cast<void*>(n_trigger_dialog_abort)},
+    {"addWheel", "(III)V", reinterpret_cast<void*>(n_add_wheel)},
     {"openSubInterface", "(III)Z", reinterpret_cast<void*>(n_open_sub_interface)},
     {"setAllOpTargetable", "(Z)Z", reinterpret_cast<void*>(n_set_all_op_targetable)},
     {"widgetTargetFlags", "(II)J", reinterpret_cast<void*>(n_widget_target_flags)},
@@ -2141,9 +2242,25 @@ const JNINativeMethod kNatives[] = {
     {"crossWorldIds", "()[J", reinterpret_cast<void*>(n_cross_world_ids)},
     {"loginIndex", "()I", reinterpret_cast<void*>(n_login_index)},
     {"loginField", "()I", reinterpret_cast<void*>(n_login_field)},
+    {"loginText", "(I)Ljava/lang/String;", reinterpret_cast<void*>(n_login_text)},
+    {"setLoginText", "(ILjava/lang/String;)Z", reinterpret_cast<void*>(n_set_login_text)},
+    {"setLoginBackground", "([III)V", reinterpret_cast<void*>(n_set_login_background)},
+    {"loginBackground", "()[I", reinterpret_cast<void*>(n_login_background)},
+    {"setLoginFire", "(Z)V", reinterpret_cast<void*>(n_set_login_fire)},
+    {"loginFire", "()Z", reinterpret_cast<void*>(n_login_fire)},
     {"clientInt", "(I)I", reinterpret_cast<void*>(n_client_int)},
     {"setClientInt", "(II)Z", reinterpret_cast<void*>(n_set_client_int)},
     {"musicVolume", "()I", reinterpret_cast<void*>(n_music_volume)},
+    {"display", "()[I", reinterpret_cast<void*>(n_display)},
+    {"uiScaling", "()I", reinterpret_cast<void*>(n_ui_scaling)},
+    {"setUiScaling", "(I)Z", reinterpret_cast<void*>(n_set_ui_scaling)},
+    {"relayout", "()Z", reinterpret_cast<void*>(n_relayout)},
+    {"fpsLimit", "()I", reinterpret_cast<void*>(n_fps_limit)},
+    {"setFpsLimit", "(I)Z", reinterpret_cast<void*>(n_set_fps_limit)},
+    {"setMinimapWatch", "(Z)V", reinterpret_cast<void*>(n_set_minimap_watch)},
+    {"minimapDrawn", "()I", reinterpret_cast<void*>(n_minimap_drawn)},
+    {"minimapRaster", "()[I", reinterpret_cast<void*>(n_minimap_raster)},
+    {"setMinimapRaster", "([I)Z", reinterpret_cast<void*>(n_set_minimap_raster)},
     {"setMusicVolume", "(I)Z", reinterpret_cast<void*>(n_set_music_volume)},
     {"midiRequests", "()[I", reinterpret_cast<void*>(n_midi_requests)},
     {"setCameraShakeDisabled", "(Z)V", reinterpret_cast<void*>(n_set_camera_shake_disabled)},
@@ -2246,6 +2363,7 @@ const JNINativeMethod kNatives[] = {
     {"scriptCode", "(I)[Ljava/lang/Object;", reinterpret_cast<void*>(n_script_code)},
     {"widgetListener", "(III)[Ljava/lang/Object;", reinterpret_cast<void*>(n_widget_listener)},
     {"widgetClearListener", "(III)Z", reinterpret_cast<void*>(n_widget_clear_listener)},
+    {"widgetSetJavaListener", "(IIII)Z", reinterpret_cast<void*>(n_widget_set_java_listener)},
     {"widgetTriggers", "(III)[I", reinterpret_cast<void*>(n_widget_triggers)},
     {"scriptStats", "()[J", reinterpret_cast<void*>(n_script_stats)},
     {"typeParamKeys", "(II)[I", reinterpret_cast<void*>(n_type_param_keys)},

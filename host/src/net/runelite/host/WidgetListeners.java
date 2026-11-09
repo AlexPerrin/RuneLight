@@ -164,10 +164,20 @@ final class WidgetListeners {
     // game's onTimer runs for open interfaces); DRAG each cycle the widget is being dragged, before
     // the release cycle (which runs onDragComplete); VAR_TRANSMIT at the next client cycle after a
     // varp transmit, when the widget's host-side trigger list is null or contains a changed varp.
-    // The rest are stored only (a touch client has no hover/mouse-repeat/scroll-wheel/key events for
-    // them, and click/hold/release/dialog-abort aren't hooked; TARGET_ENTER/LEAVE follow the game's target mode in runTargetMode): set/clear works, nothing fires.
-    // unverified: on the device.
-    static final int TIMER = 0, DRAG = 1, VAR_TRANSMIT = 2, STORED = 3, TARGET_ENTER = 4, TARGET_LEAVE = 5;
+    // TARGET_ENTER/LEAVE follow the game's target mode in runTargetMode. CLICK..DIALOG_ABORT are run by the
+    // game's own dispatch: their slot holds the host's marker (Native.widgetSetJavaListener), the game queues
+    // the event as for a CS2 listener and Host.onScript phase 5 runs the Java listener (runGameEvent). STORED
+    // (onKey) is kept only: set/clear works, nothing fires.
+    static final int TIMER = 0, DRAG = 1, VAR_TRANSMIT = 2, STORED = 3, TARGET_ENTER = 4, TARGET_LEAVE = 5,
+        CLICK = 6, HOLD = 7, RELEASE = 8, MOUSE_OVER = 9, MOUSE_LEAVE = 10, MOUSE_REPEAT = 11, SCROLL_WHEEL = 12, DIALOG_ABORT = 13;
+    /** The game's slot of each kind from CLICK (docs/offsets.md "Widget drag": CC_SETON* setter 0x4e4fe0). */
+    private static final int[] GAME_SLOTS = {0x380, 0x410, 0x3e0, 0x440, 0x4a0, 0x470, 0x6f8, 0x8d8};
+
+    /** Host.onScript phase 5: the game ran its event for a slot holding the Java listener of `kind`. */
+    static void runGameEvent(net.runelite.api.Client client, int kind) {
+        int[] src = Native.scriptEventSource();
+        if (src != null) runFor(client, kind, src[0], src[1]);
+    }
     private static final Map<Integer, Map<Long, Object[]>> javaListeners = new HashMap<>();  // kind -> key -> {Long ptr, Object[] listener}
     private static final Map<Long, Object[]> varTriggers = new HashMap<>();  // key -> {Long ptr, int[] triggers}
     private static final java.util.Set<Integer> changedVarps = new java.util.HashSet<>();
@@ -182,7 +192,9 @@ final class WidgetListeners {
         int slot = kind == TIMER ? 0x668 : kind == DRAG ? 0x4d0 : kind == VAR_TRANSMIT ? 0x590 : -1;
         boolean cs2 = listener != null && listener.length > 0 && listener[0] instanceof Integer;
         if (slot >= 0 && !cs2) Native.widgetClearListener(id, index, slot);
-        if (listener == null || listener.length == 0 || listener[0] == null) { m.remove(k); return; }
+        boolean none = listener == null || listener.length == 0 || listener[0] == null;
+        if (kind >= CLICK && !cs2) Native.widgetSetJavaListener(id, index, GAME_SLOTS[kind - CLICK], none ? -1 : kind);
+        if (none) { m.remove(k); return; }
         long ptr = Native.widgetPtr(id, index);
         if (ptr != 0) m.put(k, new Object[] {ptr, listener});
     }

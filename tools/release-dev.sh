@@ -6,6 +6,7 @@
 # Dev builds are automated (user, 2026-10-19); official releases vX.Y.Z need the release gate record
 # qa/client-X.Y.Z.md (checked by the osrs-harness repo's hooks/publish_gate.py). The checks here are machine checks only:
 #   - master is clean and equal to origin/main (the build is of a pushed commit);
+#   - the APK is not debuggable (tools/not-debuggable.sh; DEBUGGABLE=1 is the agents' dev builds only);
 #   - the repack log has all 7 `telemetry:` lines (patch_telemetry.py asserts exactly one match each);
 #   - the APKs carry no secrets or personal data (private keys, the server's RSA private exponent, the
 #     user's name or email, home paths, keystores).
@@ -33,7 +34,7 @@ echo "release-dev: $tag at ${sha:0:9}"
 # Build (host jar, native lib, repack for the OpenRune test server with local sign-in).
 host/build.sh > "$work/host.log" 2>&1 || { tail -20 "$work/host.log"; die "host/build.sh failed"; }
 ninja -C re/build > "$work/ninja.log" 2>&1 || { tail -20 "$work/ninja.log"; die "ninja failed"; }
-OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh > "$work/repack.log" 2>&1 || { tail -20 "$work/repack.log"; die "repack failed"; }
+env -u DEBUGGABLE OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh > "$work/repack.log" 2>&1 || { tail -20 "$work/repack.log"; die "repack failed"; }
 t=$(grep -c '^telemetry:' "$work/repack.log" || true)
 [[ $t -eq 7 ]] || die "expected 7 telemetry: lines in the repack log, found $t"
 
@@ -72,6 +73,7 @@ done < <(find "$work/x" -type f -print0)
 echo "release-dev: secrets check on $scanned added or changed files"
 [[ $hits -eq 0 && $keys -eq 0 ]] || die "secrets check failed ($hits pattern hits, $keys key files)"
 
+tools/not-debuggable.sh re/out/osrs-runelite.apk || die "the APK is debuggable (DEBUGGABLE=1 is the agents' dev builds only)"
 [[ -s THIRD_PARTY_NOTICES.md ]] || die "THIRD_PARTY_NOTICES.md is missing"
 # The single universal APK is the release artifact (user, 2026-10-24); the split pair is no longer attached.
 unzip -p re/out/osrs-runelite.apk assets/THIRD_PARTY_NOTICES.md | cmp -s - THIRD_PARTY_NOTICES.md \

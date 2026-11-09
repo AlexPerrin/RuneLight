@@ -3,6 +3,7 @@
 #include <elf.h>
 #include <link.h>
 
+#include <atomic>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
@@ -13,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <memory>
 
@@ -23,6 +25,9 @@
 namespace game {
 void install_message_hook();
 void install_scene_load_hook();
+void install_minimap_hook();
+void install_fire_hook();
+void install_wheel_hook();
 void install_state_write_hooks();
 namespace {
 
@@ -201,6 +206,9 @@ bool init() {
             LOGI("game: build %s recognised", b.name);
             install_message_hook();
             install_scene_load_hook();
+            install_minimap_hook();
+            install_fire_hook();
+            install_wheel_hook();
             install_state_write_hooks();
             return true;
         }
@@ -970,6 +978,55 @@ bool play_sound_effect(int id, int loops, int delay) {
     return queued;
 }
 
+bool play_area_sound(int id, int x, int y, int range, int delay) {
+    uintptr_t c = client();
+    uintptr_t wv = c ? read_at<uintptr_t>(c + g_build->f_world_view) : 0;
+    if (!wv || id < 0 || id > 0xffff) return false;
+    // Desktop queues these as area sounds (position x << 16 | y << 8 | range). Here the game's area-sound
+    // queue 0x4ae650, called as SOUND_AREA does (0x46f99c..0x46f9c0): key = the world view's short id
+    // (+0), drop-off 0 (falloff over the whole range), flag 0. Entered through its hook, so
+    // AreaSoundEffectPlayed posts.
+    uintptr_t sys = c + 0x2610;
+    uintptr_t before = read_at<uintptr_t>(sys + 0xc8);
+    reinterpret_cast<void (*)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t)>(
+        g_base + 0x4ae650)(sys, static_cast<uint32_t>(read_at<int16_t>(wv)), id, x & 0xff, y & 0xff, range & 0xff, 0, 1, delay, 0);
+    return read_at<uintptr_t>(sys + 0xc8) != before;
+}
+
+bool play_sound_at_volume(int id, int volume) {
+    uintptr_t c = client();
+    if (!c || id < 0 || id > 0xffff) return false;
+    // Desktop's playSoundEffect(id, volume): straight into the sound-effect mixer (no queue, no event),
+    // at the sound-effect volume setting unless that is muted, then at `volume` (both 0..127).
+    int setting = read_at<int32_t>(c + 0x2f60);
+    int vol = setting != 0 ? setting : std::clamp(volume, 0, 127);
+    // 0x4ad358(out handle, ctx, id, volume, loops) is the ambient sounds' "play now" (ctx = Client
+    // +0x2ed0: +0 loader, +8 mixer, +0x20 resampler byte); handed the queue consumer's mixer
+    // (*(Client +0x25c0)) it plays as a queued plain sound does, at our volume, once (loops 0).
+    uintptr_t ctx[5] = {read_at<uintptr_t>(c + 0x2ed0), read_at<uintptr_t>(c + 0x25c0), 0, 0,
+                        read_at<uint8_t>(c + 0x2ef0)};
+    if (!ctx[0] || !ctx[1]) return false;
+    uintptr_t handle = 0;
+    reinterpret_cast<void (*)(uintptr_t*, uintptr_t*, int, int, int)>(g_base + 0x4ad358)(&handle, ctx, id, vol, 0);
+    if (!handle) return false;
+    // The mixer holds its own reference; drop the handle as the ambient code does when it replaces one
+    // (release the control block at handle +0: counts at +8/+0xc, then the game's free 0x9f4394).
+    auto add = reinterpret_cast<int (*)(int, uintptr_t)>(g_base + 0x3dc1b0);
+    if (uintptr_t cb = read_at<uintptr_t>(handle); cb && add(-1, cb + 8) == 1) {
+        auto vt = read_at<uintptr_t>(cb);
+        reinterpret_cast<void (*)(uintptr_t)>(read_at<uintptr_t>(vt + 0x10))(cb);
+        if (add(-1, cb + 0xc) == 1) reinterpret_cast<void (*)(uintptr_t)>(read_at<uintptr_t>(vt + 0x18))(cb);
+    }
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x9f4394)(handle);
+    static int logs = 0;
+    if (logs < 10) {
+        logs++;
+        LOGI("sound %d: played at volume %d (setting %d, asked %d; ambient mixer %s)", id, vol, setting, volume,
+             read_at<uintptr_t>(c + 0x2ed8) == ctx[1] ? "same" : "differs");
+    }
+    return true;
+}
+
 namespace {
 uintptr_t top_world_view();  // defined with the scene readers below
 }
@@ -1506,6 +1563,18 @@ bool close_sub_interface(int component, int group, bool unload) {
     return true;
 }
 
+// TRIGGER_ONDIALOGABORT (server packet 107, case 0x6b of 0x441dd4 at 0x444a48): with a root interface
+// (Client +0x413a88 != -1) `0x4405cc(client, root, 0x17)` runs onDialogAbort (+0x8d8) over the root's tree
+// and its mounted sub-interfaces (0x45f5dc). Game thread only.
+bool trigger_dialog_abort() {
+    uintptr_t c = client();
+    if (!c) return false;
+    int root = read_at<int32_t>(c + 0x413a88);
+    if (root == -1) return false;
+    reinterpret_cast<void (*)(uintptr_t, int, int)>(g_base + 0x4405cc)(c, root, 0x17);
+    return true;
+}
+
 // RuneLite's Client.openInterface: IF_OPENSUB's helper `0x462640(client, component, group, mode)` adds (or
 // re-uses) the component-table node, loads `group` into `component`, runs its onLoad and lays out the root.
 // Like desktop it doesn't close a node already in `component` (the packet handler does that first). It
@@ -1924,6 +1993,102 @@ bool set_music_volume(int v) {
     return true;
 }
 
+// Display and settings (client-api-display-engine-stubs, static RE run 302: re/decomp/007b0698.c, 00541b88.c,
+// 005f3e8c.c). Settings S = *(Client+0x2278); each setting is an option object whose vtable +0x40 validates,
+// then the value is written and the observer *(opt+8) slot +0x18 notified (+0x30 would commit and save it).
+// Display *(Client+0x90): 0x6b0698(scale, disp) sets the UI canvas +0x6c/+0x70 from the surface +0x30/+0x34
+// divided by the scale +0x84 (uniform, held at a minimum size); 0x441b88(client) calls it with UiScaling/100
+// and lays the root interface out at the new canvas size.
+bool display(int out[5]) {
+    uintptr_t c = client();
+    uintptr_t d = c ? read_at<uintptr_t>(c + 0x90) : 0;
+    if (!d) return false;
+    out[0] = read_at<int32_t>(d + 0x30);
+    out[1] = read_at<int32_t>(d + 0x34);
+    out[2] = read_at<int32_t>(d + 0x6c);
+    out[3] = read_at<int32_t>(d + 0x70);
+    out[4] = static_cast<int>(read_at<float>(d + 0x84) * 1000);
+    return true;
+}
+static uintptr_t settings_obj() {
+    uintptr_t c = client();
+    return c && g_build ? read_at<uintptr_t>(c + 0x2278) : 0;
+}
+int ui_scaling() {
+    uintptr_t s = settings_obj();
+    return s ? read_at<int32_t>(s + 0x16bc) : -1;
+}
+bool relayout() {
+    uintptr_t c = client();
+    if (!c || !read_at<uintptr_t>(c + 0x90) || !settings_obj()) return false;
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x441b88)(c);
+    return true;
+}
+bool set_ui_scaling(int percent) {
+    uintptr_t s = settings_obj();
+    if (!s || percent < read_at<int32_t>(s + 0x1714) || percent > read_at<int32_t>(s + 0x1718)) return false;
+    *reinterpret_cast<volatile int32_t*>(s + 0x16bc) = percent;
+    return relayout();
+}
+// The frame limit the frame function 0x86bdc8 sleeps to (Engine +0x18680, Engine = *(0x1fa1070); 60 at start,
+// 0 = no wait); the FpsLimit setting (settings +0x45c, console fpslimit) is pushed into it by 0x41c524 through
+// 0x5a8c74. Static RE run 302 (re/decomp/006a8c74.c). Written directly: the setting itself is left as it is.
+static uintptr_t engine_obj() { return g_build ? read_at<uintptr_t>(g_base + 0x1fa1070) : 0; }
+int fps_limit() {
+    uintptr_t e = engine_obj();
+    return e ? read_at<int32_t>(e + 0x18680) : -1;
+}
+bool set_fps_limit(int fps) {
+    uintptr_t e = engine_obj();
+    if (!e || fps < 0) return false;
+    *reinterpret_cast<volatile int32_t*>(e + 0x18680) = fps;
+    return true;
+}
+
+// The minimap build 0x589180(mm, plane, scene) (draw_minimap above), hooked so a plugin's tile drawer runs after
+// each redraw. Static RE run 302 (re/decomp/00689180.c): it calls the tile draw 0x6de9d4 for tiles 1..102 at
+// pixel offset 48*size + 48 + x*zoom + (103-y)*zoom*size.
+namespace {
+constexpr uintptr_t kMinimapBuild = 0x589180;
+constexpr uint32_t kMinimapBuildCode[4] = {0xd10203ff, 0xa9027bfd, 0xa9036ffc, 0xa90467fa};
+using MinimapBuildFn = void (*)(uintptr_t, int, uintptr_t);
+MinimapBuildFn g_minimap_build = nullptr;
+std::atomic<bool> g_minimap_watch{false};
+std::atomic<int> g_minimap_drawn{-1};
+void hook_minimap_build(uintptr_t mm, int plane, uintptr_t scene) {
+    g_minimap_build(mm, plane, scene);
+    if (g_minimap_watch.load(std::memory_order_relaxed)) g_minimap_drawn = plane;
+}
+}  // namespace
+void install_minimap_hook() {
+    g_minimap_build = reinterpret_cast<MinimapBuildFn>(inline_hook(g_base + kMinimapBuild, kMinimapBuildCode, reinterpret_cast<void*>(hook_minimap_build)));
+    LOGI("game: minimap build hook %s", g_minimap_build ? "installed" : "FAILED");
+}
+void set_minimap_watch(bool on) {
+    g_minimap_watch = on;
+    if (!on) g_minimap_drawn = -1;
+}
+int minimap_drawn() { return g_minimap_drawn.exchange(-1); }
+bool minimap_raster(std::vector<int32_t>& out) {
+    uintptr_t c = client();
+    uintptr_t mm = c ? read_at<uintptr_t>(c + 0x40e970) : 0;
+    if (!mm) return false;
+    auto* px = read_at<int32_t*>(mm + 0x6450);
+    int zoom = read_at<int32_t>(mm + 0x6470), w = read_at<int32_t>(mm + 0x6458), size = zoom * 104 + 96;
+    if (!px || zoom < 2 || zoom > 8 || w != size || read_at<int32_t>(mm + 0x645c) != size
+        || read_at<uint64_t>(mm + 0x6440) != static_cast<uint64_t>(size) * size) return false;
+    out.assign({size, zoom});
+    out.insert(out.end(), px, px + static_cast<size_t>(size) * size);
+    return true;
+}
+bool set_minimap_raster(const int32_t* src, size_t n) {
+    std::vector<int32_t> cur;
+    if (!minimap_raster(cur) || n != cur.size() - 2) return false;
+    uintptr_t mm = read_at<uintptr_t>(client() + 0x40e970);
+    std::copy(src, src + n, read_at<int32_t*>(mm + 0x6450));
+    return true;
+}
+
 // The music player's playing list (global vector 0x18e1cc8 of {ctrl, MusicSong*}): song +0x08 group id
 // in its archive, +0x00 the archive (Client +0x23a0 = the jingle archive, +0x2370 = music).
 bool midi_requests(std::vector<std::pair<int, bool>>& out) {
@@ -2024,6 +2189,109 @@ bool cross_world_ids(int64_t out[100], int& index) {
 // handler 0x41615c switch on it at gameState 10), input field 0xaae4f4 (0 username, 1 password).
 int login_index() { return g_build ? read_at<int32_t>(g_base + 0xace678) : -1; }
 int login_field() { return g_build ? read_at<int32_t>(g_base + 0xaae4f4) : -1; }
+
+// The login screen's text (desktop's Login.username/password/otp): global 24-byte strings, username
+// 0xace660, password 0xaeeba8, authenticator PIN 0xaeebd8 (typed by 0x479adc, drawn by 0x4233b0, sent by
+// the submit 0x47bfd0). Written with the game's string assign 0x3f1498, as CC_SETTEXT. Game thread only.
+// shortcut: an Android text field already showing (0x479770) keeps its old text until refocused.
+static const uintptr_t kLoginText[3] = {0xace660, 0xaeeba8, 0xaeebd8};
+std::string login_text(int which) {
+    return g_build && which >= 0 && which < 3 ? read_string(g_base + kLoginText[which]) : std::string();
+}
+bool set_login_text(int which, const std::string& text) {
+    if (!g_build || which < 0 || which > 2) return false;
+    GameString s(text);
+    reinterpret_cast<void* (*)(uintptr_t, const void*)>(g_base + 0x3f1498)(g_base + kLoginText[which], s.bytes);
+    return true;
+}
+
+// Title background (desktop's Login.leftTitleSprite/rightTitleSprite): the loader 0x42e5fc decodes
+// titlewide.png into the Sprite at *0xaee8b8 and its mirror at *0xaee8c8 (Sprite: +0x10 u32* ARGB
+// pixels, +0x18 w, +0x1c h); the login draw puts them side by side, the mirror right. A plugin's
+// background is stretched over both (left half, right half), the game's pixels kept to restore; the
+// loader re-creates them, so it is re-applied whenever the sprite changes. Game thread (after a cycle).
+namespace {
+std::mutex g_bg_mutex;
+std::vector<uint32_t> g_bg;  // the plugin's ARGB pixels (0 transparent), empty = the game's own
+int g_bg_w, g_bg_h;
+bool g_bg_dirty;
+uintptr_t g_bg_applied;      // the left Sprite the plugin's pixels are in, 0 = none
+std::vector<uint32_t> g_bg_saved[2];
+uintptr_t title_sprite(int i) { return read_at<uintptr_t>(g_base + (i ? 0xaee8c8 : 0xaee8b8)); }
+}  // namespace
+void set_login_background(const int32_t* rgb, int w, int h) {
+    std::lock_guard lock(g_bg_mutex);
+    g_bg.clear();
+    if (rgb && w > 0 && h > 0)
+        for (int i = 0; i < w * h; i++) g_bg.push_back(rgb[i] ? 0xff000000u | static_cast<uint32_t>(rgb[i]) : 0);
+    g_bg_w = w; g_bg_h = h; g_bg_dirty = true;
+}
+void login_background_cycle() {
+    if (!g_build) return;
+    std::lock_guard lock(g_bg_mutex);
+    uintptr_t s[2] = {title_sprite(0), title_sprite(1)};
+    if (s[0] != g_bg_applied && g_bg_applied) { g_bg_applied = 0; g_bg_dirty = true; }  // freed or reloaded: the game's own pixels
+    if (!g_bg_dirty || !s[0] || !s[1]) return;
+    int w = read_at<int32_t>(s[0] + 0x18), h = read_at<int32_t>(s[0] + 0x1c);
+    if (w <= 0 || h <= 0 || read_at<int32_t>(s[1] + 0x18) != w || read_at<int32_t>(s[1] + 0x1c) != h) return;
+    uint32_t* px[2] = {read_at<uint32_t*>(s[0] + 0x10), read_at<uint32_t*>(s[1] + 0x10)};
+    if (!px[0] || !px[1]) return;
+    if (g_bg_applied) for (int i = 0; i < 2; i++) std::copy(g_bg_saved[i].begin(), g_bg_saved[i].end(), px[i]);
+    g_bg_applied = 0;
+    if (!g_bg.empty()) {
+        for (int i = 0; i < 2; i++) {
+            g_bg_saved[i].assign(px[i], px[i] + static_cast<size_t>(w) * h);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    px[i][y * w + x] = g_bg[static_cast<size_t>(y) * g_bg_h / h * g_bg_w + static_cast<size_t>(i * w + x) * g_bg_w / (2 * w)];
+        }
+        g_bg_applied = s[0];
+    }
+    g_bg_dirty = false;
+}
+// {w, h, left pixel (0,0), right pixel (0,0), hash of both sprites' pixels, 0}; with no title sprite
+// (freed in game) the background held until they load: {w, h, its (0,0), its (w/2,0), hash of its pixels, 1}.
+bool login_background(int32_t out[6]) {
+    if (!g_build) return false;
+    uintptr_t s[2] = {title_sprite(0), title_sprite(1)};
+    if (!s[0] || !s[1]) {
+        std::lock_guard lock(g_bg_mutex);
+        uint32_t hash = 0;
+        for (uint32_t p : g_bg) hash = hash * 31 + p;
+        bool any = !g_bg.empty();
+        out[0] = any ? g_bg_w : 0; out[1] = any ? g_bg_h : 0;
+        out[2] = any ? static_cast<int32_t>(g_bg[0]) : 0; out[3] = any ? static_cast<int32_t>(g_bg[g_bg_w / 2]) : 0;
+        out[4] = static_cast<int32_t>(hash); out[5] = 1;
+        return true;
+    }
+    int w = read_at<int32_t>(s[0] + 0x18), h = read_at<int32_t>(s[0] + 0x1c);
+    const uint32_t* px[2] = {read_at<const uint32_t*>(s[0] + 0x10), read_at<const uint32_t*>(s[1] + 0x10)};
+    if (w <= 0 || h <= 0 || !px[0] || !px[1]) return false;
+    uint32_t hash = 0;
+    for (int i = 0; i < 2; i++) for (size_t k = 0; k < static_cast<size_t>(w) * h; k++) hash = hash * 31 + px[i][k];
+    out[0] = w; out[1] = h; out[2] = static_cast<int32_t>(px[0][0]); out[3] = static_cast<int32_t>(px[1][0]); out[4] = static_cast<int32_t>(hash); out[5] = 0;
+    return true;
+}
+
+// The login screen's fire (desktop's loginScreenRunesAnimation): 0x4d5f30(anim, x, cycle, renderer)
+// steps and draws it, called twice by the title draw (0x427218/0x427230) and for content type 1402
+// (0x45a3b0). While off, the hook returns at once (desktop's shouldRenderLoginScreenFire false).
+namespace {
+using FireFn = void (*)(void*, int, int, void*);
+FireFn g_fire_orig;
+std::atomic<bool> g_fire_on{true};
+void hook_fire(void* anim, int x, int cycle, void* r) {
+    if (g_fire_on.load(std::memory_order_relaxed)) g_fire_orig(anim, x, cycle, r);
+}
+constexpr uintptr_t kFireDraw = 0x4d5f30;
+constexpr uint32_t kFireDrawCode[4] = {0xa9bd7bfd, 0xf9000bf5, 0xa9024ff4, 0x910003fd};
+}  // namespace
+void install_fire_hook() {
+    g_fire_orig = reinterpret_cast<FireFn>(inline_hook(g_base + kFireDraw, kFireDrawCode, reinterpret_cast<void*>(hook_fire)));
+    LOGI("game: login fire hook %s", g_fire_orig ? "installed" : "FAILED");
+}
+void set_login_fire(bool on) { g_fire_on.store(on, std::memory_order_relaxed); }
+bool login_fire() { return g_fire_on.load(std::memory_order_relaxed); }
 
 // Minimap zoom (px per tile, int 2..8 at mm +0x6470, mm = *(Client+0x40e970)) and its zoom-input flag
 // (u8 mm +0x64b4, CS2 7250/7251). The game's setter 0x463528(client, zoom) (CS2 7252) clamps, resizes
@@ -4317,6 +4585,50 @@ bool scene_terrain(int what, int plane, int x, int y, std::vector<int32_t>& out)
     }
     default: return false;
     }
+}
+
+// Mouse wheel: the cycle function zeroes Client +0x413248 (wheel rotation, +0x41324c a scroll layer's own)
+// at 0x41d218 each logged-in cycle and nothing on Android sets it, though the interface pass 0x44ae24 reads
+// it for onScrollWheel and scroll layers (and 0x58d438 for the minimap zoom). The call right after the
+// zeroing (0x73f8f4, return address 0x41d220) is hooked to put the notches the host took from the app's
+// ACTION_SCROLL events there, as desktop's MouseWheel.useRotation at the start of the cycle.
+namespace {
+constexpr uintptr_t kAfterWheelReset = 0x73f8f4, kAfterWheelResetRet = 0x41d220;
+constexpr uint32_t kAfterWheelResetCode[4] = {0xa9bf7bfd, 0x910003fd, 0x9100a001, 0x2a1f03e0};
+using AfterWheelResetFn = int (*)(uintptr_t);
+AfterWheelResetFn g_after_wheel_reset = nullptr;
+std::atomic<int> g_wheel{0}, g_wheel_x{-1}, g_wheel_y{-1};
+
+int hook_after_wheel_reset(uintptr_t x0) {
+    if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_base + kAfterWheelResetRet) {
+        int r = g_wheel.exchange(0);
+        if (r) {
+            uintptr_t c = x0 - 0x1c80;  // x0 = Client + 0x1c80
+            *reinterpret_cast<volatile int32_t*>(c + 0x413248) = r;
+            // a wheel turns where the mouse is: a touch released left the game's mouse off the widget, so the
+            // notch's own point is the mouse for this cycle's interface pass, as desktop's mouse over the widget
+            int x = g_wheel_x.load(), y = g_wheel_y.load();
+            LOGI("game: wheel %d at %d,%d (mouse was %d,%d)", r, x, y, read_at<int32_t>(c + 0x40e9c0), read_at<int32_t>(c + 0x40e9d0));
+            if (x >= 0) {
+                *reinterpret_cast<volatile int32_t*>(c + 0x40e9c0) = x;
+                *reinterpret_cast<volatile int32_t*>(c + 0x40e9d0) = y;
+            }
+        }
+    }
+    return g_after_wheel_reset(x0);
+}
+}  // namespace
+
+void add_wheel(int rotation, int x, int y) {
+    g_wheel_x.store(x);
+    g_wheel_y.store(y);
+    g_wheel.fetch_add(rotation);
+}
+
+void install_wheel_hook() {
+    g_after_wheel_reset = reinterpret_cast<AfterWheelResetFn>(
+        inline_hook(g_base + kAfterWheelReset, kAfterWheelResetCode, reinterpret_cast<void*>(hook_after_wheel_reset)));
+    LOGI("game: wheel hook %s", g_after_wheel_reset ? "installed" : "FAILED");
 }
 
 void install_scene_load_hook() {

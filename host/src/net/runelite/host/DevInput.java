@@ -49,6 +49,8 @@ final class DevInput {
                 Activity a = Sidebar.currentActivity();
                 Window.Callback cb = a != null && a.getWindow() != null ? a.getWindow().getCallback() : null;
                 if (cb == null) Log.w(TAG, "devinput: no game window");
+                else if (ev instanceof MotionEvent && ((MotionEvent) ev).getActionMasked() == MotionEvent.ACTION_SCROLL)
+                    cb.dispatchGenericMotionEvent((MotionEvent) ev);
                 else if (ev instanceof MotionEvent) cb.dispatchTouchEvent((MotionEvent) ev);
                 else cb.dispatchKeyEvent((KeyEvent) ev);
             } catch (Throwable t) {
@@ -142,6 +144,11 @@ final class DevInput {
                 });
                 break;
             }
+            case java.awt.event.MouseEvent.MOUSE_WHEEL: {  // a mouse wheel: ACTION_SCROLL, which the game reads as its wheel
+                final int rotation = ((java.awt.event.MouseWheelEvent) e).getWheelRotation();
+                INPUT.execute(() -> scroll(p, rotation));
+                break;
+            }
             default:  // moved/clicked/entered: the virtual mouse only
                 break;
         }
@@ -151,6 +158,20 @@ final class DevInput {
         MotionEvent ev = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, p[0], p[1], 0);
         ev.setSource(InputDevice.SOURCE_TOUCHSCREEN);
         send(ev);
+    }
+
+    /** AWT's rotation is positive downward, Android's AXIS_VSCROLL positive upward. */
+    private static void scroll(float[] p, int rotation) {
+        MotionEvent.PointerProperties pp = new MotionEvent.PointerProperties();
+        pp.id = 0;
+        pp.toolType = MotionEvent.TOOL_TYPE_MOUSE;
+        MotionEvent.PointerCoords pc = new MotionEvent.PointerCoords();
+        pc.x = p[0];
+        pc.y = p[1];
+        pc.setAxisValue(MotionEvent.AXIS_VSCROLL, -rotation);
+        long now = SystemClock.uptimeMillis();
+        send(MotionEvent.obtain(now, now, MotionEvent.ACTION_SCROLL, 1, new MotionEvent.PointerProperties[] {pp},
+            new MotionEvent.PointerCoords[] {pc}, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0));
     }
 
     /** A tap at canvas (x, y), asynchronous. */

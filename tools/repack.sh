@@ -13,8 +13,11 @@
 #   GAME_PORT=40255 SERVER=... tools/repack.sh
 #                              -> also patches the game port the client connects to (it ignores
 #                                 jav_config for that; tools/openrune/patch_port.py)
+#   DEBUGGABLE=1 ... tools/repack.sh
+#                              -> also marks the app android:debuggable (run-as reaches its data): the agents'
+#                                 dev builds only; tools/release-dev.sh refuses a debuggable APK
 #   OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh
-#                              -> the build for OpenRune ($SERVER_TOOLS, the fork's local/server-tools):
+#                            -> the build for OpenRune ($SERVER_TOOLS, the fork's local/server-tools):
 #                                 SERVER=10.0.2.2:8080 (its jav_config sidecar), GAME_PORT=43594 and
 #                                 the modulus from `$SERVER_TOOLS/scripts/openrune.sh modulus`, unless set explicitly
 set -euo pipefail
@@ -42,6 +45,19 @@ rm -rf "$RE/apk/base"
 $APKTOOL d -q -f "$ROOT/base.apk" -o "$RE/apk/base"
 if [[ -n ${LOCAL_AUTH:-} ]]; then
     python3 -I "$ROOT/tools/patch_local_auth.py" "$RE/apk/base"
+fi
+# 1a. DEBUGGABLE=1, the agents' dev builds only (never a release): run-as reaches the app's data.
+if [[ -n ${DEBUGGABLE:-} ]]; then
+    python3 -I - "$RE/apk/base/AndroidManifest.xml" <<'EOF'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+if "android:debuggable=" in s: sys.exit("android:debuggable already set in " + p)
+t = s.replace("<application ", '<application android:debuggable="true" ', 1)
+if t == s: sys.exit("<application> not found in " + p)
+open(p, "w").write(t)
+print("patched", p, "debuggable")
+EOF
 fi
 # 1b. Telemetry off, every build (docs/app-telemetry.md): Singular never starts, the consent sync
 #     POST to account.jagex.com is disabled, Firebase Analytics deactivated, Crashlytics collection off.

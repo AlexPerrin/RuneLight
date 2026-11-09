@@ -70,6 +70,22 @@ final class Native {
     /** Music volume 0-255 (Client +0x2f58); set applies it to the playing songs; game thread only. */
     static native int musicVolume();
     static native boolean setMusicVolume(int v);
+    /** Display {surface width, height, UI canvas width, height, scale * 1000}; null before it exists. */
+    static native int[] display();
+    /** The game's UiScaling setting (percent, 25..400); set (game thread) writes it unsaved and lays the UI out. */
+    static native int uiScaling();
+    static native boolean setUiScaling(int percent);
+    /** The game's own UI layout from the surface size and UiScaling (desktop's resizeCanvas); game thread. */
+    static native boolean relayout();
+    /** The frame limit the game sleeps to (its FpsLimit setting applied; 0 = none); set (game thread) leaves the setting as it is. */
+    static native int fpsLimit();
+    static native boolean setFpsLimit(int fps);
+    /** While on, minimapDrawn returns the plane the game's minimap build drew since the last call, else -1. */
+    static native void setMinimapWatch(boolean on);
+    static native int minimapDrawn();
+    /** The minimap raster {size, zoom, ARGB...} and its write-back (size*size pixels); game thread. */
+    static native int[] minimapRaster();
+    static native boolean setMinimapRaster(int[] px);
     /** {group id, jingle 0/1} per song the music player is playing; game thread only, else null. */
     static native int[] midiRequests();
     /** While on, the camera shake flags are cleared after every cycle. */
@@ -90,6 +106,16 @@ final class Native {
     /** Login screen page and input field (0 username, 1 password). */
     static native int loginIndex();
     static native int loginField();
+    /** Login screen text: 0 username, 1 password, 2 authenticator PIN; the setter on the game thread only. */
+    static native String loginText(int which);
+    static native boolean setLoginText(int which, String text);
+    /** A plugin's title background (RGB pixels, 0 transparent; null = the game's own), applied after the next cycle. */
+    static native void setLoginBackground(int[] pixels, int width, int height);
+    /** Game thread: the title sprites {w, h, left (0,0), right (0,0), hash of both, 0}, or with none loaded (in game) the background held for them {.., 1}. */
+    static native int[] loginBackground();
+    /** The login screen fire: drawn while on. */
+    static native void setLoginFire(boolean on);
+    static native boolean loginFire();
     /** Minimap zoom (px per tile, 2..8; -1 before the minimap exists); set through the game's setter, game thread only. */
     static native int minimapZoom();
     static native boolean setMinimapZoom(int zoom);
@@ -154,6 +180,17 @@ final class Native {
     static native Object[] widgetListener(int id, int index, int offset);
     /** Clears the game's CS2 listener at `offset` (0x4d0 onDrag, 0x590 onVarTransmit, 0x668 onTimer), as CC_SETON with -1. Client thread. */
     static native boolean widgetClearListener(int id, int index, int offset);
+    /**
+     * Marks the game's listener slot at `offset` (0x380 onClick, 0x3e0 onRelease, 0x410 onHold, 0x440 onMouseOver,
+     * 0x470 onMouseRepeat, 0x4a0 onMouseLeave, 0x6f8 onScrollWheel, 0x8d8 onDialogAbort) as the host's Java listener
+     * of `kind`: the game's own dispatch then reaches Host.onScript phase 5 with that kind. kind -1 clears the slot.
+     * Client thread.
+     */
+    static native boolean widgetSetJavaListener(int id, int index, int offset, int kind);
+    /** What the server's TRIGGER_ONDIALOGABORT does: onDialogAbort over the root interface's tree; false with no root. Client thread. */
+    static native boolean triggerDialogAbort();
+    /** Mouse wheel notches (positive = down, as desktop) at canvas point x,y (the game's mouse for that cycle) for the game's next logged-in cycle. Any thread. */
+    static native void addWheel(int rotation, int x, int y);
     /** IF_CLOSESUB for `group` open in `component` (`0x462384`); false if not open. Client thread. */
     static native boolean closeSubInterface(int component, int group, boolean unload);
     /** IF_OPENSUB's helper (`0x462640`): opens `group` in `component` with modal `mode`; false on bad ids. Client thread. */
@@ -185,6 +222,10 @@ final class Native {
     /** Replaces the string at object stack slot index (0 = bottom) of the running script. */
     static native boolean setScriptString(int index, String text);
     static native boolean playSound(int id, int loops, int delay);
+    /** Plays a sound now at volume 0..127 (the setting wins unless muted); no queue, no event. */
+    static native boolean playSoundVolume(int id, int volume);
+    /** Queues an area sound at scene tile x, y (the game's 0x4ae650; AreaSoundEffectPlayed posts). */
+    static native boolean playAreaSound(int id, int x, int y, int range, int delay);
     static native int varcInt(int id);
     static native String varcString(int id);
     /** Client-side writes through the game's setters; false off the client thread or for unknown ids. */
