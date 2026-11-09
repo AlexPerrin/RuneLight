@@ -163,8 +163,8 @@ final class Native {
     static native boolean widgetSetJavaListener(int id, int index, int offset, int kind);
     /** What the server's TRIGGER_ONDIALOGABORT does: onDialogAbort over the root interface's tree; false with no root. Client thread. */
     static native boolean triggerDialogAbort();
-    /** Mouse wheel notches (positive = down, as desktop) for the game's next logged-in cycle. Any thread. */
-    static native void addWheel(int rotation);
+    /** Mouse wheel notches (positive = down, as desktop) at canvas point x,y (the game's mouse for that cycle) for the game's next logged-in cycle. Any thread. */
+    static native void addWheel(int rotation, int x, int y);
     /** IF_CLOSESUB for `group` open in `component` (`0x462384`); false if not open. Client thread. */
     static native boolean closeSubInterface(int component, int group, boolean unload);
     /** IF_OPENSUB's helper (`0x462640`): opens `group` in `component` with modal `mode`; false on bad ids. Client thread. */

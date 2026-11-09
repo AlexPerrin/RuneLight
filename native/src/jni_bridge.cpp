@@ -1222,7 +1222,7 @@ jbyteArray n_target_state(JNIEnv* env, jclass, jint len) {
 jboolean n_close_sub_interface(JNIEnv*, jclass, jint component, jint group, jboolean unload) {
     return client_thread::on_client_thread() && game::close_sub_interface(component, group, unload);
 }
-void n_add_wheel(JNIEnv*, jclass, jint rotation) { game::add_wheel(rotation); }
+void n_add_wheel(JNIEnv*, jclass, jint rotation, jint x, jint y) { game::add_wheel(rotation, x, y); }
 jboolean n_trigger_dialog_abort(JNIEnv*, jclass) {
     return client_thread::on_client_thread() && game::trigger_dialog_abort();
 }
@@ -2102,7 +2102,7 @@ const JNINativeMethod kNatives[] = {
     {"drawMinimap", "(I)[I", reinterpret_cast<void*>(n_draw_minimap)},
     {"closeSubInterface", "(IIZ)Z", reinterpret_cast<void*>(n_close_sub_interface)},
     {"triggerDialogAbort", "()Z", reinterpret_cast<void*>(n_trigger_dialog_abort)},
-    {"addWheel", "(I)V", reinterpret_cast<void*>(n_add_wheel)},
+    {"addWheel", "(III)V", reinterpret_cast<void*>(n_add_wheel)},
     {"openSubInterface", "(III)Z", reinterpret_cast<void*>(n_open_sub_interface)},
     {"setAllOpTargetable", "(Z)Z", reinterpret_cast<void*>(n_set_all_op_targetable)},
     {"widgetTargetFlags", "(II)J", reinterpret_cast<void*>(n_widget_target_flags)},

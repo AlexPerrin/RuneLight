@@ -4319,18 +4319,33 @@ constexpr uintptr_t kAfterWheelReset = 0x73f8f4, kAfterWheelResetRet = 0x41d220;
 constexpr uint32_t kAfterWheelResetCode[4] = {0xa9bf7bfd, 0x910003fd, 0x9100a001, 0x2a1f03e0};
 using AfterWheelResetFn = int (*)(uintptr_t);
 AfterWheelResetFn g_after_wheel_reset = nullptr;
-std::atomic<int> g_wheel{0};
+std::atomic<int> g_wheel{0}, g_wheel_x{-1}, g_wheel_y{-1};
 
 int hook_after_wheel_reset(uintptr_t x0) {
     if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_base + kAfterWheelResetRet) {
         int r = g_wheel.exchange(0);
-        if (r) *reinterpret_cast<volatile int32_t*>(x0 - 0x1c80 + 0x413248) = r;  // x0 = Client + 0x1c80
+        if (r) {
+            uintptr_t c = x0 - 0x1c80;  // x0 = Client + 0x1c80
+            *reinterpret_cast<volatile int32_t*>(c + 0x413248) = r;
+            // a wheel turns where the mouse is: a touch released left the game's mouse off the widget, so the
+            // notch's own point is the mouse for this cycle's interface pass, as desktop's mouse over the widget
+            int x = g_wheel_x.load(), y = g_wheel_y.load();
+            LOGI("game: wheel %d at %d,%d (mouse was %d,%d)", r, x, y, read_at<int32_t>(c + 0x40e9c0), read_at<int32_t>(c + 0x40e9d0));
+            if (x >= 0) {
+                *reinterpret_cast<volatile int32_t*>(c + 0x40e9c0) = x;
+                *reinterpret_cast<volatile int32_t*>(c + 0x40e9d0) = y;
+            }
+        }
     }
     return g_after_wheel_reset(x0);
 }
 }  // namespace
 
-void add_wheel(int rotation) { g_wheel.fetch_add(rotation); }
+void add_wheel(int rotation, int x, int y) {
+    g_wheel_x.store(x);
+    g_wheel_y.store(y);
+    g_wheel.fetch_add(rotation);
+}
 
 void install_wheel_hook() {
     g_after_wheel_reset = reinterpret_cast<AfterWheelResetFn>(
