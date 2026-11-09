@@ -511,6 +511,14 @@ struct WorldEntry { int id = 0, flags = 0, players = 0, location = 0, index = 0;
 bool world_entry(int id, WorldEntry& out);
 // The world list's {entries pointer, count}, to notice a reload. Game thread only.
 std::pair<uintptr_t, uint64_t> world_list_key();
+// Client.changeWorld: the game's setWorld 0x432748 (the login pick's call; desktop's changeWorld) with the
+// listed World of that id, else a World built from id/flags/host. Sets the world the next login connects
+// to (id, flags, host, ports); no game-state change. Game thread only.
+bool change_world(int id, int flags, const std::string& host);
+// A widget op as desktop's CC_OP menuAction: the game's widget-op handler 0x528764(_, component, sub, op
+// 1-based, 0, obj -1, 0) runs the component's onOp listener and sends IF_BUTTONX when the widget's
+// events transmit that op (the key-shortcut path calls it the same way). Game thread only.
+bool widget_op(int component, int sub, int op);
 // REBUILD_REGION state: whether the scene is an instance, and the [level][x][z] template chunks
 // packed as desktop (level << 24 | zoneX << 14 | zoneZ << 3 | rotation << 1; -1 = none).
 bool instance_templates(bool& instanced, int32_t out[4 * 13 * 13]);

@@ -1364,11 +1364,20 @@ public class AndroidClient extends ClientStub {
     @Override public void setGeSearchResultCount(int count) { if (isClientThread()) Native.setGeSearch(null, count, Integer.MIN_VALUE); }
     @Override public void setGeSearchResultIndex(int index) { if (isClientThread()) Native.setGeSearch(null, Integer.MIN_VALUE, index); }
     /**
-     * Desktop sets the world the next login connects to. The mobile client picks its world in its
-     * own world list, so this only logs. // unverified: no world switch is attempted
+     * As desktop: sets the world the next login connects to (id, flags, host, ports) through the game's
+     * setWorld, the login screen's world pick. Client thread only, as the game's world list is.
      */
     @Override public void changeWorld(net.runelite.api.World world) {
-        android.util.Log.i(Host.TAG, "changeWorld(" + world + ") ignored: the mobile client picks the world itself");
+        if (world == null || !isClientThread()) return;
+        Native.changeWorld(world.getId(), net.runelite.api.WorldType.toMask(world.getTypes()), world.getAddress());
+    }
+    /** As desktop: op 1 "World Switcher" on the logout tab's button (182:3); the server opens the world switcher (69). */
+    @Override public void openWorldHopper() {
+        if (isClientThread()) Native.widgetOp(182 << 16 | 3, -1, 1);
+    }
+    /** As desktop: op 1 "Switch" on the world switcher's list (69:18, sub = world id); the server answers LOGOUT_TRANSFER. */
+    @Override public void hopToWorld(net.runelite.api.World world) {
+        if (world != null && isClientThread()) Native.widgetOp(69 << 16 | 18, world.getId(), 1);
     }
     /** Marks a skill changed (as a stat update does) so the skill tab's onStatTransmit scripts redraw it (Virtual Levels). */
     @Override public void queueChangedSkill(net.runelite.api.Skill skill) {

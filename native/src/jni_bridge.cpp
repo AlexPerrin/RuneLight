@@ -818,6 +818,14 @@ jintArray n_ge_search(JNIEnv* env, jclass) {
     env->SetIntArrayRegion(a, 0, static_cast<jsize>(v.size()), v.data());
     return a;
 }
+jboolean n_change_world(JNIEnv* env, jclass, jint id, jint flags, jstring host) {
+    if (!client_thread::on_client_thread()) return false;
+    const char* c = host ? env->GetStringUTFChars(host, nullptr) : nullptr;
+    std::string h(c ? c : "");
+    if (c) env->ReleaseStringUTFChars(host, c);
+    return game::change_world(id, flags, h);
+}
+jboolean n_widget_op(JNIEnv*, jclass, jint component, jint sub, jint op) { return client_thread::on_client_thread() && game::widget_op(component, sub, op); }
 jboolean n_queue_changed_skill(JNIEnv*, jclass, jint skill) { return client_thread::on_client_thread() && game::queue_changed_skill(skill); }
 
 void n_set_script_events(JNIEnv*, jclass, jboolean on) { script_hooks::set_enabled(on); }
@@ -2213,6 +2221,8 @@ const JNINativeMethod kNatives[] = {
     {"isClientThread", "()Z", reinterpret_cast<void*>(n_is_client_thread)},
     {"setClientDelegate", "(Z)V", reinterpret_cast<void*>(n_set_client_delegate)},
     {"queueChangedSkill", "(I)Z", reinterpret_cast<void*>(n_queue_changed_skill)},
+    {"changeWorld", "(IILjava/lang/String;)Z", reinterpret_cast<void*>(n_change_world)},
+    {"widgetOp", "(III)Z", reinterpret_cast<void*>(n_widget_op)},
     {"setHiddenActors", "([I[I)V", reinterpret_cast<void*>(n_set_hidden_actors)},
     {"setGeSearch", "([SII)Z", reinterpret_cast<void*>(n_set_ge_search)},
     {"geSearch", "()[I", reinterpret_cast<void*>(n_ge_search)},

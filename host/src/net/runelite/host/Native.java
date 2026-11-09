@@ -208,6 +208,10 @@ final class Native {
     static native void setClientDelegate(boolean on);
     /** Client.queueChangedSkill: the game's changed-skills ring (onStatTransmit redraws). Client thread only. */
     static native boolean queueChangedSkill(int skill);
+    /** Client.changeWorld: the game's setWorld with the listed world of that id, else one built from the arguments. Client thread only. */
+    static native boolean changeWorld(int id, int flags, String host);
+    /** A widget op (1-based) as desktop's CC_OP menuAction: the onOp listener, then IF_BUTTONX if the op is transmitted. Client thread only. */
+    static native boolean widgetOp(int component, int sub, int op);
     /** Renderable draw listeners: these NPC / player indices are not drawn (or picked) until the next call. Client thread only. */
     static native void setHiddenActors(int[] npcs, int[] players);
     /** GE item search results: ids (null = keep), count / index (Integer.MIN_VALUE = keep). Client thread only. */

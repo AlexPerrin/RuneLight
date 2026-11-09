@@ -77,9 +77,11 @@ public class ApiProbePlugin extends Plugin {
      * Rows that change what the server or the session sees, run one at a time after every other row, each once
      * the previous one's check is done: a client-side close of a modal the run set-up opened, then a walk onto the
      * player's own tile (the server closes its modal too, and the fight stops), then camera drags on the scene (real
-     * touch input, with no modal over the scene), then a scene reload.
+     * touch input, with no modal over the scene), then a scene reload, then the world switcher opened and a hop to
+     * another listed world (the session ends on that world).
      */
-    static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Client.setInvertPitch", "Client.setInvertYaw", "Client.setGameState");
+    static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Client.setInvertPitch", "Client.setInvertYaw", "Client.setGameState",
+        "Client.openWorldHopper", "Client.hopToWorld");
 
     interface Turned { void run(int yaw, int pitch) throws Exception; }
 
@@ -1329,8 +1331,8 @@ public class ApiProbePlugin extends Plugin {
             SPECIAL.put("Widget.setOn" + l + "Listener1", listener);
     }
 
-    // Session and server-visible methods. A client script that only reads (quest_status_get), a world that is the
-    // current one, and the LAST rows, which each undo or settle what they do (see LAST).
+    // Session and server-visible methods. A client script that only reads (quest_status_get), a world change put back at
+    // once, and the LAST rows, which each undo or settle what they do (see LAST).
     static final int QUEST = net.runelite.api.Quest.COOKS_ASSISTANT.getId();
 
     static {
@@ -1353,11 +1355,44 @@ public class ApiProbePlugin extends Plugin {
         SPECIAL.put("Client.stopNow0", (p, row, inst) -> p.set(row, "skipped", "ends the client; the report would never be written"));
         SPECIAL.put("Client.runScript1", script);
         SPECIAL.put("ScriptEvent.run0", script);
-        // Desktop sets the world the next login uses: no getter, so the client's fields are compared around it.
+        // Sets the world the next login connects to: another id on the same host, read back by getWorld, then the current one again.
         SPECIAL.put("Client.changeWorld1", (p, row, inst) -> {
-            int before = p.client.getWorld();
-            p.noGetter(row, inst);
-            row.evidence += "; world " + before + ", asked for world " + before + ", getWorld after " + p.client.getWorld();
+            Client c = p.client;
+            int before = c.getWorld();
+            String host = c.getWorldHost();
+            if (host == null) { p.set(row, "skipped", "no world host (getWorldHost null)"); return; }
+            net.runelite.api.World w = c.createWorld();
+            w.setId(before + 1);
+            w.setTypes(c.getWorldType());
+            w.setAddress(host);
+            c.changeWorld(w);
+            int asked = c.getWorld();
+            w.setId(before);
+            c.changeWorld(w);
+            int back = c.getWorld();
+            p.set(row, asked == before + 1 && back == before ? "pass" : "mismatch", "world " + before + "; changeWorld(" + (before + 1) + " at " + host
+                + ") -> getWorld " + asked + "; changeWorld(" + before + ") -> getWorld " + back);
+        });
+        // The logout tab's World Switcher op: the server opens the world switcher (69).
+        SPECIAL.put("Client.openWorldHopper0", (p, row, inst) -> {
+            p.client.openWorldHopper();
+            p.later(row, hopperOpened(p, row, 1));
+        });
+        // A Switch op to another listed world (the list loads once the switcher is open): the server answers LOGOUT_TRANSFER
+        // and the client logs in on that world. Last of all: the session ends there.
+        SPECIAL.put("Client.hopToWorld1", (p, row, inst) -> {
+            Client c = p.client;
+            int from = c.getWorld();
+            net.runelite.api.World[] list = c.getWorldList();
+            net.runelite.api.World to = null;
+            StringBuilder ids = new StringBuilder();
+            if (list != null) for (net.runelite.api.World w : list) if (w != null) {
+                ids.append(ids.length() == 0 ? "" : ",").append(w.getId());
+                if (to == null && w.getId() != from) to = w;
+            }
+            if (to == null) { p.set(row, "skipped", "the world list (" + (list == null ? "not loaded" : ids) + ") has no world but the current " + from + " to hop to"); return; }
+            c.hopToWorld(to);
+            p.later(row, hopped(p, row, to, from, 1));
         });
         // A modal interface the run set-up opened (probewait "modal"), closed client-side as desktop does; the server
         // still has it open until the next row's walk closes it there (its move handler closes modals).
@@ -1555,6 +1590,33 @@ public class ApiProbePlugin extends Plugin {
         });
     }
 
+    // shortcut: the server answers an IF_BUTTON in the tick it reads it, so 5 ticks without the switcher is a mismatch; a longer wait has no fact to end on.
+    static Check hopperOpened(ApiProbePlugin p, Row row, int ticks) {
+        return () -> {
+            Widget w = p.client.getWidget(69, 0);
+            boolean open = w != null && !w.isHidden();
+            if (!open && ticks < 5) { p.later(row, hopperOpened(p, row, ticks + 1)); return; }
+            p.set(row, open ? "pass" : "mismatch", "op 1 (World Switcher) on 182:3: world switcher 69 " + (open ? "open" : "not open") + " after " + ticks + " tick(s)");
+        };
+    }
+
+    /**
+     * The hop's check, on the logged-in ticks only (the probe pauses while the client hops): on the asked world, else the op
+     * again every 5 ticks (the server refuses a switch within 20 ticks of combat, which the run set-up's fight leaves), 8 times.
+     */
+    static Check hopped(ApiProbePlugin p, Row row, net.runelite.api.World to, int from, int ticks) {
+        return () -> {
+            int now = p.client.getWorld();
+            if (now != to.getId() && ticks < 40) {
+                if (ticks % 5 == 0) p.client.hopToWorld(to);
+                p.later(row, hopped(p, row, to, from, ticks + 1));
+                return;
+            }
+            p.set(row, now == to.getId() ? "pass" : "mismatch", "op 1 (Switch) on 69:18[" + to.getId() + "] from world " + from + ": logged in on world " + now
+                + " after " + ticks + " logged-in tick(s), game state " + p.client.getGameState());
+        };
+    }
+
     /** The walk's check: the click the game ran, the destination and where the player is; re-checked while the host holds it. */
     static Check walked(ApiProbePlugin p, Row row, String ev, WorldPoint at, int sx, int sy) {
         return () -> {
@@ -1670,13 +1732,6 @@ public class ApiProbePlugin extends Plugin {
             case "Client.getDBRowConfig(I)Lnet/runelite/api/dbtable/DBRowConfig;": {
                 for (int r = 0; r < 20000; r++) if (client.getDBRowConfig(r) != null) return new Object[] {r};
                 return new Object[] {0};
-            }
-            // The world the client is on (desktop would hop to it or log in to it next).
-            case "Client.changeWorld(Lnet/runelite/api/World;)V":
-            case "Client.hopToWorld(Lnet/runelite/api/World;)V": {
-                net.runelite.api.World w = client.createWorld();
-                w.setId(client.getWorld());
-                return new Object[] {w};
             }
             // scale 0 would flatten the live model the Model rows read next; 128 = 1:1
             case "Mesh.scale(III)Lnet/runelite/api/Mesh;": return new Object[] {128, 128, 128};

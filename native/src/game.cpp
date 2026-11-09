@@ -466,6 +466,31 @@ bool add_chat_message(int type, const std::string& name, const std::string& text
     reinterpret_cast<void (*)(uintptr_t, int, const void*, const void*)>(g_base + g_build->add_chat_message)(c, type, n.bytes, t.bytes);
     return true;
 }
+// setWorld 0x432748(World*) reads id +0x00, flags +0x04, host +0x10 and the beta-world string +0x48
+// (offsets.md "World list"); it copies them, so a World on the stack is enough.
+bool change_world(int id, int flags, const std::string& host) {
+    if (!g_build || !client() || id <= 0) return false;
+    auto set_world = reinterpret_cast<void (*)(const void*)>(g_base + 0x432748);
+    auto count = read_at<uint64_t>(g_base + 0xace6c8);
+    auto list = read_at<uintptr_t>(g_base + 0xace6d0);
+    for (uint64_t i = 0; list && count <= 4096 && i < count; i++) {
+        auto w = read_at<uintptr_t>(list + i * 8);
+        if (w && read_at<int32_t>(w) == id) {
+            set_world(reinterpret_cast<const void*>(w));
+            return true;
+        }
+    }
+    GameString h(host), empty{std::string()};
+    alignas(8) uint8_t w[0x68] = {};
+    memcpy(w, &id, 4);
+    memcpy(w + 4, &flags, 4);
+    memcpy(w + 0x10, h.bytes, 24);
+    memcpy(w + 0x28, empty.bytes, 24);
+    memcpy(w + 0x48, empty.bytes, 24);
+    set_world(w);
+    return true;
+}
+
 int server_varp(int id) { return g_build ? read_varp_table(g_build->server_varps, id) : 0; }
 
 int varbit(int id) {
@@ -4986,6 +5011,13 @@ bool scene_remove_tile(int plane, int x, int y, bool remove) {
     slot[1] = 0;
     slot[0] = 0;
     release_shared_ptr(ctrl);
+    return true;
+}
+// The handler reads the slot's widget unchecked (a missing one is an empty slot), so it must exist.
+bool widget_op(int component, int sub, int op) {
+    uintptr_t c = client();
+    if (!g_build || !c || op < 1 || op > 10 || !widget_slot(component, sub)) return false;
+    reinterpret_cast<void (*)(uintptr_t, uint32_t, int, int, int, int, uint8_t)>(g_base + 0x528764)(c, component, sub, op, 0, -1, 0);
     return true;
 }
 }  // namespace game
