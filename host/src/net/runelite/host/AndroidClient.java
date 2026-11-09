@@ -1643,11 +1643,30 @@ public class AndroidClient extends ClientStub {
         @Override public boolean getHideUsername() { return false; }
     };
     @Override public net.runelite.api.Preferences getPreferences() { return preferences; }
-    /** The login name (KPH Tracker): the local player's name, as the test accounts log in by name. */
+    /**
+     * The login name (KPH Tracker): the login screen's username field (desktop's Login.username); a token
+     * login leaves it empty, and then the local player's name, as the test accounts log in by name.
+     */
     @Override public String getUsername() {
+        String u = Native.loginText(0);
+        if (u != null && !u.isEmpty()) return u;
         net.runelite.api.Player p = Host.localPlayer();
         return p != null && p.getName() != null ? p.getName() : "";
     }
+    /** The login screen's fields (desktop's Login.username/password/otp); desktop posts UsernameChanged on a new name. */
+    @Override public void setUsername(String name) {
+        if (!isClientThread() || !Native.setLoginText(0, name != null ? name : "")) return;
+        net.runelite.client.eventbus.EventBus bus = Host.eventBus();
+        if (bus != null) bus.post(new net.runelite.api.events.UsernameChanged());
+    }
+    @Override public void setPassword(String password) { if (isClientThread()) Native.setLoginText(1, password != null ? password : ""); }
+    @Override public void setOtp(String otp) { if (isClientThread()) Native.setLoginText(2, otp != null ? otp : ""); }
+    /** The title background, stretched over the game's two title sprites (null: the game's own). */
+    @Override public void setLoginScreen(net.runelite.api.SpritePixels s) {
+        if (s == null) Native.setLoginBackground(null, 0, 0);
+        else Native.setLoginBackground(s.getPixels(), s.getWidth(), s.getHeight());
+    }
+    @Override public void setShouldRenderLoginScreenFire(boolean on) { Native.setLoginFire(on); }
 
     @Override public net.runelite.api.IndexedSprite createIndexedSprite() { return new HostIndexedSprite(); }
 

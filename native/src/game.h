@@ -213,6 +213,10 @@ struct SubInterface { int component, group, type; };  // `group` is open inside 
 std::vector<SubInterface> open_sub_interfaces();
 // IF_CLOSESUB for an open sub-interface (`0x462384`); false when it isn't open. Game thread only.
 bool close_sub_interface(int component, int group, bool unload);
+// What TRIGGER_ONDIALOGABORT does (`0x4405cc(client, root, 0x17)`): onDialogAbort over the root's tree. Game thread only.
+bool trigger_dialog_abort();
+// Wheel notches (desktop's sign: positive scrolls down) for the next logged-in cycle's interface pass. Any thread.
+void add_wheel(int rotation, int x, int y);
 // IF_OPENSUB's helper `0x462640`: opens `group` inside `component` with modal `mode`; false on bad ids. Game thread only.
 bool open_sub_interface(int component, int group, int mode);
 // Game-state writes (RuneLite's setAllWidgetsAreOpTargetable, Widget.setForcedPosition,
@@ -624,6 +628,18 @@ bool cross_world_ids(int64_t out[100], int& index);
 // Login screen page and input field (globals).
 int login_index();
 int login_field();
+// Login screen text: 0 username, 1 password, 2 authenticator PIN (game thread for the setter).
+std::string login_text(int which);
+bool set_login_text(int which, const std::string& text);
+// A plugin's title background (RGB, 0 transparent; null = the game's own), applied after each cycle;
+// the title sprites read back as {w, h, left (0,0), right (0,0), hash, 0}; with none loaded (in game)
+// the background held for them, as the sprites would take it, {w, h, left (0,0), right (0,0), hash, 1}.
+void set_login_background(const int32_t* rgb, int w, int h);
+void login_background_cycle();
+bool login_background(int32_t out[6]);
+// The login screen fire: drawn while on.
+void set_login_fire(bool on);
+bool login_fire();
 // Minimap zoom (2..8, set through the game's setter) and its zoom-input flag.
 int minimap_zoom();
 bool set_minimap_zoom(int zoom);

@@ -34,12 +34,15 @@ landscape, canvas = screen points) on a fresh install (client-login-index-log, e
 
 On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
 and World / Tap to switch at [450,925][655,995]: never tap there. The api-probe at this build (logged in at spawn,
-no run set-up) is 91.8% (1149/1252): openInterface, setAllWidgetsAreOpTargetable, setInventoryDragDelay,
-PlayerComposition.setHash, Scene.removeGameObject/removeTile and Widget.setForcedPosition write the game's own state
-(offsets.md "Game-state writes") and pass; the 4 playSoundEffect rows pass: the positional forms queue an area sound
-(AreaSoundEffectPlayed at the asked tile, range and delay) and (id, volume) plays at the sound-effect setting, or the
-given volume when muted, raising no event, as desktop; the GraphicsObject and fight-dependent rows are unreached without
-the run set-up below.
+no run set-up) is 92.8% (1162/1252): the 8 Widget listener setters (click, hold, release, mouse over/leave/repeat,
+scroll wheel, dialog abort) run from the game's own dispatch and pass (plugin-host.md); openInterface,
+setAllWidgetsAreOpTargetable, setInventoryDragDelay, PlayerComposition.setHash, Scene.removeGameObject/removeTile and
+Widget.setForcedPosition write the game's own state (offsets.md "Game-state writes") and pass; the 4 playSoundEffect
+rows pass: the positional forms queue an area sound (AreaSoundEffectPlayed at the asked tile, range and delay) and
+(id, volume) plays at the sound-effect setting, or the given volume when muted, raising no event, as desktop; the
+login-screen setters pass: setUsername/setPassword/setOtp write the game's own login strings (getUsername reads the
+username field), setShouldRenderLoginScreenFire gates the fire's draw, and setLoginScreen, with the title sprites freed in
+game, is held and read back as the sprites will take it; the GraphicsObject and fight-dependent rows are unreached without the run set-up below.
 
 ## Releases and tooling
 

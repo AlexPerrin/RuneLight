@@ -12,7 +12,11 @@
 // Like RuneLite (ScriptVMMixin: INVOKE → ScriptPreFired, RETURN → ScriptPostFired).
 namespace script_hooks {
 
-enum Phase { Pre = 0, Post = 1, RootPre = 2, OpPre = 3, OpPost = 4 };
+// JavaListener: a root event whose script id is kJavaListener | kind (a slot the host wrote for a
+// plugin's Java listener) runs no script; the listener gets (JavaListener, kind) with current_event()
+// set, whether or not set_enabled is on.
+enum Phase { Pre = 0, Post = 1, RootPre = 2, OpPre = 3, OpPost = 4, JavaListener = 5 };
+constexpr int32_t kJavaListener = 0x7fff0000;
 using Listener = void (*)(int phase, int script_id);
 
 // Call from JNI_OnLoad, after game::init() and before the game runs any script.
