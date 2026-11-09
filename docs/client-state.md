@@ -34,7 +34,12 @@ landscape, canvas = screen points) on a fresh install (client-login-index-log, e
 
 On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
 and World / Tap to switch at [450,925][655,995]: never tap there. The api-probe at this build (logged in at spawn,
-no run set-up) is 92.4% (1157/1252): the 8 Widget listener setters (click, hold, release, mouse over/leave/repeat,
+no run set-up) is 93.5% (1170/1252, no pass of main's lost): the 13 display/engine setters pass on the game's own
+state: setScalingFactor, setStretchedIntegerScaling and setStretchedKeepAspectRatio drive UiScaling (settings +0x16bc,
+then the layout 0x441b88), setUnlockedFps/Target the frame limit (Engine +0x18680), setGpuFlags isGpu, setCompass
+sprite 169, setMinimapTileDrawer runs after the game's minimap build (hook 0x589180), resizeCanvas the layout,
+changeMemoryMode drops ground decorations without actions (a LAST row; off reloads the scene), setConfiguration is
+kept, and initialize/unblockStartup leave the running client thread as it is; the 8 Widget listener setters (click, hold, release, mouse over/leave/repeat,
 scroll wheel, dialog abort) run from the game's own dispatch and pass (plugin-host.md); openInterface,
 setAllWidgetsAreOpTargetable, setInventoryDragDelay, PlayerComposition.setHash, Scene.removeGameObject/removeTile and
 Widget.setForcedPosition write the game's own state (offsets.md "Game-state writes") and pass; the 4 playSoundEffect
