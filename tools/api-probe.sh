@@ -63,7 +63,7 @@ said() { dt get_chat_history | grep -qF "$1"; }   # a game message seen since lo
 worn() { dt get_inventory '{"inventoryId":94}' 2>/dev/null | python3 -c 'import json,sys; print(" ".join(str(i["itemId"]) for i in json.load(sys.stdin)["items"]))' || true; }
 held() { dt get_inventory '{"inventoryId":93}' | python3 -c 'import json,sys; print(" ".join(str(i["itemId"]) for i in json.load(sys.stdin)["items"]))'; }
 fighting() { dt list_players | python3 -c 'import json,sys; print(next((p.get("interacting") or "") for p in json.load(sys.stdin)["players"] if p.get("isLocal")))'; }
-xp() { dt get_skills | python3 -c 'import json,sys; print(next(s["xp"] for s in json.load(sys.stdin)["skills"] if s["skill"] == sys.argv[1]))' "$1"; }
+xp() { dt get_skills | python3 -c 'import json,sys; print(next(s["xp"] for s in json.load(sys.stdin)["skills"] if s["skill"].lower() == sys.argv[1]))' "$1"; }
 shown() { [[ $(dt get_widget "{\"componentId\":$(($1 << 16)),\"depth\":0}" 2>/dev/null) == *'"hidden":false'* ]]; }
 plog() { adb logcat -d -v brief -T "$mark" 2>/dev/null | tr -d '\r' | grep -F "api-probe: $1" || true; }
 
@@ -82,11 +82,14 @@ undo() {  # the set-up undone while the mobile plays; the desktop stopped
       dt click_component "{\"componentId\":$WORN_TAB}" >/dev/null && dt widget_action "{\"componentId\":$WORN_WEAPON,\"option\":\"Remove\"}" >/dev/null || true
       until [[ " $(held) " == *" $SCYTHE "* ]]; do sleep 1; done
     fi
-    if [[ " $(held) " == *" $SCYTHE "* ]]; then   # dropped: the valuable prompt, then "Put it down."
-      dt click_component "{\"componentId\":$INV_TAB}" >/dev/null; dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Drop\"}" >/dev/null
-      dt wait_for '{"condition":"dialogue","timeoutMs":60000}' >/dev/null; dt continue_dialogue >/dev/null; dt select_option '{"option":1}' >/dev/null
-      until [[ " $(held) " != *" $SCYTHE "* ]]; do sleep 1; done
-    fi
+    [[ " $(held) " != *" $SCYTHE "* ]] || dt click_component "{\"componentId\":$INV_TAB}" >/dev/null
+    while [[ " $(held) " == *" $SCYTHE "* ]]; do   # dropped, each step on the screen it reads: Drop, the valuable prompt, "Put it down."
+      case $(dt get_dialogue | field type) in
+        none) dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Drop\"}" >/dev/null; dt wait_for '{"condition":"dialogue","timeoutMs":60000}' >/dev/null ;;
+        item) dt continue_dialogue >/dev/null ;;
+        options) dt select_option '{"option":1}' >/dev/null ;;
+      esac
+    done
     for s in "${!xp0[@]}"; do chat "::setxp $s ${xp0[$s]}"; done
     [ -z "${retaliate0:-}" ] || chat "::varp 172 $retaliate0"
     if [ -n "${friend:-}" ]; then dt click_component "{\"componentId\":$FRIENDS_TAB}" >/dev/null; dt click_component "{\"componentId\":$DEL_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null; fi
