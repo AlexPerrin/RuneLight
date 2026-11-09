@@ -45,7 +45,9 @@ setAllWidgetsAreOpTargetable, setInventoryDragDelay, PlayerComposition.setHash, 
 Widget.setForcedPosition write the game's own state (offsets.md "Game-state writes") and pass; the 4 playSoundEffect
 rows pass: the positional forms queue an area sound (AreaSoundEffectPlayed at the asked tile, range and delay) and
 (id, volume) plays at the sound-effect setting, or the given volume when muted, raising no event, as desktop; the
-GraphicsObject and fight-dependent rows are unreached without the run set-up below.
+login-screen setters pass: setUsername/setPassword/setOtp write the game's own login strings (getUsername reads the
+username field), setShouldRenderLoginScreenFire gates the fire's draw, and setLoginScreen, with the title sprites freed in
+game, is held and read back as the sprites will take it; the GraphicsObject and fight-dependent rows are unreached without the run set-up below.
 
 ## Releases and tooling
 
