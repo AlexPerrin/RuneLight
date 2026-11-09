@@ -118,7 +118,8 @@ desktop=1; d=$("$FORK" live-desktop "$SLUG" | tail -1); [[ $d == LIVE_DESKTOP* ]
 port=$(cut -d' ' -f2 <<< "$d")
 friend=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["accounts"].split()[0])' "$HD/state/$SLUG/up.json")
 tab $FRIENDS_TAB 429; dt click_component "{\"componentId\":$ADD_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null
-! said "Unable to find player" || { echo "api-probe: the server found no player $friend to add"; exit 1; }
+until dt list_friends | grep -qiF "$friend"; do   # the server's list update, before the probe reads Nameable/ChatPlayer
+    ! said "Unable to find player" || { echo "api-probe: the server found no player $friend to add"; exit 1; }; sleep 1; done
 
 mark=$(adb shell date +%s.000 | tr -d '\r')
 adb push "$(wslpath -w "$ROOT/re/host/plugins-extra/api-probe.jar")" $F/plugins/api-probe.jar >/dev/null 2>&1
