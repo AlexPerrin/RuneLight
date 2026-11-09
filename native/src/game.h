@@ -208,6 +208,10 @@ struct SubInterface { int component, group, type; };  // `group` is open inside 
 std::vector<SubInterface> open_sub_interfaces();
 // IF_CLOSESUB for an open sub-interface (`0x462384`); false when it isn't open. Game thread only.
 bool close_sub_interface(int component, int group, bool unload);
+// What TRIGGER_ONDIALOGABORT does (`0x4405cc(client, root, 0x17)`): onDialogAbort over the root's tree. Game thread only.
+bool trigger_dialog_abort();
+// Wheel notches (desktop's sign: positive scrolls down) for the next logged-in cycle's interface pass. Any thread.
+void add_wheel(int rotation);
 // IF_OPENSUB's helper `0x462640`: opens `group` inside `component` with modal `mode`; false on bad ids. Game thread only.
 bool open_sub_interface(int component, int group, int mode);
 // Game-state writes (RuneLite's setAllWidgetsAreOpTargetable, Widget.setForcedPosition,

@@ -813,6 +813,12 @@ final class Sidebar {
                         noteTouch(e.getActionMasked(), e.getX(), e.getY());
                         if (TouchMouse.onTouch(e)) return true;
                     }
+                    if (m.getName().equals("dispatchGenericMotionEvent") && args != null && args[0] instanceof MotionEvent
+                            && ((MotionEvent) args[0]).getActionMasked() == MotionEvent.ACTION_SCROLL) {
+                        // the game reads no wheel from ACTION_SCROLL: its notches go to the game's wheel field (desktop's sign: down is positive)
+                        float v = ((MotionEvent) args[0]).getAxisValue(MotionEvent.AXIS_VSCROLL);
+                        if (v != 0) Native.addWheel(v > 0 ? -Math.max(1, Math.round(v)) : Math.max(1, Math.round(-v)));
+                    }
                     if (m.getName().equals("dispatchKeyEvent") && args != null && args[0] instanceof android.view.KeyEvent
                             && KeyRouter.onKey((android.view.KeyEvent) args[0], orig)) return true;
                     try {

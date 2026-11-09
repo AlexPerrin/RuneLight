@@ -1065,6 +1065,10 @@ public final class Host {
         AndroidClient ac = (AndroidClient) client;
         ac.beginScriptEvent();
         try {
+            if (phase == 5) {  // the game dispatched a widget event to a slot holding a Java listener (WidgetListeners)
+                WidgetListeners.runGameEvent(ac, id);
+                return;
+            }
             if (phase == 3 || phase == 4) {  // a watched instruction (ScriptCallbacks)
                 ScriptCallbacks.onOp(bus, ac, phase, id & 0xffff, id >>> 16);
                 return;

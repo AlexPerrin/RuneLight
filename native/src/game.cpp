@@ -3,6 +3,7 @@
 #include <elf.h>
 #include <link.h>
 
+#include <atomic>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,6 +24,7 @@
 namespace game {
 void install_message_hook();
 void install_scene_load_hook();
+void install_wheel_hook();
 void install_state_write_hooks();
 namespace {
 
@@ -201,6 +203,7 @@ bool init() {
             LOGI("game: build %s recognised", b.name);
             install_message_hook();
             install_scene_load_hook();
+            install_wheel_hook();
             install_state_write_hooks();
             return true;
         }
@@ -1478,6 +1481,18 @@ bool close_sub_interface(int component, int group, bool unload) {
     for (const SubInterface& s : open_sub_interfaces()) open |= s.component == component && s.group == group;
     if (!open) return false;
     reinterpret_cast<void (*)(uintptr_t, int, uint32_t, uint64_t)>(g_base + 0x462384)(c, component, static_cast<uint32_t>(group), unload ? 1 : 0);
+    return true;
+}
+
+// TRIGGER_ONDIALOGABORT (server packet 107, case 0x6b of 0x441dd4 at 0x444a48): with a root interface
+// (Client +0x413a88 != -1) `0x4405cc(client, root, 0x17)` runs onDialogAbort (+0x8d8) over the root's tree
+// and its mounted sub-interfaces (0x45f5dc). Game thread only.
+bool trigger_dialog_abort() {
+    uintptr_t c = client();
+    if (!c) return false;
+    int root = read_at<int32_t>(c + 0x413a88);
+    if (root == -1) return false;
+    reinterpret_cast<void (*)(uintptr_t, int, int)>(g_base + 0x4405cc)(c, root, 0x17);
     return true;
 }
 
@@ -4292,6 +4307,35 @@ bool scene_terrain(int what, int plane, int x, int y, std::vector<int32_t>& out)
     }
     default: return false;
     }
+}
+
+// Mouse wheel: the cycle function zeroes Client +0x413248 (wheel rotation, +0x41324c a scroll layer's own)
+// at 0x41d218 each logged-in cycle and nothing on Android sets it, though the interface pass 0x44ae24 reads
+// it for onScrollWheel and scroll layers (and 0x58d438 for the minimap zoom). The call right after the
+// zeroing (0x73f8f4, return address 0x41d220) is hooked to put the notches the host took from the app's
+// ACTION_SCROLL events there, as desktop's MouseWheel.useRotation at the start of the cycle.
+namespace {
+constexpr uintptr_t kAfterWheelReset = 0x73f8f4, kAfterWheelResetRet = 0x41d220;
+constexpr uint32_t kAfterWheelResetCode[4] = {0xa9bf7bfd, 0x910003fd, 0x9100a001, 0x2a1f03e0};
+using AfterWheelResetFn = int (*)(uintptr_t);
+AfterWheelResetFn g_after_wheel_reset = nullptr;
+std::atomic<int> g_wheel{0};
+
+int hook_after_wheel_reset(uintptr_t x0) {
+    if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_base + kAfterWheelResetRet) {
+        int r = g_wheel.exchange(0);
+        if (r) *reinterpret_cast<volatile int32_t*>(x0 - 0x1c80 + 0x413248) = r;  // x0 = Client + 0x1c80
+    }
+    return g_after_wheel_reset(x0);
+}
+}  // namespace
+
+void add_wheel(int rotation) { g_wheel.fetch_add(rotation); }
+
+void install_wheel_hook() {
+    g_after_wheel_reset = reinterpret_cast<AfterWheelResetFn>(
+        inline_hook(g_base + kAfterWheelReset, kAfterWheelResetCode, reinterpret_cast<void*>(hook_after_wheel_reset)));
+    LOGI("game: wheel hook %s", g_after_wheel_reset ? "installed" : "FAILED");
 }
 
 void install_scene_load_hook() {
