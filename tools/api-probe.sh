@@ -65,6 +65,7 @@ held() { dt get_inventory '{"inventoryId":93}' | python3 -c 'import json,sys; pr
 fighting() { dt list_players | python3 -c 'import json,sys; print(next((p.get("interacting") or "") for p in json.load(sys.stdin)["players"] if p.get("isLocal")))'; }
 xp() { dt get_skills | python3 -c 'import json,sys; print(next(s["xp"] for s in json.load(sys.stdin)["skills"] if s["skill"].lower() == sys.argv[1]))' "$1"; }
 shown() { [[ $(dt get_widget "{\"componentId\":$(($1 << 16)),\"depth\":0}" 2>/dev/null) == *'"hidden":false'* ]]; }
+tab() { shown "$2" || dt click_component "{\"componentId\":$1}" >/dev/null; }   # tab <side tab> <its interface>: shown (a click on the open tab closes it)
 plog() { adb logcat -d -v brief -T "$mark" 2>/dev/null | tr -d '\r' | grep -F "api-probe: $1" || true; }
 
 "$ROOT/host/plugins/api-probe/build.sh" >/dev/null
@@ -78,11 +79,8 @@ undo() {  # the set-up undone while the mobile plays; the desktop stopped
   [ -n "$cleaned" ] && return; cleaned=1
   if alive && [ "$(dt get_client_state | field gameState)" = LOGGED_IN ]; then
     ! shown 595 || dt click_component "{\"componentId\":$MAP_ORB}" >/dev/null || true
-    if [[ " $(worn) " == *" $SCYTHE "* ]]; then
-      dt click_component "{\"componentId\":$WORN_TAB}" >/dev/null && dt widget_action "{\"componentId\":$WORN_WEAPON,\"option\":\"Remove\"}" >/dev/null || true
-      until [[ " $(held) " == *" $SCYTHE "* ]]; do sleep 1; done
-    fi
-    [[ " $(held) " != *" $SCYTHE "* ]] || dt click_component "{\"componentId\":$INV_TAB}" >/dev/null
+    while [[ " $(worn) " == *" $SCYTHE "* ]]; do tab $WORN_TAB 387; dt widget_action "{\"componentId\":$WORN_WEAPON,\"option\":\"Remove\"}" >/dev/null || true; sleep 1; done
+    [[ " $(held) " != *" $SCYTHE "* ]] || tab $INV_TAB 149
     while [[ " $(held) " == *" $SCYTHE "* ]]; do   # dropped, each step on the screen it reads: Drop, the valuable prompt, "Put it down."
       case $(dt get_dialogue | field type) in
         none) dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Drop\"}" >/dev/null || true; dt wait_for '{"condition":"dialogue","timeoutMs":60000}' >/dev/null ;;
@@ -92,7 +90,7 @@ undo() {  # the set-up undone while the mobile plays; the desktop stopped
     done
     for s in "${!xp0[@]}"; do chat "::setxp $s ${xp0[$s]}"; done
     [ -z "${retaliate0:-}" ] || chat "::varp 172 $retaliate0"
-    if [ -n "${friend:-}" ]; then dt click_component "{\"componentId\":$FRIENDS_TAB}" >/dev/null; dt click_component "{\"componentId\":$DEL_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null; fi
+    if [ -n "${friend:-}" ]; then tab $FRIENDS_TAB 429; dt click_component "{\"componentId\":$DEL_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null; fi
   fi
   [ -z "$port" ] || "$FORK" live-desktop-down "$SLUG" >&2
 }
@@ -104,19 +102,19 @@ chat "::item scythe_of_vitur"; until [[ " $(held) " == *" $SCYTHE "* ]]; do slee
 for s in attack:1986068 strength:5346332 hitpoints:13034431; do   # 80 and 90 wield it; 99 hitpoints outlast the dummy's hits
   xp0[${s%:*}]=$(xp "${s%:*}"); chat "::setxp ${s%:*} ${s#*:}"; until [ "$(xp "${s%:*}")" = "${s#*:}" ]; do sleep 1; done
 done
-dt click_component "{\"componentId\":$INV_TAB}" >/dev/null
+tab $INV_TAB 149
 until [[ " $(worn) " == *" $SCYTHE "* ]]; do dt item_action "{\"itemId\":$SCYTHE,\"option\":\"Wield\"}" >/dev/null || true; sleep 1; done
 chat "::npc 6000 poh_combat_dummy_npc"
 until npc=$(dt list_npcs | python3 -c 'import json,sys; n=[n for n in json.load(sys.stdin)["npcs"] if "Combat dummy" in (n.get("name") or "")]; n.sort(key=lambda n: n["distance"]); print(n[0]["index"])' 2>/dev/null); do sleep 1; done
 dt interact_npc "{\"npcIndex\":$npc,\"option\":\"Attack\"}" >/dev/null
 until dt get_combat_history '{"windowMs":10000}' | grep -q '"actorType":"npc"'; do sleep 1; done   # the attack has settled the player and hits
-dt click_component "{\"componentId\":$MAP_ORB}" >/dev/null; dt wait_for '{"condition":"interface_open","interfaceId":595,"timeoutMs":60000}' >/dev/null
+shown 595 || dt click_component "{\"componentId\":$MAP_ORB}" >/dev/null; dt wait_for '{"condition":"interface_open","interfaceId":595,"timeoutMs":60000}' >/dev/null
 
 # the friend: the desktop logged in (it idles out after 5 minutes: the probe starts at once), added to the mobile's list
 d=$("$FORK" live-desktop "$SLUG" | tail -1); [[ $d == LIVE_DESKTOP* ]] || { echo "api-probe: no live desktop for the friend: $d"; exit 1; }
 port=$(cut -d' ' -f2 <<< "$d")
 friend=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["accounts"].split()[0])' "$HD/state/$SLUG/up.json")
-dt click_component "{\"componentId\":$FRIENDS_TAB}" >/dev/null; dt click_component "{\"componentId\":$ADD_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null
+tab $FRIENDS_TAB 429; dt click_component "{\"componentId\":$ADD_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null
 ! said "Unable to find player" || { echo "api-probe: the server found no player $friend to add"; exit 1; }
 
 mark=$(adb shell date +%s.000 | tr -d '\r')
@@ -127,7 +125,7 @@ status=0; waited=; modal=
 until adb shell ls $F/api-probe.tsv >/dev/null 2>&1; do
     alive || { echo "api-probe: the app exited during the probe; the last row it started is in logcat (rl.ApiProbePlugin)"; status=1; break; }
     if [ -z "$waited" ] && [ -n "$(plog 'waiting for')" ]; then   # the rows that need no waited instance are done
-        waited=1; dt click_component "{\"componentId\":$SKILLS_TAB}" >/dev/null
+        waited=1; tab $SKILLS_TAB 320
         desk widget_action '{"componentId":10616847,"option":"Show all"}' >/dev/null   # chatbox private filter (162:15): a login notice on the mobile
     fi
     if [ -z "$modal" ] && [ -n "$(plog 'closeInterface waits')" ]; then
