@@ -3,6 +3,7 @@
 #include <elf.h>
 #include <link.h>
 
+#include <atomic>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
@@ -25,6 +26,8 @@ namespace game {
 void install_message_hook();
 void install_scene_load_hook();
 void install_minimap_hook();
+void install_wheel_hook();
+void install_state_write_hooks();
 namespace {
 
 // Offsets are ELF virtual addresses (as in readelf/objdump; Ghidra shows them +0x100000)
@@ -203,6 +206,8 @@ bool init() {
             install_message_hook();
             install_scene_load_hook();
             install_minimap_hook();
+            install_wheel_hook();
+            install_state_write_hooks();
             return true;
         }
     }
@@ -946,6 +951,55 @@ bool play_sound_effect(int id, int loops, int delay) {
     return queued;
 }
 
+bool play_area_sound(int id, int x, int y, int range, int delay) {
+    uintptr_t c = client();
+    uintptr_t wv = c ? read_at<uintptr_t>(c + g_build->f_world_view) : 0;
+    if (!wv || id < 0 || id > 0xffff) return false;
+    // Desktop queues these as area sounds (position x << 16 | y << 8 | range). Here the game's area-sound
+    // queue 0x4ae650, called as SOUND_AREA does (0x46f99c..0x46f9c0): key = the world view's short id
+    // (+0), drop-off 0 (falloff over the whole range), flag 0. Entered through its hook, so
+    // AreaSoundEffectPlayed posts.
+    uintptr_t sys = c + 0x2610;
+    uintptr_t before = read_at<uintptr_t>(sys + 0xc8);
+    reinterpret_cast<void (*)(uintptr_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t)>(
+        g_base + 0x4ae650)(sys, static_cast<uint32_t>(read_at<int16_t>(wv)), id, x & 0xff, y & 0xff, range & 0xff, 0, 1, delay, 0);
+    return read_at<uintptr_t>(sys + 0xc8) != before;
+}
+
+bool play_sound_at_volume(int id, int volume) {
+    uintptr_t c = client();
+    if (!c || id < 0 || id > 0xffff) return false;
+    // Desktop's playSoundEffect(id, volume): straight into the sound-effect mixer (no queue, no event),
+    // at the sound-effect volume setting unless that is muted, then at `volume` (both 0..127).
+    int setting = read_at<int32_t>(c + 0x2f60);
+    int vol = setting != 0 ? setting : std::clamp(volume, 0, 127);
+    // 0x4ad358(out handle, ctx, id, volume, loops) is the ambient sounds' "play now" (ctx = Client
+    // +0x2ed0: +0 loader, +8 mixer, +0x20 resampler byte); handed the queue consumer's mixer
+    // (*(Client +0x25c0)) it plays as a queued plain sound does, at our volume, once (loops 0).
+    uintptr_t ctx[5] = {read_at<uintptr_t>(c + 0x2ed0), read_at<uintptr_t>(c + 0x25c0), 0, 0,
+                        read_at<uint8_t>(c + 0x2ef0)};
+    if (!ctx[0] || !ctx[1]) return false;
+    uintptr_t handle = 0;
+    reinterpret_cast<void (*)(uintptr_t*, uintptr_t*, int, int, int)>(g_base + 0x4ad358)(&handle, ctx, id, vol, 0);
+    if (!handle) return false;
+    // The mixer holds its own reference; drop the handle as the ambient code does when it replaces one
+    // (release the control block at handle +0: counts at +8/+0xc, then the game's free 0x9f4394).
+    auto add = reinterpret_cast<int (*)(int, uintptr_t)>(g_base + 0x3dc1b0);
+    if (uintptr_t cb = read_at<uintptr_t>(handle); cb && add(-1, cb + 8) == 1) {
+        auto vt = read_at<uintptr_t>(cb);
+        reinterpret_cast<void (*)(uintptr_t)>(read_at<uintptr_t>(vt + 0x10))(cb);
+        if (add(-1, cb + 0xc) == 1) reinterpret_cast<void (*)(uintptr_t)>(read_at<uintptr_t>(vt + 0x18))(cb);
+    }
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x9f4394)(handle);
+    static int logs = 0;
+    if (logs < 10) {
+        logs++;
+        LOGI("sound %d: played at volume %d (setting %d, asked %d; ambient mixer %s)", id, vol, setting, volume,
+             read_at<uintptr_t>(c + 0x2ed8) == ctx[1] ? "same" : "differs");
+    }
+    return true;
+}
+
 namespace {
 uintptr_t top_world_view();  // defined with the scene readers below
 }
@@ -1479,6 +1533,31 @@ bool close_sub_interface(int component, int group, bool unload) {
     for (const SubInterface& s : open_sub_interfaces()) open |= s.component == component && s.group == group;
     if (!open) return false;
     reinterpret_cast<void (*)(uintptr_t, int, uint32_t, uint64_t)>(g_base + 0x462384)(c, component, static_cast<uint32_t>(group), unload ? 1 : 0);
+    return true;
+}
+
+// TRIGGER_ONDIALOGABORT (server packet 107, case 0x6b of 0x441dd4 at 0x444a48): with a root interface
+// (Client +0x413a88 != -1) `0x4405cc(client, root, 0x17)` runs onDialogAbort (+0x8d8) over the root's tree
+// and its mounted sub-interfaces (0x45f5dc). Game thread only.
+bool trigger_dialog_abort() {
+    uintptr_t c = client();
+    if (!c) return false;
+    int root = read_at<int32_t>(c + 0x413a88);
+    if (root == -1) return false;
+    reinterpret_cast<void (*)(uintptr_t, int, int)>(g_base + 0x4405cc)(c, root, 0x17);
+    return true;
+}
+
+// RuneLite's Client.openInterface: IF_OPENSUB's helper `0x462640(client, component, group, mode)` adds (or
+// re-uses) the component-table node, loads `group` into `component`, runs its onLoad and lays out the root.
+// Like desktop it doesn't close a node already in `component` (the packet handler does that first). It
+// dereferences the lookup of `component` unchecked, so both ids are validated first. Game thread only.
+bool open_sub_interface(int component, int group, int mode) {
+    uintptr_t c = client();
+    if (!c || group < 0 || group > 0xffff || !widget_slot(component, -1)) return false;
+    auto im = read_at<uintptr_t>(c + g_build->f_interfaces);
+    if (!im || static_cast<uint64_t>(group) >= read_at<uint64_t>(im + 0x6888)) return false;
+    reinterpret_cast<uintptr_t (*)(uintptr_t, int, int, int)>(g_base + 0x462640)(c, component, group, mode);
     return true;
 }
 
@@ -4378,6 +4457,50 @@ bool scene_terrain(int what, int plane, int x, int y, std::vector<int32_t>& out)
     }
 }
 
+// Mouse wheel: the cycle function zeroes Client +0x413248 (wheel rotation, +0x41324c a scroll layer's own)
+// at 0x41d218 each logged-in cycle and nothing on Android sets it, though the interface pass 0x44ae24 reads
+// it for onScrollWheel and scroll layers (and 0x58d438 for the minimap zoom). The call right after the
+// zeroing (0x73f8f4, return address 0x41d220) is hooked to put the notches the host took from the app's
+// ACTION_SCROLL events there, as desktop's MouseWheel.useRotation at the start of the cycle.
+namespace {
+constexpr uintptr_t kAfterWheelReset = 0x73f8f4, kAfterWheelResetRet = 0x41d220;
+constexpr uint32_t kAfterWheelResetCode[4] = {0xa9bf7bfd, 0x910003fd, 0x9100a001, 0x2a1f03e0};
+using AfterWheelResetFn = int (*)(uintptr_t);
+AfterWheelResetFn g_after_wheel_reset = nullptr;
+std::atomic<int> g_wheel{0}, g_wheel_x{-1}, g_wheel_y{-1};
+
+int hook_after_wheel_reset(uintptr_t x0) {
+    if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_base + kAfterWheelResetRet) {
+        int r = g_wheel.exchange(0);
+        if (r) {
+            uintptr_t c = x0 - 0x1c80;  // x0 = Client + 0x1c80
+            *reinterpret_cast<volatile int32_t*>(c + 0x413248) = r;
+            // a wheel turns where the mouse is: a touch released left the game's mouse off the widget, so the
+            // notch's own point is the mouse for this cycle's interface pass, as desktop's mouse over the widget
+            int x = g_wheel_x.load(), y = g_wheel_y.load();
+            LOGI("game: wheel %d at %d,%d (mouse was %d,%d)", r, x, y, read_at<int32_t>(c + 0x40e9c0), read_at<int32_t>(c + 0x40e9d0));
+            if (x >= 0) {
+                *reinterpret_cast<volatile int32_t*>(c + 0x40e9c0) = x;
+                *reinterpret_cast<volatile int32_t*>(c + 0x40e9d0) = y;
+            }
+        }
+    }
+    return g_after_wheel_reset(x0);
+}
+}  // namespace
+
+void add_wheel(int rotation, int x, int y) {
+    g_wheel_x.store(x);
+    g_wheel_y.store(y);
+    g_wheel.fetch_add(rotation);
+}
+
+void install_wheel_hook() {
+    g_after_wheel_reset = reinterpret_cast<AfterWheelResetFn>(
+        inline_hook(g_base + kAfterWheelReset, kAfterWheelResetCode, reinterpret_cast<void*>(hook_after_wheel_reset)));
+    LOGI("game: wheel hook %s", g_after_wheel_reset ? "installed" : "FAILED");
+}
+
 void install_scene_load_hook() {
     g_scene_load = reinterpret_cast<SceneLoadFn>(inline_hook(g_base + kSceneLoad, kSceneLoadCode, reinterpret_cast<void*>(hook_scene_load)));
     LOGI("game: scene load hook %s", g_scene_load ? "installed" : "FAILED");
@@ -4945,6 +5068,131 @@ bool take_message_inventories(int id, std::vector<Inventory>& out) {
     if (it == g_msg_inv.end()) return false;
     out = std::move(it->second);
     g_msg_inv.erase(it);
+    return true;
+}
+
+// ---- Game-state writes (docs/offsets.md "Game-state writes") ----
+
+namespace {
+// RuneLite's allWidgetsAreOpTargetable: the menu builder 0x525c78 takes a widget as a target only when
+// the flags from 0x460dac(client, Widget_sp*) have bit 21 (0x200000); that call returns to 0x525ce0.
+constexpr uintptr_t kWidgetFlags = 0x460dac, kTargetFlagsRet = 0x525ce0;
+constexpr uint32_t kWidgetFlagsCode[4] = {0xf9400428, 0x91504c09, 0xb94c392a, 0xf9461929};
+// The widget position layout 0x45ea08(clamp, Widget*, parent width, parent height) writes +0x5c/+0x60.
+constexpr uintptr_t kWidgetAlign = 0x45ea08;
+constexpr uint32_t kWidgetAlignCode[4] = {0xb9403c28, 0x7100051f, 0x5400026d, 0x7100091f};
+volatile bool g_all_op_targetable = false;
+bool g_flags_query = false;  // game thread: widget_target_flags asks 0x460dac as the menu builder does
+struct Forced { uint32_t comp; int32_t index; int x, y; };
+std::unordered_map<uintptr_t, Forced> g_forced;  // by Widget*; game thread only
+}  // namespace
+}  // namespace game
+
+extern "C" {
+__attribute__((visibility("hidden"))) void* osrsrl_widget_flags_orig = nullptr;
+__attribute__((visibility("hidden"))) void* osrsrl_widget_align_orig = nullptr;
+void osrsrl_widget_flags_stub();
+void osrsrl_widget_align_stub();
+void osrsrl_widget_flags_cb(const uint64_t*, uint64_t* regs, uintptr_t lr) {
+    if (game::g_all_op_targetable && (lr == game::g_base + game::kTargetFlagsRet || game::g_flags_query)) regs[0] |= 0x200000;
+}
+void osrsrl_widget_align_cb(const uint64_t* args, uint64_t*, uintptr_t) {
+    if (game::g_forced.empty()) return;
+    auto it = game::g_forced.find(args[1]);
+    if (it == game::g_forced.end()) return;
+    uintptr_t w = args[1];
+    const game::Forced& f = it->second;
+    // The Widget* may have been freed and reused by another widget: only the one it was set on.
+    if (game::read_at<uint32_t>(w + 4) != f.comp || game::read_at<int32_t>(w + 8) != f.index) return;
+    if (f.x != -1) *reinterpret_cast<volatile int32_t*>(w + 0x5c) = f.x;
+    if (f.y != -1) *reinterpret_cast<volatile int32_t*>(w + 0x60) = f.y;
+}
+}
+
+namespace game {
+void install_state_write_hooks() {
+    osrsrl_widget_flags_orig = inline_hook(g_base + kWidgetFlags, kWidgetFlagsCode, reinterpret_cast<void*>(osrsrl_widget_flags_stub));
+    osrsrl_widget_align_orig = inline_hook(g_base + kWidgetAlign, kWidgetAlignCode, reinterpret_cast<void*>(osrsrl_widget_align_stub));
+    LOGI("game: widget flags hook %s, widget align hook %s", osrsrl_widget_flags_orig ? "installed" : "FAILED",
+         osrsrl_widget_align_orig ? "installed" : "FAILED");
+}
+
+bool set_all_op_targetable(bool on) {
+    g_all_op_targetable = on;
+    return osrsrl_widget_flags_orig != nullptr;
+}
+
+// The flags 0x460dac gives the menu builder for a widget (its IF_SETEVENTS range, else +0x2b0), with
+// setAllWidgetsAreOpTargetable applied as it is there; -1 for no widget. Game thread.
+int64_t widget_target_flags(int component, int index) {
+    uintptr_t c = client(), slot = widget_slot(component, index);
+    if (!c || !slot || !osrsrl_widget_flags_orig) return -1;
+    g_flags_query = true;
+    uint32_t v = reinterpret_cast<uint32_t (*)(uintptr_t, uintptr_t)>(g_base + kWidgetFlags)(c, slot);
+    g_flags_query = false;
+    return v;
+}
+
+// RuneLite's Widget.setForcedPosition: the layout keeps x/y (-1 = its own) for this widget; both -1
+// clear it. The next layout pass (revalidate) applies it. Game thread.
+bool widget_force_position(int component, int index, int x, int y) {
+    uintptr_t slot = widget_slot(component, index), w = slot ? read_at<uintptr_t>(slot + 8) : 0;
+    if (!w || !osrsrl_widget_align_orig) return false;
+    if (x == -1 && y == -1) g_forced.erase(w);
+    else g_forced[w] = {read_at<uint32_t>(w + 4), read_at<int32_t>(w + 8), x, y};
+    return true;
+}
+
+// RuneLite's PlayerComposition.setHash: the composition's equipment, colours and transformed NPC id
+// into the player's Appearance (Player +0x728), then its model hash 0x5e1bd4(Appearance*), which stores
+// +0x78 and drops the old hash's cached model (the next draw builds the new one). Returns the hash, 0
+// with no appearance. Game thread.
+uint64_t appearance_set_hash(int index, const int32_t equipment[12], const int32_t colors[5], int npc_id) {
+    uintptr_t p = live_player(index), app = p ? read_at<uintptr_t>(p + 0x728) : 0;
+    if (!app) return 0;
+    for (int i = 0; i < 12; i++) *reinterpret_cast<volatile int32_t*>(app + 4 * i) = equipment[i];
+    for (int i = 0; i < 5; i++) *reinterpret_cast<volatile int32_t*>(app + 0x60 + 4 * i) = colors[i];
+    *reinterpret_cast<volatile int32_t*>(app + 0x74) = npc_id;
+    reinterpret_cast<void (*)(uintptr_t)>(g_base + 0x5e1bd4)(app);
+    return read_at<uint64_t>(app + 0x78);
+}
+uint64_t appearance_hash(int index) {
+    uintptr_t p = live_player(index), app = p ? read_at<uintptr_t>(p + 0x728) : 0;
+    return app ? read_at<uint64_t>(app + 0x78) : 0;
+}
+
+// RuneLite's Scene.removeGameObject: the scenery object whose min corner is (plane, x, y) with `tag`
+// (+0x1f0) leaves every tile it covers through the game's own removal 0x6dc300(scene, obj, 0), the
+// scene-only half of LOC_DEL (collision stays). The object may be freed by it. Game thread.
+bool scene_remove_game_object(int plane, int x, int y, uint64_t tag) {
+    uintptr_t scene = top_scene(), t = scene ? scene_tile(scene, plane, x, y) : 0;
+    if (!t) return false;
+    int n = read_at<int32_t>(t + 0x34);
+    uintptr_t objs = read_at<uintptr_t>(t + 0x38);
+    if (n <= 0 || n > 16 || !objs) return false;
+    for (int i = 0; i < n; i++) {
+        uintptr_t o = read_at<uintptr_t>(objs + static_cast<size_t>(i) * 0x10 + 8);
+        if (!o || read_at<uint64_t>(o + 0x1f0) != tag || read_at<int32_t>(o + 0x210) != x || read_at<int32_t>(o + 0x218) != y) continue;
+        reinterpret_cast<void (*)(uintptr_t, uintptr_t, uint64_t)>(g_base + 0x6dc300)(scene, o, 0);
+        return true;
+    }
+    return false;
+}
+
+// RuneLite's Scene.removeTile: the tile slot (Scene +0x968, shared_ptr {ctrl, Tile*}) emptied and its
+// reference released, as the scene's tile creation 0x6db200 replaces one; the scene walkers take a
+// null tile (tiles are created lazily). The scene's reload builds it again. With remove false, only
+// whether the tile is there. Game thread.
+bool scene_remove_tile(int plane, int x, int y, bool remove) {
+    uintptr_t scene = top_scene();
+    if (!scene || !scene_tile(scene, plane, x, y)) return false;
+    if (!remove) return true;
+    int sx = read_at<int32_t>(scene + 0x948), sy = read_at<int32_t>(scene + 0x94c);
+    auto* slot = reinterpret_cast<uintptr_t*>(read_at<uintptr_t>(scene + 0x968) + ((static_cast<size_t>(plane) * sx + x) * sy + y) * 0x10);
+    uintptr_t ctrl = slot[0];
+    slot[1] = 0;
+    slot[0] = 0;
+    release_shared_ptr(ctrl);
     return true;
 }
 }  // namespace game

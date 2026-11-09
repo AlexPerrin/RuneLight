@@ -148,6 +148,12 @@ public class AndroidWidget extends WidgetBag {
     @Override public void setRelativeY(int v) { set(0x60, v + childYShift()); }
     @Override public void setWidth(int v) { set(0x64, v); }
     @Override public void setHeight(int v) { set(0x68, v); }
+    /** As desktop: the layout pass keeps relative x/y here (-1: its own; -1, -1 clears); the next revalidate applies it. */
+    @Override public void setForcedPosition(int x, int y) {
+        int fy = y == -1 ? -1 : y + childYShift();
+        if (Native.isClientThread()) Native.widgetForcePosition(id, childIndex(), x, fy);
+        else Host.invoke(() -> Native.widgetForcePosition(id, childIndex(), x, fy));
+    }
 
     // CC_SETPOSITION / CC_SETSIZE fields without the layout pass (as desktop's setters; revalidate() runs it).
     @Override public Widget setPos(int x, int y) { setOriginalX(x); return setOriginalY(y); }
@@ -253,16 +259,16 @@ public class AndroidWidget extends WidgetBag {
     @Override public void setOnDragListener(Object... a) { WidgetListeners.setListener(WidgetListeners.DRAG, id, childIndex(), a); }
     @Override public void setOnVarTransmitListener(Object... a) { WidgetListeners.setListener(WidgetListeners.VAR_TRANSMIT, id, childIndex(), a); }
     @Override public void setVarTransmitTrigger(int... t) { WidgetListeners.setVarTransmitTrigger(id, childIndex(), t); }
-    private void stored(Object[] a) { WidgetListeners.setListener(WidgetListeners.STORED, id, childIndex(), a); }
-    @Override public void setOnClickListener(Object... a) { stored(a); }
-    @Override public void setOnHoldListener(Object... a) { stored(a); }
-    @Override public void setOnReleaseListener(Object... a) { stored(a); }
-    @Override public void setOnMouseOverListener(Object... a) { stored(a); }
-    @Override public void setOnMouseLeaveListener(Object... a) { stored(a); }
-    @Override public void setOnMouseRepeatListener(Object... a) { stored(a); }
-    @Override public void setOnScrollWheelListener(Object... a) { stored(a); }
-    @Override public void setOnKeyListener(Object... a) { stored(a); }
-    @Override public void setOnDialogAbortListener(Object... a) { stored(a); }
+    private void listen(int kind, Object[] a) { WidgetListeners.setListener(kind, id, childIndex(), a); }
+    @Override public void setOnClickListener(Object... a) { listen(WidgetListeners.CLICK, a); }
+    @Override public void setOnHoldListener(Object... a) { listen(WidgetListeners.HOLD, a); }
+    @Override public void setOnReleaseListener(Object... a) { listen(WidgetListeners.RELEASE, a); }
+    @Override public void setOnMouseOverListener(Object... a) { listen(WidgetListeners.MOUSE_OVER, a); }
+    @Override public void setOnMouseLeaveListener(Object... a) { listen(WidgetListeners.MOUSE_LEAVE, a); }
+    @Override public void setOnMouseRepeatListener(Object... a) { listen(WidgetListeners.MOUSE_REPEAT, a); }
+    @Override public void setOnScrollWheelListener(Object... a) { listen(WidgetListeners.SCROLL_WHEEL, a); }
+    @Override public void setOnKeyListener(Object... a) { listen(WidgetListeners.STORED, a); }
+    @Override public void setOnDialogAbortListener(Object... a) { listen(WidgetListeners.DIALOG_ABORT, a); }
     @Override public void setOnTargetEnterListener(Object... a) { WidgetListeners.setListener(WidgetListeners.TARGET_ENTER, id, childIndex(), a); }
     @Override public void setOnTargetLeaveListener(Object... a) { WidgetListeners.setListener(WidgetListeners.TARGET_LEAVE, id, childIndex(), a); }
     @Override public Object[] getOnVarTransmitListener() { return Native.widgetListener(id, childIndex(), 0x590); }

@@ -17,6 +17,7 @@
 #include "draw_hide.h"
 #include "frame_capture.h"
 #include "game.h"
+#include "got_hook.h"
 #include "log.h"
 #include "overlay.h"
 #include "script_hooks.h"
@@ -994,6 +995,37 @@ jboolean n_widget_clear_listener(JNIEnv*, jclass, jint id, jint index, jint offs
     return true;
 }
 
+// A plugin's Java listener in a slot the game dispatches itself (the kSlots below): the slot gets one
+// int argument, script id script_hooks::kJavaListener | kind, and the widget's hasListener byte +0x348,
+// so the game's own event dispatch (0x44ae24 for the mouse kinds, 0x45f5dc for onDialogAbort) queues it
+// as it would a CS2 listener; script_hooks runs the Java listener instead of a script. The argument
+// array comes from the game's operator new (0x9f4454), which the game frees when it rewrites the slot
+// or deletes the widget. The slot's previous arguments are leaked, as clearing does. kind < 0 clears.
+jboolean n_widget_set_java_listener(JNIEnv*, jclass, jint id, jint index, jint offset, jint kind) {
+    static constexpr int kSlots[] = {0x380, 0x3e0, 0x410, 0x440, 0x470, 0x4a0, 0x6f8, 0x8d8};
+    static auto game_new = reinterpret_cast<void* (*)(size_t)>(module_base("liblibs.hal.system.osclient.so") + 0x9f4454);
+    if (!client_thread::on_client_thread()) return false;
+    bool ok = false;
+    for (int o : kSlots) ok |= o == offset;
+    uintptr_t w = ok ? widget_or_child(id, index) : 0;
+    if (!w) return false;
+    if (kind < 0) {
+        *reinterpret_cast<uint64_t*>(w + offset + 8) = 0;
+        *reinterpret_cast<uint64_t*>(w + offset + 0x10) = 0;
+        return true;
+    }
+    auto* v = static_cast<uint8_t*>(game_new(0x28));
+    if (!v) return false;
+    memset(v, 0, 0x28);
+    int32_t script = script_hooks::kJavaListener | kind;
+    memcpy(v, &script, 4);
+    *reinterpret_cast<uint32_t*>(v + 0x20) = 1;  // int variant
+    *reinterpret_cast<uint64_t*>(w + offset + 0x10) = reinterpret_cast<uintptr_t>(v);
+    *reinterpret_cast<uint64_t*>(w + offset + 8) = 1;
+    *reinterpret_cast<uint8_t*>(w + 0x348) = 1;
+    return true;
+}
+
 // A widget's transmit trigger list (the varps/invs/stats its onVarTransmit/onInvTransmit/
 // onStatTransmit listener waits on): a std::vector<int32_t> {begin, end, cap} right after the
 // listener slot (docs/offsets.md "Widget listeners"). null when unset.
@@ -1220,6 +1252,13 @@ jbyteArray n_target_state(JNIEnv* env, jclass, jint len) {
 jboolean n_close_sub_interface(JNIEnv*, jclass, jint component, jint group, jboolean unload) {
     return client_thread::on_client_thread() && game::close_sub_interface(component, group, unload);
 }
+void n_add_wheel(JNIEnv*, jclass, jint rotation, jint x, jint y) { game::add_wheel(rotation, x, y); }
+jboolean n_trigger_dialog_abort(JNIEnv*, jclass) {
+    return client_thread::on_client_thread() && game::trigger_dialog_abort();
+}
+jboolean n_open_sub_interface(JNIEnv*, jclass, jint component, jint group, jint mode) {
+    return client_thread::on_client_thread() && game::open_sub_interface(component, group, mode);
+}
 jintArray n_draw_minimap(JNIEnv* env, jclass, jint plane) {
     std::vector<int32_t> px;
     if (!client_thread::on_client_thread() || !game::draw_minimap(plane, px)) return nullptr;
@@ -1313,6 +1352,31 @@ jboolean n_graphics_object_finish(JNIEnv* env, jclass, jlong obj) {
 }
 jboolean n_projectile_set_end_cycle(JNIEnv* env, jclass, jlong obj, jint cycle) {
     return require_client_thread(env, "projectileSetEndCycle") && game::projectile_set_end_cycle(static_cast<uintptr_t>(obj), cycle);
+}
+jboolean n_set_all_op_targetable(JNIEnv* env, jclass, jboolean on) {
+    return require_client_thread(env, "setAllOpTargetable") && game::set_all_op_targetable(on);
+}
+jlong n_widget_target_flags(JNIEnv* env, jclass, jint component, jint index) {
+    return require_client_thread(env, "widgetTargetFlags") ? game::widget_target_flags(component, index) : -1;
+}
+jboolean n_widget_force_position(JNIEnv* env, jclass, jint component, jint index, jint x, jint y) {
+    return require_client_thread(env, "widgetForcePosition") && game::widget_force_position(component, index, x, y);
+}
+jlong n_player_set_hash(JNIEnv* env, jclass, jint index, jintArray equipment, jintArray colors, jint npc) {
+    if (!require_client_thread(env, "playerSetHash") || !equipment || !colors || env->GetArrayLength(equipment) != 12 || env->GetArrayLength(colors) != 5) return 0;
+    int32_t e[12], c[5];
+    env->GetIntArrayRegion(equipment, 0, 12, reinterpret_cast<jint*>(e));
+    env->GetIntArrayRegion(colors, 0, 5, reinterpret_cast<jint*>(c));
+    return static_cast<jlong>(game::appearance_set_hash(index, e, c, npc));
+}
+jlong n_player_hash(JNIEnv* env, jclass, jint index) {
+    return require_client_thread(env, "playerHash") ? static_cast<jlong>(game::appearance_hash(index)) : 0;
+}
+jboolean n_scene_remove_game_object(JNIEnv* env, jclass, jint plane, jint x, jint y, jlong tag) {
+    return require_client_thread(env, "sceneRemoveGameObject") && game::scene_remove_game_object(plane, x, y, static_cast<uint64_t>(tag));
+}
+jboolean n_scene_remove_tile(JNIEnv* env, jclass, jint plane, jint x, jint y, jboolean remove) {
+    return require_client_thread(env, "sceneRemoveTile") && game::scene_remove_tile(plane, x, y, remove);
 }
 jlong n_projectile_create(JNIEnv* env, jclass, jintArray in) {
     if (!require_client_thread(env, "projectileCreate") || !in || env->GetArrayLength(in) != 15) return 0;
@@ -1651,6 +1715,14 @@ jintArray n_viewport(JNIEnv* env, jclass) {
 
 jboolean n_play_sound(JNIEnv*, jclass, jint id, jint loops, jint delay) {
     return client_thread::on_client_thread() && game::play_sound_effect(id, loops, delay);
+}
+
+jboolean n_play_sound_volume(JNIEnv*, jclass, jint id, jint volume) {
+    return client_thread::on_client_thread() && game::play_sound_at_volume(id, volume);
+}
+
+jboolean n_play_area_sound(JNIEnv*, jclass, jint id, jint x, jint y, jint range, jint delay) {
+    return client_thread::on_client_thread() && game::play_area_sound(id, x, y, range, delay);
 }
 
 jstring n_property(JNIEnv* env, jclass, jstring name) {
@@ -2041,6 +2113,8 @@ const JNINativeMethod kNatives[] = {
     {"setCameraFocal", "(II)Z", reinterpret_cast<void*>(n_set_camera_focal)},
     {"viewport", "()[I", reinterpret_cast<void*>(n_viewport)},
     {"playSound", "(III)Z", reinterpret_cast<void*>(n_play_sound)},
+    {"playSoundVolume", "(II)Z", reinterpret_cast<void*>(n_play_sound_volume)},
+    {"playAreaSound", "(IIIII)Z", reinterpret_cast<void*>(n_play_area_sound)},
     {"screenSize", "()[I", reinterpret_cast<void*>(n_screen_size)},
     {"walkDestination", "()[I", reinterpret_cast<void*>(n_walk_destination)},
     {"friends", "(Z)[Ljava/lang/Object;", reinterpret_cast<void*>(n_friends)},
@@ -2067,6 +2141,16 @@ const JNINativeMethod kNatives[] = {
     {"subInterfaces", "()[I", reinterpret_cast<void*>(n_sub_interfaces)},
     {"drawMinimap", "(I)[I", reinterpret_cast<void*>(n_draw_minimap)},
     {"closeSubInterface", "(IIZ)Z", reinterpret_cast<void*>(n_close_sub_interface)},
+    {"triggerDialogAbort", "()Z", reinterpret_cast<void*>(n_trigger_dialog_abort)},
+    {"addWheel", "(III)V", reinterpret_cast<void*>(n_add_wheel)},
+    {"openSubInterface", "(III)Z", reinterpret_cast<void*>(n_open_sub_interface)},
+    {"setAllOpTargetable", "(Z)Z", reinterpret_cast<void*>(n_set_all_op_targetable)},
+    {"widgetTargetFlags", "(II)J", reinterpret_cast<void*>(n_widget_target_flags)},
+    {"widgetForcePosition", "(IIII)Z", reinterpret_cast<void*>(n_widget_force_position)},
+    {"playerSetHash", "(I[I[II)J", reinterpret_cast<void*>(n_player_set_hash)},
+    {"playerHash", "(I)J", reinterpret_cast<void*>(n_player_hash)},
+    {"sceneRemoveGameObject", "(IIIJ)Z", reinterpret_cast<void*>(n_scene_remove_game_object)},
+    {"sceneRemoveTile", "(IIIZ)Z", reinterpret_cast<void*>(n_scene_remove_tile)},
     {"typeParam", "(III)Ljava/lang/Object;", reinterpret_cast<void*>(n_type_param)},
     {"overlayBuffer", "(II)Ljava/nio/ByteBuffer;", reinterpret_cast<void*>(n_overlay_buffer)},
     {"overlayPublish", "(II)V", reinterpret_cast<void*>(n_overlay_publish)},
@@ -2240,6 +2324,7 @@ const JNINativeMethod kNatives[] = {
     {"scriptCode", "(I)[Ljava/lang/Object;", reinterpret_cast<void*>(n_script_code)},
     {"widgetListener", "(III)[Ljava/lang/Object;", reinterpret_cast<void*>(n_widget_listener)},
     {"widgetClearListener", "(III)Z", reinterpret_cast<void*>(n_widget_clear_listener)},
+    {"widgetSetJavaListener", "(IIII)Z", reinterpret_cast<void*>(n_widget_set_java_listener)},
     {"widgetTriggers", "(III)[I", reinterpret_cast<void*>(n_widget_triggers)},
     {"scriptStats", "()[J", reinterpret_cast<void*>(n_script_stats)},
     {"typeParamKeys", "(II)[I", reinterpret_cast<void*>(n_type_param_keys)},

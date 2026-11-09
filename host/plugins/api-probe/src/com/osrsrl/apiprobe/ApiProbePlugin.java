@@ -76,10 +76,13 @@ public class ApiProbePlugin extends Plugin {
     /**
      * Rows that change what the server or the session sees, run one at a time after every other row, each once
      * the previous one's check is done: a client-side close of a modal the run set-up opened, then a walk onto the
-     * player's own tile (the server closes its modal too, and the fight stops), then camera drags on the scene (real
-     * touch input, with no modal over the scene), then low memory mode (it drops scene decorations), then a scene reload.
+     * player's own tile (the server closes its modal too, and the fight stops), then touches and wheel notches on a
+     * probe child mid-scene and camera drags on the scene (real input, with no modal over the scene), then low memory
+     * mode (it drops scene decorations), then a scene reload.
      */
-    static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Client.setInvertPitch", "Client.setInvertYaw", "Client.changeMemoryMode", "Client.setGameState");
+    static final List<String> LAST = Arrays.asList("Client.closeInterface", "Client.menuAction", "Widget.setOnClickListener", "Widget.setOnHoldListener",
+        "Widget.setOnReleaseListener", "Widget.setOnMouseOverListener", "Widget.setOnMouseLeaveListener", "Widget.setOnMouseRepeatListener",
+        "Widget.setOnScrollWheelListener", "Client.setInvertPitch", "Client.setInvertYaw", "Client.changeMemoryMode", "Client.setGameState");
 
     interface Turned { void run(int yaw, int pitch) throws Exception; }
 
@@ -1056,7 +1059,66 @@ public class ApiProbePlugin extends Plugin {
     }
 
     static final int VARP = 1000, VARBIT = 8119, SOUND = 2266;
-    static final String[] LISTENER_KINDS = {"TIMER", "DRAG", "VAR_TRANSMIT", "STORED", "TARGET_ENTER", "TARGET_LEAVE"};  // WidgetListeners kinds
+    static final String[] LISTENER_KINDS = {"TIMER", "DRAG", "VAR_TRANSMIT", "STORED", "TARGET_ENTER", "TARGET_LEAVE",
+        "CLICK", "HOLD", "RELEASE", "MOUSE_OVER", "MOUSE_LEAVE", "MOUSE_REPEAT", "SCROLL_WHEEL", "DIALOG_ABORT"};  // WidgetListeners kinds
+    static final List<String> GAME_KINDS = Arrays.asList(LISTENER_KINDS).subList(6, LISTENER_KINDS.length);
+
+    /**
+     * The game's own dispatch of a listener the host keeps in the game's slot: a touch on the child (press, 200 ms,
+     * release), then the child moved from under the touch point (the mouse leaves it); a mouse wheel notch over it; or
+     * what the server's TRIGGER_ONDIALOGABORT runs. The child sits mid-scene, over no interface, and doesn't click through.
+     */
+    void gameEvent(Row row, String kind, Widget parent, Widget c, String where, int[] runs, Check clear) throws Exception {
+        c.setOriginalX(Math.max(0, parent.getWidth() / 2 - 40));
+        c.setOriginalY(Math.max(0, parent.getHeight() / 2 - 140));
+        c.setOriginalWidth(80);
+        c.setOriginalHeight(80);
+        c.setNoClickThrough(true);
+        c.revalidate();
+        net.runelite.api.Point at = c.getCanvasLocation();
+        int x = at.getX() + 40, y = at.getY() + 40;
+        String how = kind.equals("DIALOG_ABORT") ? "TRIGGER_ONDIALOGABORT's handler" : kind.equals("SCROLL_WHEEL") ? "a touch at " + x + "," + y + ", then a wheel notch there"
+            : "a touch at " + x + "," + y + " (200 ms), then the child moved from under it";
+        Check done = () -> {
+            int n = runs[0];
+            clear.run();
+            set(row, n > 0 ? "pass" : "mismatch", where + "; the game's dispatch on " + how + " ran it " + n + " times");
+        };
+        if (kind.equals("DIALOG_ABORT")) {
+            if (!(Boolean) host("Native", "triggerDialogAbort", new Class<?>[0])) {
+                clear.run();
+                set(row, "mismatch", where + "; no root interface to abort a dialog on");
+            } else done.run();
+            return;
+        }
+        java.awt.Canvas cv = client.getCanvas();
+        Thread t = new Thread(() -> {
+            try {
+                if (kind.equals("SCROLL_WHEEL")) {  // the game's mouse is where the last touch was: a touch there first
+                    mouse(cv, java.awt.event.MouseEvent.MOUSE_PRESSED, x, y);
+                    Thread.sleep(200);
+                    mouse(cv, java.awt.event.MouseEvent.MOUSE_RELEASED, x, y);
+                    Thread.sleep(200);
+                    cv.dispatchEvent(new java.awt.event.MouseWheelEvent(cv, java.awt.event.MouseEvent.MOUSE_WHEEL, System.currentTimeMillis(), 0, x, y, 0, false,
+                        java.awt.event.MouseWheelEvent.WHEEL_UNIT_SCROLL, 1, 1));
+                    Thread.sleep(200);
+                    return;
+                }
+                mouse(cv, java.awt.event.MouseEvent.MOUSE_PRESSED, x, y);
+                Thread.sleep(200);
+                mouse(cv, java.awt.event.MouseEvent.MOUSE_RELEASED, x, y);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "api-probe-touch");
+        t.start();
+        later(row, afterDrag(row, t, () -> {
+            c.setOriginalX(0);  // from under the touch point: the game's next pass sees the mouse leave
+            c.setOriginalY(0);
+            c.revalidate();
+            later(row, done);
+        }));
+    }
 
     // Setters and hooks without a getter: each effect read where it lands (an event, a game field, host state).
     static {
@@ -1297,7 +1359,8 @@ public class ApiProbePlugin extends Plugin {
                     + ", AreaSoundEffectPlayed " + (a == null ? "none" : "at " + a.getSceneX() + "," + a.getSceneY() + " range " + a.getRange() + " delay " + a.getDelay());
                 boolean ok;
                 if (n == 1) ok = s != null && s.getDelay() == 0;
-                else if (n == 2) { ok = false; ev += "; volume 32 is not applied (desktop plays it at that volume)"; }
+                // Desktop plays (id, volume) straight into the mixer: no queue, so neither event.
+                else if (n == 2) ok = s == null && a == null;
                 else ok = a != null && a.getSceneX() == x && a.getSceneY() == y && a.getRange() == 1 && a.getDelay() == (n == 5 ? 5 : 0);
                 if (n >= 4) ev += "; asked at " + x + "," + y + " range 1";
                 p.set(row, ok ? "pass" : "mismatch", ev);
@@ -1424,6 +1487,10 @@ public class ApiProbePlugin extends Plugin {
                 parent.deleteAllChildren();
             };
             Class<?> cl = Client.class;
+            if (GAME_KINDS.contains(kind)) {
+                p.gameEvent(row, kind, parent, c, where, runs, clear);
+                return;
+            }
             if ("TIMER".equals(kind)) {
                 p.later(row, () -> {
                     int n = runs[0];
@@ -1503,6 +1570,127 @@ public class ApiProbePlugin extends Plugin {
                     .append(listed).append(", widget ").append(group).append(":0 ").append(root == null ? "gone" : "hidden " + root.isHidden());
             }
             p.set(row, ok ? "pass" : "mismatch", ev.toString());
+        });
+        // openInterface on a side panel the game has open (skills 320, else the first other non-modal one but the inventory):
+        // closed client-side first, then opened again into the same component, so the session ends as it began.
+        SPECIAL.put("Client.openInterface3", (p, row, inst) -> {
+            Client c = (Client) inst;
+            net.runelite.api.WidgetNode side = null;
+            for (net.runelite.api.WidgetNode n : c.getComponentTable())
+                if (n.getModalMode() == 1 && n.getId() != 149 && (side == null || n.getId() == 320)) side = n;
+            if (side == null) { p.set(row, "mismatch", "no non-modal sub-interface open to reopen"); return; }
+            int group = side.getId(), comp = (int) side.getHash();
+            c.closeInterface(side, false);
+            boolean closed = c.getComponentTable().get(comp) == null;
+            net.runelite.api.WidgetNode node = c.openInterface(comp, group, 1);
+            net.runelite.api.WidgetNode listed = c.getComponentTable().get(comp);
+            Widget root = c.getWidget(group, 0);
+            boolean ok = closed && node != null && node.getId() == group && node.getModalMode() == 1 && listed != null && listed.getId() == group && root != null;
+            p.set(row, ok ? "pass" : "mismatch", "group " + group + " in " + wid(comp) + ": closed " + closed + " -> openInterface returned "
+                + (node == null ? "null" : "node id " + node.getId() + " mode " + node.getModalMode()) + ", in the component table " + (listed != null && listed.getId() == group)
+                + ", widget " + group + ":0 " + (root == null ? "missing" : "loaded"));
+            if (listed == null) c.openInterface(comp, group, 1);
+        });
+        // The flags the menu builder's target test reads for a root widget that isn't a target (bit 21 clear), with the
+        // setting on and off again.
+        SPECIAL.put("Client.setAllWidgetsAreOpTargetable1", (p, row, inst) -> {
+            Client c = (Client) inst;
+            Class<?>[] ii = {int.class, int.class};
+            Widget w = null;
+            long before = -1;
+            for (Widget r : c.getWidgetRoots()) {
+                if (r == null) continue;
+                long f = (Long) host("Native", "widgetTargetFlags", ii, r.getId(), -1);
+                if (f >= 0 && (f & 0x200000) == 0) { w = r; before = f; break; }
+            }
+            if (w == null) { p.set(row, "mismatch", "no root widget without the target bit to read"); return; }
+            c.setAllWidgetsAreOpTargetable(true);
+            long on = (Long) host("Native", "widgetTargetFlags", ii, w.getId(), -1);
+            c.setAllWidgetsAreOpTargetable(false);
+            long off = (Long) host("Native", "widgetTargetFlags", ii, w.getId(), -1);
+            p.set(row, (on & 0x200000) != 0 && off == before ? "pass" : "mismatch", wid(w.getId()) + " target-test flags 0x" + Long.toHexString(before)
+                + " -> setAllWidgetsAreOpTargetable(true) 0x" + Long.toHexString(on) + " -> (false) 0x" + Long.toHexString(off));
+        });
+        // A scenery object (not the seeded GameObject or DynamicObject) taken out of the scene: gone from its tile at once
+        // and on the next tick's re-read of the game's scene. The setGameState row's reload brings it back.
+        SPECIAL.put("Scene.removeGameObject1", (p, row, inst) -> {
+            Scene s = (Scene) inst;
+            Object seeded = p.instance(API + "GameObject");
+            Object dyn = p.instance(API + "DynamicObject");
+            int z = p.client.getTopLevelWorldView().getPlane();
+            net.runelite.api.GameObject pick = null;
+            for (Tile[] col : s.getTiles()[z]) for (Tile t : col) {
+                if (t == null || pick != null) continue;
+                for (net.runelite.api.GameObject g : t.getGameObjects())
+                    if (g != null && g != seeded && g.getRenderable() != dyn && g.getSceneMinLocation().equals(t.getSceneLocation())) { pick = g; break; }
+            }
+            if (pick == null) { p.set(row, "mismatch", "no scenery object in the scene to remove"); return; }
+            int x = pick.getSceneMinLocation().getX(), y = pick.getSceneMinLocation().getY();
+            long hash = pick.getHash();
+            String ev = "game object " + pick.getId() + " at scene " + x + "," + y + "," + z;
+            s.removeGameObject(pick);
+            boolean now = !onTile(s, z, x, y, hash);
+            p.later(row, () -> {
+                boolean next = !onTile(s, z, x, y, hash);
+                p.set(row, now && next ? "pass" : "mismatch", ev + ": gone from its tile " + now + ", on the next tick's scene read " + next);
+            });
+        });
+        // A bare scene tile (nothing on it, near the scene's corner, away from the player) removed: getTiles() has null
+        // there and the game's slot is empty. The setGameState row's reload builds it again.
+        SPECIAL.put("Scene.removeTile1", (p, row, inst) -> {
+            Scene s = (Scene) inst;
+            Class<?>[] t4 = {int.class, int.class, int.class, boolean.class};
+            int z = p.client.getTopLevelWorldView().getPlane();
+            Tile pick = null;
+            for (int x = 1; x < 12 && pick == null; x++)
+                for (int y = 1; y < 12 && pick == null; y++) {
+                    Tile t = s.getTiles()[z][x][y];
+                    if (t != null && t.getGameObjects().length == 0 && t.getWallObject() == null && t.getGroundObject() == null && t.getDecorativeObject() == null
+                        && t.getGroundItems() == null && (Boolean) host("Native", "sceneRemoveTile", t4, z, x, y, false)) pick = t;
+                }
+            if (pick == null) { p.set(row, "mismatch", "no bare game tile near the scene's corner to remove"); return; }
+            int x = pick.getSceneLocation().getX(), y = pick.getSceneLocation().getY();
+            s.removeTile(pick);
+            boolean hostNull = s.getTiles()[z][x][y] == null;
+            boolean gameEmpty = !(Boolean) host("Native", "sceneRemoveTile", t4, z, x, y, false);
+            p.set(row, hostNull && gameEmpty ? "pass" : "mismatch", "tile " + x + "," + y + "," + z + ": getTiles() null " + hostNull + ", the game's slot empty " + gameEmpty);
+        });
+        // The appearance's model hash with the composition's first colour changed, then restored.
+        SPECIAL.put("PlayerComposition.setHash0", (p, row, inst) -> {
+            net.runelite.api.PlayerComposition pc = (net.runelite.api.PlayerComposition) inst;
+            java.lang.reflect.Field f = inst.getClass().getDeclaredField("index");
+            f.setAccessible(true);
+            int idx = f.getInt(inst);
+            Class<?>[] i1 = {int.class};
+            long h0 = (Long) host("Native", "playerHash", i1, idx);
+            int[] colors = pc.getColors();
+            int old = colors[0];
+            colors[0] = old == 0 ? 1 : 0;  // indices 0 and 1 exist for every colour slot
+            pc.setHash();
+            long h1 = (Long) host("Native", "playerHash", i1, idx);
+            colors[0] = old;
+            pc.setHash();
+            long h2 = (Long) host("Native", "playerHash", i1, idx);
+            p.set(row, h0 != 0 && h1 != h0 && h2 == h0 ? "pass" : "mismatch", "player " + idx + " model hash " + Long.toHexString(h0) + " -> colour 0 " + old + "->"
+                + (old == 0 ? 1 : 0) + ", setHash " + Long.toHexString(h1) + " -> restored, setHash " + Long.toHexString(h2));
+        });
+        // Layout: a probe-created child's forced position wins over its own after revalidate, and clearing it gives its own back.
+        SPECIAL.put("Widget.setForcedPosition2", (p, row, inst) -> {
+            Widget parent = p.listenerParent((Widget) inst);
+            Widget c = parent.createChild(-1, 3);
+            c.setOriginalWidth(10);
+            c.setOriginalHeight(10);
+            c.revalidate();
+            int x0 = c.getRelativeX(), y0 = c.getRelativeY();
+            c.setForcedPosition(x0 + 11, y0 + 13);
+            c.revalidate();
+            int x1 = c.getRelativeX(), y1 = c.getRelativeY();
+            c.setForcedPosition(-1, -1);
+            c.revalidate();
+            int x2 = c.getRelativeX(), y2 = c.getRelativeY();
+            parent.deleteAllChildren();
+            p.set(row, x1 == x0 + 11 && y1 == y0 + 13 && x2 == x0 && y2 == y0 ? "pass" : "mismatch", "child of " + wid(parent) + ": relative " + x0 + "," + y0
+                + " -> setForcedPosition(" + (x0 + 11) + "," + (y0 + 13) + "), revalidate " + x1 + "," + y1 + " -> cleared, revalidate " + x2 + "," + y2 + " (child deleted)");
         });
         // A walk onto the local player's own tile through the game's menu (the server closes its modals and stops the
         // fight). Done once the game ran the click (MenuOptionClicked) or the host dropped it.
@@ -1597,6 +1785,13 @@ public class ApiProbePlugin extends Plugin {
                 : "MenuOptionClicked " + walk.getOption() + " " + walk.getType() + " " + walk.getParam0() + "," + walk.getParam1()) + ", destination "
                 + (dest == null ? "none" : to.toString()) + ", player at " + now);
         };
+    }
+
+    /** Whether the tile lists a game object with that hash. */
+    static boolean onTile(Scene s, int z, int x, int y, long hash) {
+        Tile t = s.getTiles()[z][x][y];
+        if (t != null) for (net.runelite.api.GameObject g : t.getGameObjects()) if (g != null && g.getHash() == hash) return true;
+        return false;
     }
 
     /** A tile with a ground object, not the local player's. */

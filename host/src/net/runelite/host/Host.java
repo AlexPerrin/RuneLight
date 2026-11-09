@@ -559,7 +559,10 @@ public final class Host {
             case CLIENT_TICK:
                 cycleStamp++;
                 AndroidWidget.reapplyHidden();
-                if (client instanceof AndroidClient) ((AndroidClient) client).syncModIcons();
+                if (client instanceof AndroidClient) {
+                    ((AndroidClient) client).syncModIcons();
+                    ((AndroidClient) client).applyInventoryDragDelay();
+                }
                 KeyRouter.syncShift();
                 bus.post(clientTick);
                 WidgetListeners.runCycle(client);
@@ -1063,6 +1066,10 @@ public final class Host {
         AndroidClient ac = (AndroidClient) client;
         ac.beginScriptEvent();
         try {
+            if (phase == 5) {  // the game dispatched a widget event to a slot holding a Java listener (WidgetListeners)
+                WidgetListeners.runGameEvent(ac, id);
+                return;
+            }
             if (phase == 3 || phase == 4) {  // a watched instruction (ScriptCallbacks)
                 ScriptCallbacks.onOp(bus, ac, phase, id & 0xffff, id >>> 16);
                 return;

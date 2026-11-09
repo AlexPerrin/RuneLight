@@ -170,8 +170,36 @@ final class Native {
     static native Object[] widgetListener(int id, int index, int offset);
     /** Clears the game's CS2 listener at `offset` (0x4d0 onDrag, 0x590 onVarTransmit, 0x668 onTimer), as CC_SETON with -1. Client thread. */
     static native boolean widgetClearListener(int id, int index, int offset);
+    /**
+     * Marks the game's listener slot at `offset` (0x380 onClick, 0x3e0 onRelease, 0x410 onHold, 0x440 onMouseOver,
+     * 0x470 onMouseRepeat, 0x4a0 onMouseLeave, 0x6f8 onScrollWheel, 0x8d8 onDialogAbort) as the host's Java listener
+     * of `kind`: the game's own dispatch then reaches Host.onScript phase 5 with that kind. kind -1 clears the slot.
+     * Client thread.
+     */
+    static native boolean widgetSetJavaListener(int id, int index, int offset, int kind);
+    /** What the server's TRIGGER_ONDIALOGABORT does: onDialogAbort over the root interface's tree; false with no root. Client thread. */
+    static native boolean triggerDialogAbort();
+    /** Mouse wheel notches (positive = down, as desktop) at canvas point x,y (the game's mouse for that cycle) for the game's next logged-in cycle. Any thread. */
+    static native void addWheel(int rotation, int x, int y);
     /** IF_CLOSESUB for `group` open in `component` (`0x462384`); false if not open. Client thread. */
     static native boolean closeSubInterface(int component, int group, boolean unload);
+    /** IF_OPENSUB's helper (`0x462640`): opens `group` in `component` with modal `mode`; false on bad ids. Client thread. */
+    static native boolean openSubInterface(int component, int group, int mode);
+    // Game-state writes (docs/offsets.md "Game-state writes"). Client thread.
+    /** Every widget a target in target mode (the menu builder's flags call gets bit 21); false without the hook. */
+    static native boolean setAllOpTargetable(boolean on);
+    /** A widget's flags as the menu builder's target test reads them (`0x460dac`, the setting applied); -1 no widget. */
+    static native long widgetTargetFlags(int id, int index);
+    /** The layout pass (`0x45ea08`) keeps relative x/y (-1: its own) for this widget; -1, -1 clears. */
+    static native boolean widgetForcePosition(int id, int index, int x, int y);
+    /** Equipment, colours and transformed NPC id into player `index`'s Appearance, then its model hash (`0x5e1bd4`); 0 none. */
+    static native long playerSetHash(int index, int[] equipment, int[] colors, int npcId);
+    /** Player `index`'s Appearance model hash (+0x78); 0 none. */
+    static native long playerHash(int index);
+    /** The scenery object with `tag` whose min corner is (plane, x, y) leaves the scene (`0x6dc300`). */
+    static native boolean sceneRemoveGameObject(int plane, int x, int y, long tag);
+    /** Empties a scene tile slot (remove), or tells whether the tile is there (!remove). */
+    static native boolean sceneRemoveTile(int plane, int x, int y, boolean remove);
     /** The game's minimap image of `plane` as desktop's drawInstanceMap layout (736x736 RGB), or null. Client thread. */
     static native int[] drawMinimap(int plane);
     /** A widget's var/inv/stat transmit trigger ids (offset 0x5c0/0x608/0x650), or null. */
@@ -184,6 +212,10 @@ final class Native {
     /** Replaces the string at object stack slot index (0 = bottom) of the running script. */
     static native boolean setScriptString(int index, String text);
     static native boolean playSound(int id, int loops, int delay);
+    /** Plays a sound now at volume 0..127 (the setting wins unless muted); no queue, no event. */
+    static native boolean playSoundVolume(int id, int volume);
+    /** Queues an area sound at scene tile x, y (the game's 0x4ae650; AreaSoundEffectPlayed posts). */
+    static native boolean playAreaSound(int id, int x, int y, int range, int delay);
     static native int varcInt(int id);
     static native String varcString(int id);
     /** Client-side writes through the game's setters; false off the client thread or for unknown ids. */

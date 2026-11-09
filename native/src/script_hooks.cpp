@@ -80,6 +80,13 @@ int event_script_id(uintptr_t ev) {
 void hook_run_script_event(uintptr_t vm, uintptr_t ev, int max_ops) {
     g_roots.fetch_add(1, std::memory_order_relaxed);
     int id = ev ? event_script_id(ev) : -1;
+    if ((id & 0xffff0000) == kJavaListener) {  // no such script: the host's Java listener
+        uintptr_t outer = g_event;
+        g_event = ev;
+        if (g_listener && client_thread::on_client_thread()) g_listener(JavaListener, id & 0xffff);
+        g_event = outer;
+        return;
+    }
     int base = g_depth, outer_root = g_root_base;
     uintptr_t outer_event = g_event;
     g_root_base = base;

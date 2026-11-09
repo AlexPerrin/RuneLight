@@ -48,21 +48,33 @@ void write_jump(uint32_t* at, uintptr_t dest) {
 void* inline_hook(uintptr_t target, const uint32_t (&expect)[4], void* replacement) {
     std::lock_guard lock(g_mutex);
     auto* code = reinterpret_cast<uint32_t*>(target);
+    int conds = 0;
     for (int i = 0; i < 4; i++) {
-        if (code[i] != expect[i] || pc_relative(code[i])) {
+        bool cond = (code[i] & 0xff000010) == 0x54000000;  // b.cond: relocated below
+        conds += cond;
+        if (code[i] != expect[i] || (pc_relative(code[i]) && !cond)) {
             LOGE("inline_hook: %#lx instruction %d is %08x, expected %08x; not hooking", (unsigned long)target, i,
                  code[i], expect[i]);
             return nullptr;
         }
     }
-    uint32_t* tramp = alloc_trampoline(32);
+    // Trampoline: the 4 instructions, a jump to target + 16, then per b.cond an absolute jump to its
+    // destination, which the copied b.cond is re-pointed at.
+    uint32_t* tramp = alloc_trampoline(32 + 16 * conds);
     if (!tramp) {
         LOGE("inline_hook: trampoline mmap failed");
         return nullptr;
     }
     memcpy(tramp, code, 16);
     write_jump(tramp + 4, target + 16);
-    __builtin___clear_cache(reinterpret_cast<char*>(tramp), reinterpret_cast<char*>(tramp + 8));
+    for (int i = 0, k = 0; i < 4; i++) {
+        if ((code[i] & 0xff000010) != 0x54000000) continue;
+        int64_t imm = static_cast<int32_t>(code[i] << 8) >> 13;  // imm19 (bits 5-23), sign-extended
+        uint32_t* far = tramp + 8 + 4 * k++;
+        write_jump(far, target + 4 * i + imm * 4);
+        tramp[i] = 0x54000000 | ((static_cast<uint32_t>(far - (tramp + i)) & 0x7ffff) << 5) | (code[i] & 0xf);
+    }
+    __builtin___clear_cache(reinterpret_cast<char*>(tramp), reinterpret_cast<char*>(tramp + 8 + 4 * conds));
 
     long page = sysconf(_SC_PAGESIZE);
     uintptr_t start = target & ~(uintptr_t)(page - 1);
