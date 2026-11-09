@@ -196,6 +196,10 @@ final class Native {
     /** Replaces the string at object stack slot index (0 = bottom) of the running script. */
     static native boolean setScriptString(int index, String text);
     static native boolean playSound(int id, int loops, int delay);
+    /** Plays a sound now at volume 0..127 (the setting wins unless muted); no queue, no event. */
+    static native boolean playSoundVolume(int id, int volume);
+    /** Queues an area sound at scene tile x, y (the game's 0x4ae650; AreaSoundEffectPlayed posts). */
+    static native boolean playAreaSound(int id, int x, int y, int range, int delay);
     static native int varcInt(int id);
     static native String varcString(int id);
     /** Client-side writes through the game's setters; false off the client thread or for unknown ids. */
