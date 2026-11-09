@@ -213,6 +213,17 @@ struct SubInterface { int component, group, type; };  // `group` is open inside 
 std::vector<SubInterface> open_sub_interfaces();
 // IF_CLOSESUB for an open sub-interface (`0x462384`); false when it isn't open. Game thread only.
 bool close_sub_interface(int component, int group, bool unload);
+// IF_OPENSUB's helper `0x462640`: opens `group` inside `component` with modal `mode`; false on bad ids. Game thread only.
+bool open_sub_interface(int component, int group, int mode);
+// Game-state writes (RuneLite's setAllWidgetsAreOpTargetable, Widget.setForcedPosition,
+// PlayerComposition.setHash, Scene.removeGameObject/removeTile). Game thread only.
+bool set_all_op_targetable(bool on);  // false when the flags hook isn't installed
+int64_t widget_target_flags(int component, int index);  // 0x460dac as the menu builder sees it; -1 no widget
+bool widget_force_position(int component, int index, int x, int y);  // -1, -1 clears
+uint64_t appearance_set_hash(int index, const int32_t equipment[12], const int32_t colors[5], int npc_id);  // 0: none
+uint64_t appearance_hash(int index);
+bool scene_remove_game_object(int plane, int x, int y, uint64_t tag);
+bool scene_remove_tile(int plane, int x, int y, bool remove);  // remove false: whether the tile is there
 // RuneLite's drawInstanceMap: the game's minimap image of `plane` in desktop's layout (736x736 RGB
 // for the 184-tile extended scene, 4 px per tile; the mobile 104-tile scene fills the middle 416 px
 // at 160,160), resampled when the minimap zoom isn't 4. The game's buffer is restored to the plane it showed. Game thread only.
@@ -590,9 +601,12 @@ bool connection(std::string& host, int ports[2]);
 // Writes the SERVER_TICK_END count (Client +0x3058) that server_tick() reads.
 bool set_server_tick(int tick);
 // Client int fields by index (game.cpp kClientInts: 0 oculus orb state, 1/2 orb focal point X/Y, 3 chat
-// cycle, 4 changed-skills count).
+// cycle, 4 changed-skills count, 5 orb/free camera speed, 6 pitch relaxer).
 bool client_int(int which, int& out);
 bool set_client_int(int which, int value);
+// The touch camera's drag sensitivity (settings +0x82c).
+bool camera_sensitivity(float& out);
+bool set_camera_sensitivity(float v);
 // Music volume 0-255 (Client +0x2f58); set also applies it to the playing songs.
 int music_volume();
 bool set_music_volume(int v);
@@ -600,6 +614,8 @@ bool set_music_volume(int v);
 bool midi_requests(std::vector<std::pair<int, bool>>& out);
 // Clears the camera shake flags (as CAM_RESET).
 void clear_camera_shake();
+// After a camera-drag cycle (touch state 8): the inverted axes' steps and deltas turned the other way.
+void invert_camera_drag(bool pitch, bool yaw);
 // Every varp as a long (long table where the varp is long, else the int table); client or server copy.
 bool varps_long(bool server, std::vector<int64_t>& out);
 bool set_varp_long(int id, int64_t v);

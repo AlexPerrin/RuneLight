@@ -203,6 +203,27 @@ final class SceneObjects {
     }
 
     /**
+     * Scene.removeGameObject: the game's scenery object leaves every tile it covers (scene only, as
+     * desktop) and GameObjectDespawned is posted at once, as removeGround does. Back on the scene's rebuild.
+     */
+    synchronized boolean removeGame(AndroidTileObject.Game g) {
+        AndroidWorldView wv = Host.worldView();
+        int x = g.worldX - wv.getBaseX(), y = g.worldY - wv.getBaseY();
+        if (g.plane < 0 || g.plane >= 4 || x < 0 || x >= SIZE || y < 0 || y >= SIZE) return false;
+        if (!Native.sceneRemoveGameObject(g.plane, x, y, g.tag)) return false;
+        if (tiles != null)
+            for (int dx = 0; dx < g.sizeX && x + dx < SIZE; dx++)
+                for (int dy = 0; dy < g.sizeY && y + dy < SIZE; dy++) {
+                    Contents c = tiles[g.plane][x + dx][y + dy];
+                    if (c != null) c.games.remove(g);
+                }
+        if (objects.remove(g.key()) == null) return true;
+        EventBus bus = this.bus;
+        if (bus != null) postDespawn(bus, g, wv.getBaseX(), wv.getBaseY());
+        return true;
+    }
+
+    /**
      * The tile of an item that left the scene on a rebuild (outside the new base): desktop posts
      * ItemDespawned for those, and Ground Items keeps counting them otherwise (a dropped item showed
      * "(2)" after a teleport round trip). World location and item layer are the old ones; the

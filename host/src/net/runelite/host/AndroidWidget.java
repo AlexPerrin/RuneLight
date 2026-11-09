@@ -148,6 +148,12 @@ public class AndroidWidget extends WidgetBag {
     @Override public void setRelativeY(int v) { set(0x60, v + childYShift()); }
     @Override public void setWidth(int v) { set(0x64, v); }
     @Override public void setHeight(int v) { set(0x68, v); }
+    /** As desktop: the layout pass keeps relative x/y here (-1: its own; -1, -1 clears); the next revalidate applies it. */
+    @Override public void setForcedPosition(int x, int y) {
+        int fy = y == -1 ? -1 : y + childYShift();
+        if (Native.isClientThread()) Native.widgetForcePosition(id, childIndex(), x, fy);
+        else Host.invoke(() -> Native.widgetForcePosition(id, childIndex(), x, fy));
+    }
 
     // CC_SETPOSITION / CC_SETSIZE fields without the layout pass (as desktop's setters; revalidate() runs it).
     @Override public Widget setPos(int x, int y) { setOriginalX(x); return setOriginalY(y); }

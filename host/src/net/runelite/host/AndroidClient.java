@@ -458,7 +458,11 @@ public class AndroidClient extends ClientStub {
         if (!selected) Native.endTargetMode();
         else if (isClientThread()) Native.beginTargetMode();
     }
-    @Override public void setAllWidgetsAreOpTargetable(boolean yes) { }
+    /** As desktop's flag: in target mode every widget is a target (the menu builder's flags read gets bit 21). */
+    @Override public void setAllWidgetsAreOpTargetable(boolean yes) {
+        if (isClientThread()) Native.setAllOpTargetable(yes);
+        else Host.invoke(() -> Native.setAllOpTargetable(yes));
+    }
     /**
      * Non-zero = not the live game. The host runs against a private test server, and Loot Tracker
      * and Grand Exchange skip their runelite.net submissions when this is non-zero, which keeps
@@ -1108,6 +1112,18 @@ public class AndroidClient extends ClientStub {
     /** Camera shakes (CAM_SHAKE) are dropped after each cycle while disabled, before the frame applies them. */
     @Override public boolean isCameraShakeDisabled() { return Native.cameraShakeDisabled(); }
     @Override public void setCameraShakeDisabled(boolean off) { Native.setCameraShakeDisabled(off); }
+    /** Desktop inverts the mouse camera drag; here the touch camera drag (and its glide), arrow keys unchanged. */
+    @Override public void setInvertPitch(boolean on) { Native.setCameraInvert(0, on); }
+    @Override public void setInvertYaw(boolean on) { Native.setCameraInvert(1, on); }
+    /** No button selects the camera drag here: the game starts it from a touch only (a mouse's right/middle buttons go to their own listeners). */
+    @Override public void setCameraMouseButtonMask(int mask) { }
+    /** Desktop's pitch relaxer is the game's own flag here (Client +0x8951c, which the server can also set): pitch up to 520 instead of 383. */
+    @Override public void setCameraPitchRelaxerEnabled(boolean on) { Native.setClientInt(Native.PITCH_RELAXER, on ? 1 : 0); }
+    /** The touch camera's drag sensitivity, scaled from the game's own (its settings keep working under it). */
+    @Override public void setCameraSpeed(float speed) { Native.setCameraSpeed(speed); }
+    // The mobile game moves the focal point at one speed (Client +0x894c4, 12) in both free camera and orb modes.
+    @Override public void setOculusOrbNormalSpeed(int speed) { Native.setClientInt(Native.ORB_SPEED, speed); }
+    @Override public void setFreeCameraSpeed(int speed) { Native.setClientInt(Native.ORB_SPEED, speed); }
     /** The game's music volume (0-255); a set also changes the playing songs' volume, as desktop. */
     @Override public int getMusicVolume() { return Native.musicVolume(); }
     @Override public void setMusicVolume(int v) {
@@ -1459,6 +1475,15 @@ public class AndroidClient extends ClientStub {
         Native.closeSubInterface((int) node.getHash(), node.getId(), unload);
     }
     /**
+     * As desktop: opens `interfaceId` inside `componentId` through IF_OPENSUB's own helper (the
+     * component-table node, the group's load and onLoad, the layout) and returns its component-table
+     * node; null for ids the game doesn't have. Client-only, as desktop; client thread.
+     */
+    @Override public net.runelite.api.WidgetNode openInterface(int componentId, int interfaceId, int modalMode) {
+        if (!isClientThread() || !Native.openSubInterface(componentId, interfaceId, modalMode)) return null;
+        return getComponentTable().get(componentId);
+    }
+    /**
      * As desktop: the scene's minimap image of a plane (736x736 = desktop's 184-tile extended scene
      * at 4 px per tile; the mobile 104-tile scene is the middle 416 px, as Instance Map crops it with
      * getExpandedMapLoading() 0), drawn by the game's own minimap renderer (`Native.drawMinimap`).
@@ -1732,11 +1757,24 @@ public class AndroidClient extends ClientStub {
     /**
      * Desktop's IF1 inventory drag delay (5 cycles by default). The mobile drag block
      * (`0x41d0a4`) only compares each widget's own dead time `+0x324` (all mobile inventories are
-     * IF3 children, which Anti Drag sets directly), so there is no global to write; kept for reads.
-     * // unverified: no IF1 inventory drag path found in the mobile drag block (static RE gen 29)
+     * IF3 children), so the delay is written into the inventory items' (149:0's children) dead time,
+     * at once and again each cycle, since the inventory's scripts recreate them with their own.
+     * -1 until a plugin sets it: the game's value stays.
      */
-    private volatile int inventoryDragDelay = 5;
-    @Override public void setInventoryDragDelay(int delay) { inventoryDragDelay = delay; }
+    private volatile int inventoryDragDelay = -1;
+    @Override public void setInventoryDragDelay(int delay) {
+        inventoryDragDelay = delay;
+        if (isClientThread()) applyInventoryDragDelay();
+    }
+    /** Client tick (Host.dispatch) and setInventoryDragDelay: the delay into each inventory item's dead time. */
+    void applyInventoryDragDelay() {
+        int d = inventoryDragDelay;
+        if (d < 0) return;
+        net.runelite.api.widgets.Widget inv = getWidget(149, 0);
+        net.runelite.api.widgets.Widget[] items = inv == null ? null : inv.getDynamicChildren();
+        if (items == null) return;
+        for (net.runelite.api.widgets.Widget w : items) if (w != null && w.getDragDeadTime() != d) w.setDragDeadTime(d);
+    }
 
     @Override
     public boolean isClientThread() {

@@ -559,7 +559,10 @@ public final class Host {
             case CLIENT_TICK:
                 cycleStamp++;
                 AndroidWidget.reapplyHidden();
-                if (client instanceof AndroidClient) ((AndroidClient) client).syncModIcons();
+                if (client instanceof AndroidClient) {
+                    ((AndroidClient) client).syncModIcons();
+                    ((AndroidClient) client).applyInventoryDragDelay();
+                }
                 KeyRouter.syncShift();
                 bus.post(clientTick);
                 WidgetListeners.runCycle(client);

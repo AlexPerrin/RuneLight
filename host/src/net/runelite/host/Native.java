@@ -63,8 +63,8 @@ final class Native {
     static native Object[] connection();
     /** Writes the SERVER_TICK_END count serverTick() reads; game thread only. */
     static native boolean setServerTick(int tick);
-    /** Client int fields by index (game.cpp kClientInts): ORB_STATE, ORB_X, ORB_Y, CHAT_CYCLE, CHANGED_SKILL_COUNT. Set: game thread only. */
-    static final int ORB_STATE = 0, ORB_X = 1, ORB_Y = 2, CHAT_CYCLE = 3, CHANGED_SKILL_COUNT = 4;
+    /** Client int fields by index (game.cpp kClientInts): ORB_STATE, ORB_X, ORB_Y, CHAT_CYCLE, CHANGED_SKILL_COUNT, ORB_SPEED, PITCH_RELAXER. Set: game thread only. */
+    static final int ORB_STATE = 0, ORB_X = 1, ORB_Y = 2, CHAT_CYCLE = 3, CHANGED_SKILL_COUNT = 4, ORB_SPEED = 5, PITCH_RELAXER = 6;
     static native int clientInt(int which);
     static native boolean setClientInt(int which, int value);
     /** Music volume 0-255 (Client +0x2f58); set applies it to the playing songs; game thread only. */
@@ -74,7 +74,13 @@ final class Native {
     static native int[] midiRequests();
     /** While on, the camera shake flags are cleared after every cycle. */
     static native void setCameraShakeDisabled(boolean off);
+    /** Client.setCameraSpeed: the touch camera's drag sensitivity is the game's own times this, kept each cycle. */
+    static native void setCameraSpeed(float multiplier);
+    /** The touch camera's drag sensitivity (settings +0x82c); 0 before the settings exist. */
+    static native float cameraSensitivity();
     static native boolean cameraShakeDisabled();
+    /** Axis 0 pitch, 1 yaw: while on, the touch camera drag turns that axis the other way. */
+    static native void setCameraInvert(int axis, boolean on);
     /** Every varp as a long (the long table where the game flags it long, else the int table). */
     static native long[] varpsLong(boolean server);
     /** Client.setVarpLongValue; game thread only. */
@@ -150,6 +156,23 @@ final class Native {
     static native boolean widgetClearListener(int id, int index, int offset);
     /** IF_CLOSESUB for `group` open in `component` (`0x462384`); false if not open. Client thread. */
     static native boolean closeSubInterface(int component, int group, boolean unload);
+    /** IF_OPENSUB's helper (`0x462640`): opens `group` in `component` with modal `mode`; false on bad ids. Client thread. */
+    static native boolean openSubInterface(int component, int group, int mode);
+    // Game-state writes (docs/offsets.md "Game-state writes"). Client thread.
+    /** Every widget a target in target mode (the menu builder's flags call gets bit 21); false without the hook. */
+    static native boolean setAllOpTargetable(boolean on);
+    /** A widget's flags as the menu builder's target test reads them (`0x460dac`, the setting applied); -1 no widget. */
+    static native long widgetTargetFlags(int id, int index);
+    /** The layout pass (`0x45ea08`) keeps relative x/y (-1: its own) for this widget; -1, -1 clears. */
+    static native boolean widgetForcePosition(int id, int index, int x, int y);
+    /** Equipment, colours and transformed NPC id into player `index`'s Appearance, then its model hash (`0x5e1bd4`); 0 none. */
+    static native long playerSetHash(int index, int[] equipment, int[] colors, int npcId);
+    /** Player `index`'s Appearance model hash (+0x78); 0 none. */
+    static native long playerHash(int index);
+    /** The scenery object with `tag` whose min corner is (plane, x, y) leaves the scene (`0x6dc300`). */
+    static native boolean sceneRemoveGameObject(int plane, int x, int y, long tag);
+    /** Empties a scene tile slot (remove), or tells whether the tile is there (!remove). */
+    static native boolean sceneRemoveTile(int plane, int x, int y, boolean remove);
     /** The game's minimap image of `plane` as desktop's drawInstanceMap layout (736x736 RGB), or null. Client thread. */
     static native int[] drawMinimap(int plane);
     /** A widget's var/inv/stat transmit trigger ids (offset 0x5c0/0x608/0x650), or null. */
