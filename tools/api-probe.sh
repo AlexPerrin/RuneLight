@@ -65,7 +65,8 @@ held() { dt get_inventory '{"inventoryId":93}' | python3 -c 'import json,sys; pr
 fighting() { dt list_players | python3 -c 'import json,sys; print(next((p.get("interacting") or "") for p in json.load(sys.stdin)["players"] if p.get("isLocal")))'; }
 xp() { dt get_skills | python3 -c 'import json,sys; print(next(s["xp"] for s in json.load(sys.stdin)["skills"] if s["skill"].lower() == sys.argv[1]))' "$1"; }
 shown() { [[ $(dt get_widget "{\"componentId\":$(($1 << 16)),\"depth\":0}" 2>/dev/null) == *'"hidden":false'* ]]; }
-tab() { shown "$2" || dt click_component "{\"componentId\":$1}" >/dev/null; }   # tab <side tab> <its interface>: shown (a click on the open tab closes it)
+tab() {  # tab <side tab> <its interface>: shown (a click on the open tab closes it); its widgets exist once it is
+  shown "$2" && return; dt click_component "{\"componentId\":$1}" >/dev/null; until shown "$2"; do sleep 1; done; }
 plog() { adb logcat -d -v brief -T "$mark" 2>/dev/null | tr -d '\r' | grep -F "api-probe: $1" || true; }
 
 "$ROOT/host/plugins/api-probe/build.sh" >/dev/null
@@ -74,7 +75,7 @@ alive || { echo "api-probe: $PKG is not running on $ANDROID_SERIAL (start it and
 adb shell rm -f $F/api-probe.tsv $F/api-probe.tsv.part
 
 # the friend: a desktop on the live stack, logged in
-port=; cleaned=
+port=; desktop=; cleaned=
 undo() {  # the set-up undone while the mobile plays; the desktop stopped
   [ -n "$cleaned" ] && return; cleaned=1
   if alive && [ "$(dt get_client_state | field gameState)" = LOGGED_IN ]; then
@@ -92,12 +93,12 @@ undo() {  # the set-up undone while the mobile plays; the desktop stopped
     [ -z "${retaliate0:-}" ] || chat "::varp 172 $retaliate0"
     if [ -n "${friend:-}" ]; then tab $FRIENDS_TAB 429; dt click_component "{\"componentId\":$DEL_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null; fi
   fi
-  [ -z "$port" ] || "$FORK" live-desktop-down "$SLUG" >&2
+  [ -z "$port$desktop" ] || "$FORK" live-desktop-down "$SLUG" >&2
 }
 declare -A xp0
 trap 'undo || true' EXIT
 
-# the mobile: the fight (from here on the server keeps it in combat: no idle logout while the desktop starts), the world map
+# the mobile: the fight, the world map
 chat "::item scythe_of_vitur"; until [[ " $(held) " == *" $SCYTHE "* ]]; do sleep 1; done
 for s in attack:1986068 strength:5346332 hitpoints:13034431; do   # 80 and 90 wield it; 99 hitpoints outlast the dummy's hits
   xp0[${s%:*}]=$(xp "${s%:*}"); chat "::setxp ${s%:*} ${s#*:}"; until [ "$(xp "${s%:*}")" = "${s#*:}" ]; do sleep 1; done
@@ -110,8 +111,12 @@ dt interact_npc "{\"npcIndex\":$npc,\"option\":\"Attack\"}" >/dev/null
 until dt get_combat_history '{"windowMs":10000}' | grep -q '"actorType":"npc"'; do sleep 1; done   # the attack has settled the player and hits
 shown 595 || dt click_component "{\"componentId\":$MAP_ORB}" >/dev/null; dt wait_for '{"condition":"interface_open","interfaceId":595,"timeoutMs":60000}' >/dev/null
 
-# the friend: the desktop logged in (it idles out after 5 minutes: the probe starts at once), added to the mobile's list
-d=$("$FORK" live-desktop "$SLUG" | tail -1); [[ $d == LIVE_DESKTOP* ]] || { echo "api-probe: no live desktop for the friend: $d"; exit 1; }
+# the friend: the desktop logged in (it idles out after 5 minutes too: the probe starts at once), added to the mobile's list
+# the server logs an idle client out after 5 minutes, in combat too: a tab click each minute while the desktop starts
+log=$(mktemp); "$FORK" live-desktop "$SLUG" > "$log" 2>&1 & desktop=$!
+while kill -0 $desktop 2>/dev/null; do dt click_component "{\"componentId\":$INV_TAB}" >/dev/null; sleep 60; done
+wait $desktop || true; d=$(tail -1 "$log"); rm -f "$log"
+[[ $d == LIVE_DESKTOP* ]] || { echo "api-probe: no live desktop for the friend: $d"; exit 1; }
 port=$(cut -d' ' -f2 <<< "$d")
 friend=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["accounts"].split()[0])' "$HD/state/$SLUG/up.json")
 tab $FRIENDS_TAB 429; dt click_component "{\"componentId\":$ADD_FRIEND}" >/dev/null; dt enter_input "{\"text\":\"$friend\"}" >/dev/null
