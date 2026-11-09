@@ -34,10 +34,11 @@ landscape, canvas = screen points) on a fresh install (client-login-index-log, e
 
 On every page the footer links (Terms and Conditions, Privacy Policy, Software Licence, Do Not Sell) are at y 960-1012
 and World / Tap to switch at [450,925][655,995]: never tap there. The api-probe at this build (logged in at spawn,
-attacking a combat dummy) is 92.1% (1153/1252): openInterface, setAllWidgetsAreOpTargetable, setInventoryDragDelay,
-PlayerComposition.setHash, Scene.removeGameObject/removeTile and Widget.setForcedPosition write the game's own state
-(offsets.md "Game-state writes") and pass; the 10 GraphicsObject rows are unreached when no spot anim plays in the
-scene while it runs (main's 1154 had one), no other pass lost.
+no run set-up) is 92.4% (1157/1252): the 8 Widget listener setters (click, hold, release, mouse over/leave/repeat,
+scroll wheel, dialog abort) run from the game's own dispatch and pass (plugin-host.md); openInterface,
+setAllWidgetsAreOpTargetable, setInventoryDragDelay, PlayerComposition.setHash, Scene.removeGameObject/removeTile and
+Widget.setForcedPosition write the game's own state (offsets.md "Game-state writes") and pass; the 10 GraphicsObject
+rows are unreached when no spot anim plays in the scene while it runs.
 
 ## Releases and tooling
 
