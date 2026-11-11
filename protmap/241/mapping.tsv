@@ -2,13 +2,13 @@
 c2s	0	IGNORELIST_DEL	-1	by hand	0:p1 1:p1 2:p1	241 hand map
 c2s	1	OP_1	11	dead		no sender
 c2s	2	OPNPCT	11	by hand		241 hand map
-c2s	3	OPLOC4	8	by hand	0:p2 2:p2 4:p1Alt2 5:p2Alt1	241 hand map
+c2s	3	OPLOC4_V2	8	by hand	0:p2 2:p2 4:p1Alt2 5:p2Alt1	241 hand map
 c2s	4	RESUME_P_COUNTDIALOG	4	by hand		241 hand map
 c2s	5	OPPLAYERT	11	by hand		241 hand map
 c2s	6	OPOBJ6	6	by hand		241 hand map
-c2s	7	OPLOC1	8	by hand	0:p2Alt2 2:p1Alt3 3:p2Alt2 5:p2	241 hand map
+c2s	7	OPLOC1_V2	8	by hand	0:p2Alt2 2:p1Alt3 3:p2Alt2 5:p2	241 hand map
 c2s	8	IF_SCRIPT_TRIGGER	-2	by hand		241 hand map
-c2s	9	OPNPC5	4	by hand	0:p1 1:p1Alt1 2:p1Alt2 3:p1Alt1	241 hand map
+c2s	9	OPNPC5_V2	4	by hand	0:p1 1:p1Alt1 2:p1Alt2 3:p1Alt1	241 hand map
 c2s	10	WINDOW_STATUS	5	size		
 c2s	11	OPWORLDENTITY3	3	by hand		241 hand map
 c2s	12	OP_12	-1	dead		no sender
@@ -23,7 +23,7 @@ c2s	20	AFFINEDCLANSETTINGS_SETMUTED_FROMCHANNEL	-1	by hand		241 hand map
 c2s	21	EVENT_MOUSE_CLICK_V1	6	by hand		241 hand map
 c2s	22	RESUME_P_STRINGDIALOG	-1	by hand		241 hand map
 c2s	23	EXIT_FREECAM	0	by hand		241 hand map
-c2s	24	OPOBJ2	8	by hand	0:p2Alt2 2:p1Alt2 3:p2Alt3 5:p1Alt1 6:p1	241 hand map
+c2s	24	OPOBJ2_V2	8	by hand	0:p2Alt2 2:p1Alt2 3:p2Alt3 5:p1Alt1 6:p1	241 hand map
 c2s	25	OPPLAYER5	3	by hand		241 hand map
 c2s	26	OPPLAYER6	3	by hand	0:p1Alt1	241 hand map
 c2s	27	OP_27	7	dead		no sender
@@ -32,18 +32,18 @@ c2s	29	CLICKWORLDMAP	4	by hand		241 hand map
 c2s	30	CLOSE_MODAL	0	by hand		241 hand map
 c2s	31	MOVE_GAMECLICK	-1	by hand		241 hand map
 c2s	32	EVENT_NATIVE_MOUSE_MOVE	-1	by hand		241 hand map
-c2s	33	OPNPC4	4	by hand	0:p1Alt1 1:p1Alt3 2:p1Alt1 3:p1	241 hand map
-c2s	34	OPOBJ4	8	by hand	0:p1Alt1 1:p1Alt2 2:p2Alt3 4:p2 6:p1	241 hand map
+c2s	33	OPNPC4_V2	4	by hand	0:p1Alt1 1:p1Alt3 2:p1Alt1 3:p1	241 hand map
+c2s	34	OPOBJ4_V2	8	by hand	0:p1Alt1 1:p1Alt2 2:p2Alt3 4:p2 6:p1	241 hand map
 c2s	35	TELEPORT	9	by hand		241 hand map
 c2s	36	RESUME_P_OBJDIALOG	2	by hand		241 hand map
 c2s	37	EVENT_KEYBOARD	-2	by hand		241 hand map
 c2s	38	OPLOC6	2	by hand	0:p2	241 hand map
 c2s	39	MOVE_MINIMAPCLICK	-1	by hand	0:p1 1:p2Alt3 3:p2Alt2 5:p1 6:p1 7:p1 8:p1 9:w2? 11:p1 12:p1	241 hand map
-c2s	40	OPOBJ5	8	by hand	0:p2Alt2 2:p1Alt3 3:p2Alt3 5:p2Alt2	241 hand map
+c2s	40	OPOBJ5_V2	8	by hand	0:p2Alt2 2:p1Alt3 3:p2Alt3 5:p2Alt2	241 hand map
 c2s	41	FRIENDLIST_DEL	-1	by hand	0:p1 1:p1 2:p1	241 hand map
 c2s	42	BUG_REPORT	-2	by hand		241 hand map
 c2s	43	IF_BUTTOND	16	by hand		241 hand map
-c2s	44	OPNPC2	4	by hand	0:p2 2:p1 3:p1Alt1	241 hand map
+c2s	44	OPNPC2_V2	4	by hand	0:p2 2:p1 3:p1Alt1	241 hand map
 c2s	45	SET_HEADING	1	by hand	0:p1Alt2	241 hand map
 c2s	46	SOUND_JINGLEEND	4	by hand	0:p4	241 hand map
 c2s	47	SET_CHATFILTERSETTINGS	3	by hand		241 hand map
@@ -54,10 +54,10 @@ c2s	51	FRIENDCHAT_KICK	-1	by hand	0:p1 1:p1 2:p1	241 hand map
 c2s	52	OPWORLDENTITY4	3	by hand	0:p1Alt3 1:p2	241 hand map
 c2s	53	OPPLAYER4	3	by hand	0:p1 1:p2Alt3	241 hand map
 c2s	54	OPWORLDENTITY2	3	by hand	0:p2 2:p1Alt2	241 hand map
-c2s	55	OPLOC2	8	by hand	0:p1 1:p1Alt1 2:p2 4:p1Alt1 5:p2Alt2	241 hand map
+c2s	55	OPLOC2_V2	8	by hand	0:p1 1:p1Alt1 2:p2 4:p1Alt1 5:p2Alt2	241 hand map
 c2s	56	CLANCHANNEL_FULL_REQUEST	1	by hand	0:p1	241 hand map
 c2s	57	CLANCHANNEL_KICKUSER	-1	by hand	0:p1 1:p1 4:p1 5:p1	241 hand map
-c2s	58	OPLOC3	8	by hand	0:p1 1:p2 3:p2Alt3 5:p1 6:p1Alt1	241 hand map
+c2s	58	OPLOC3_V2	8	by hand	0:p1 1:p2 3:p2Alt3 5:p1 6:p1Alt1	241 hand map
 c2s	59	OPWORLDENTITY5	3	by hand	0:p1Alt3 1:p2Alt1	241 hand map
 c2s	60	FRIENDLIST_ADD	-1	by hand	0:p1 1:p1 2:p1	241 hand map
 c2s	61	FRIENDCHAT_JOIN_LEAVE	-1	by hand	0:p1 1:p1 2:p1	241 hand map
@@ -65,12 +65,12 @@ c2s	62	OP_62	11	dead		no sender
 c2s	63	OPLOCT	15	by hand		241 hand map
 c2s	64	MESSAGE_PUBLIC	-1	by hand		241 hand map
 c2s	65	OPPLAYER3	3	by hand	0:p1 2:p1Alt3	241 hand map
-c2s	66	OPLOC5	8	by hand	0:p1Alt3 1:p1Alt1 2:p2Alt3 4:p2Alt1 6:p1 7:p1Alt1	241 hand map
+c2s	66	OPLOC5_V2	8	by hand	0:p1Alt3 1:p1Alt1 2:p2Alt3 4:p2Alt1 6:p1 7:p1Alt1	241 hand map
 c2s	67	MAP_BUILD_COMPLETE	0	by hand		241 hand map
 c2s	68	OPPLAYER7	3	by hand	0:p2 2:p1	241 hand map
 c2s	69	OPWORLDENTITY6	2	by hand	0:p1Alt1	241 hand map
 c2s	70	IF_SUBOP	10	by hand		241 hand map
-c2s	71	OPNPC3	4	by hand	0:p1 1:p1 2:p2	241 hand map
+c2s	71	OPNPC3_V2	4	by hand	0:p1 1:p1 2:p2	241 hand map
 c2s	72	CLANSETTINGS_FULL_REQUEST	1	by hand	0:p1	241 hand map
 c2s	73	OP_73	15	dead		no sender
 c2s	74	OPOBJT	15	by hand		241 hand map
@@ -78,10 +78,10 @@ c2s	75	DETECT_MODIFIED_CLIENT	4	by hand	0:p4Alt1	241 hand map
 c2s	76	OP_76	11	dead		no sender
 c2s	77	EVENT_MOUSE_CLICK_V2	7	by hand		241 hand map
 c2s	78	OPWORLDENTITY1	3	by hand	0:p2Alt3 2:p1Alt2	241 hand map
-c2s	79	OPOBJ1	8	by hand	0:p2 2:p1Alt1 3:p2Alt2 5:p2	241 hand map
+c2s	79	OPOBJ1_V2	8	by hand	0:p2 2:p1Alt1 3:p2Alt2 5:p2	241 hand map
 c2s	80	HISCORE_REQUEST	-1	by hand	0:p1 1:p1 3:p1 4:p1	241 hand map
 c2s	81	CLIENT_CHEAT	-1	by hand	0:p1 1:p1 2:p1 3:p1	241 hand map
-c2s	82	OPOBJ3	8	by hand	0:p2Alt2 2:p2Alt1 4:p1Alt1 5:w2?	241 hand map
+c2s	82	OPOBJ3_V2	8	by hand	0:p2Alt2 2:p2Alt1 4:p1Alt1 5:w2?	241 hand map
 c2s	83	OP_83	15	dead		no sender
 c2s	84	IF_CRMVIEW_OP	22	size		
 c2s	85	OP_85	11	dead		no sender
@@ -91,7 +91,7 @@ c2s	88	FRIENDCHAT_SETRANK	-1	by hand	0:p1 2:p1 3:p1	241 hand map
 c2s	89	EVENT_MOUSE_SCROLL	2	by hand		241 hand map
 c2s	90	UPDATE_PLAYER_MODEL_V2	26	size		
 c2s	91	OPPLAYER1	3	by hand	0:p2Alt1 2:p1Alt1	241 hand map
-c2s	92	OPNPC1	4	by hand	0:p2Alt3 2:p1	241 hand map
+c2s	92	OPNPC1_V2	4	by hand	0:p2Alt3 2:p1	241 hand map
 c2s	93	NO_TIMEOUT	0	by hand		241 hand map
 c2s	94	IGNORELIST_ADD	-1	by hand	0:p1 1:p1 2:p1	241 hand map
 c2s	95	IF_BUTTON	4	by hand	0:p4	241 hand map
@@ -111,7 +111,7 @@ s2c	6	REBUILD_NORMAL_V2	-2	by hand		241 hand map
 s2c	7	UPDATE_ZONE_PARTIAL_FOLLOWS	3	by hand	0:p1Alt3 1:p1Alt1 2:p1Alt1	241 hand map
 s2c	8	UPDATE_INV_PARTIAL	-2	by hand	0:p4 4:p2 6:p1 7:p2 9:p1	241 hand map
 s2c	9	MESSAGE_CLANCHANNEL_SYSTEM	-1	by hand	0:p1 1:p2 3:p3	241 hand map
-s2c	10	RUNCLIENTSCRIPT	-2	by hand	0:p1 1:p1 6:p1 7:p1	241 hand map
+s2c	10	RUNCLIENTSCRIPT	-2	by hand	0:p1 1:p1 6:p1	241 hand map
 s2c	11	CHAT_FILTER_SETTINGS_PRIVATECHAT	1	by hand	0:p1	241 hand map
 s2c	12	OBJ_CUSTOMISE_SPECIFIC_V1	20	by hand	0:p2 2:p2 4:p4 8:p2Alt2 10:p1 11:p1 12:p2Alt2 14:p2Alt2 16:p4	241 hand map
 s2c	13	UPDATE_IGNORELIST	-2	by hand		241 hand map
@@ -130,7 +130,7 @@ s2c	25	UPDATE_FRIENDLIST	-2	by hand		241 hand map
 s2c	26	UPDATE_RUNWEIGHT	2	by hand	0:p2	241 hand map
 s2c	27	LOGOUT_WITHREASON	1	by hand	0:p1	241 hand map
 s2c	28	IF_SETANIM	6	by hand	0:p2Alt1 2:p4	241 hand map
-s2c	29	IF_SETCOLOUR	6	by hand	0:p4Alt1 4:p1 5:p1	241 hand map
+s2c	29	IF_SETCOLOUR	6	by hand	0:p4Alt1 4:w2?	241 hand map
 s2c	30	SET_NPC_UPDATE_ORIGIN	2	by hand	0:p1 1:p1	241 hand map
 s2c	31	MINIMAP_TOGGLE	1	by hand	0:p1	241 hand map
 s2c	32	UPDATE_INV_FULL	-2	by hand	0:p4 4:p2 6:p2 8:p2Alt2 10:p1Alt1 11:p4Alt3	241 hand map
@@ -243,7 +243,7 @@ s2c	138	GROUP_VAR	-2	by hand		241 hand map
 s2c	139	OBJUNLOCK_UPDATE	-2	by hand		241 hand map
 s2c	140	GROUP_FULL	-2	by hand		241 hand map
 s2c	141	GROUP_VAR_LONG	13	size		
-s2c	142	CAM_ROTATETO_COORDINATE_V3	11	by hand	0:p2Alt1 2:p1 3:p1 4:p2Alt1 6:p1Alt1 7:p2Alt3 9:p2Alt1	241 hand map
+s2c	142	CAM_ROTATETO_COORDINATE_V3	11	by hand	0:p2Alt1 2:p1 3:p1Alt3 4:p2Alt1 6:p1Alt1 7:p2Alt3 9:p2Alt1	241 hand map
 s2c	143	SET_MAP_FLAG_V2	4	by hand	0:p4	241 hand map
 s2c	144	CAM_LOOKAT_CYCLES	10	widths	0:p2Alt1 2:p2Alt1 4:p1Alt3 5:p2Alt2 7:p1 8:p2Alt2	
 s2c	145	NPC_INFO_LARGE_V6	-2	by hand		241 hand map

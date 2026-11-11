@@ -1,0 +1,4 @@
+# side	opcode	prot (or dead)	reason
+s2c	74	IF_SETNPCHEAD	twin of 80, code similarity ties (0.938 / 0.937): the case sets the component's model type to 2 (npc head), as 241's IF_SETNPCHEAD (s2c 62) does
+s2c	80	IF_SETNPCHEAD_ACTIVE	twin of 74: the case sets the component's model type to 6 (active npc), as 241's IF_SETNPCHEAD_ACTIVE (s2c 47) does
+s2c	145	SET_WEBSITE_TOKEN	new in 242 (no 241 row to carry over); the case reads one string and keeps it in the client (param_1[0x415..0x417]); REFLECTION_CHECKER reads a list of checks, not a string

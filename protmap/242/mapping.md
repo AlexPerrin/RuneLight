@@ -5,15 +5,15 @@
 | Opcode | Prot | Size | Identified | Client layout |
 |---|---|---|---|---|
 | 0 | MESSAGE_CLANCHANNEL_SYSTEM | -1 | carry-over | 0:p1 1:p2 3:p3 |
-| 1 | IF_SETPLAYERMODEL_BASECOLOUR | 6 | carry-over | 0:p1Alt1 1:p4Alt3 5:p1Alt2 |
+| 1 | IF_SETPLAYERMODEL_BASECOLOUR | 6 | widths | 0:p1Alt1 1:p4Alt3 5:p1Alt2 |
 | 2 | IF_OPENTOP | 2 | carry-over | 0:p2 |
 | 3 | MESSAGE_PRIVATE_ECHO | -2 | carry-over | - |
 | 4 | VARP_RESET | 0 | carry-over | - |
 | 5 | IF_SETPLAYERMODEL_SELF | 5 | carry-over | 0:p4Alt2 4:p1 |
-| 6 | OP_6 | 5 | open | 0:p1Alt1 1:p4Alt1 |
+| 6 | CAM_TARGET_V4 | 5 | size | 0:p1Alt1 1:p4Alt1 |
 | 7 | UPDATE_ZONE_PARTIAL_ENCLOSED | -2 | carry-over | 0:p1Alt2 1:p1Alt3 2:p1Alt3 3:p1 |
-| 8 | IF_SETOBJECT | 10 | carry-over | 0:p4Alt1 4:p4Alt3 8:p2Alt3 |
-| 9 | OP_9 | -2 | open | - |
+| 8 | IF_SETOBJECT | 10 | size | 0:p4Alt1 4:p4Alt3 8:p2Alt3 |
+| 9 | REBUILD_NORMAL_V2 | -2 | carry-over | - |
 | 10 | UPDATE_INV_STOPTRANSMIT | 2 | carry-over | 0:p2Alt2 |
 | 11 | OBJ_ENABLED_OPS_SPECIFIC | 7 | carry-over | 0:p2Alt3 2:p4 6:p1Alt1 |
 | 12 | UNKNOWN_STRING | -1 | size | - |
@@ -26,31 +26,31 @@
 | 19 | IF_SETEVENTS_V2 | 16 | size | 0:p4 4:p4 8:p2 10:p4 14:p2Alt3 |
 | 20 | LOC_DEL | 2 | carry-over | - |
 | 21 | TRIGGER_ONDIALOGABORT | 0 | carry-over | - |
-| 22 | VARP_LONG | 10 | size | 0:p2Alt3 |
-| 23 | OP_23 | 9 | open | 0:p2Alt3 2:p2Alt3 4:p4 8:p1Alt2 |
+| 22 | VARP_LONG | 10 | carry-over | 0:p2Alt3 |
+| 23 | PLAYER_SPOTANIM_SPECIFIC | 9 | carry-over | 0:p2Alt3 2:p2Alt3 4:p4 8:p1Alt2 |
 | 24 | UPDATE_INV_PARTIAL | -2 | carry-over | 0:p4 4:p2 6:p1 7:p2 9:p1 |
 | 25 | IF_MOVESUB | 8 | carry-over | 0:p4Alt2 4:p4Alt2 |
 | 26 | MESSAGE_GAME | -1 | carry-over | 0:p1 3:p1 |
 | 27 | REBUILD_WORLDENTITY_V4 | -2 | carry-over | - |
 | 28 | VARCLAN_ENABLE | 0 | carry-over | - |
-| 29 | VARP_SMALL | 3 | carry-over | 0:p2Alt1 2:p1 |
+| 29 | VARP_SMALL | 3 | carry-over | 0:p2Alt1 2:p1Alt1 |
 | 30 | HINT_ARROW | 6 | carry-over | - |
 | 31 | LOC_ANIM | 4 | carry-over | - |
-| 32 | OP_32 | 5 | open | 0:p2 |
+| 32 | MIDI_JINGLE | 5 | carry-over | 0:p2 |
 | 33 | IF_SETSCROLLPOS | 6 | carry-over | 0:p2 2:p4Alt3 |
-| 34 | CAM_UNLOCK | 1 | widths | 0:p1 |
+| 34 | MINIMAP_TOGGLE | 1 | carry-over | 0:p1 |
 | 35 | IF_CLEARINV | 4 | carry-over | 0:p4Alt3 |
 | 36 | SET_ACTIVE_WORLD_V2 | 3 | carry-over | 0:p2 2:p1 |
 | 37 | LOGOUT | 0 | size | - |
 | 38 | UPDATE_RUNWEIGHT | 2 | carry-over | 0:p2 |
 | 39 | UPDATE_TRADINGPOST_V2 | -2 | carry-over | 0:p1 1:w8? |
 | 40 | MESSAGE_PRIVATE | -2 | carry-over | 0:p2 2:p3 5:p1 |
-| 41 | MINIMAP_TOGGLE | 1 | carry-over | 0:p1 |
+| 41 | CAM_MODE | 1 | carry-over | 0:p1 |
 | 42 | UPDATE_ZONE_PARTIAL_FOLLOWS | 3 | size | 0:p1Alt1 1:p1 2:p1Alt2 |
-| 43 | OP_43 | -2 | open | - |
+| 43 | LOC_ADD_CHANGE_V3 | -2 | carry-over | - |
 | 44 | ACCOUNT_FLAGS | 8 | carry-over | 0:w8? |
 | 45 | CAM_ROTATETO | 7 | carry-over | 0:p2 2:p2 4:p2 6:p1 |
-| 46 | OBJUNLOCK_RESET | 0 | carry-over | - |
+| 46 | VARCLAN_DISABLE | 0 | carry-over | - |
 | 47 | CLANCHANNEL_DELTA | -2 | carry-over | 0:p1 |
 | 48 | VARP_SYNC | 0 | carry-over | - |
 | 49 | SET_PLAYER_OP | -1 | carry-over | 0:p1Alt1 1:p1Alt1 |
@@ -60,15 +60,15 @@
 | 53 | OBJ_COUNT_SPECIFIC | 14 | widths | 0:p2 2:p4 6:p4Alt3 10:p4Alt1 |
 | 54 | HISCORE_REPLY | -2 | carry-over | - |
 | 55 | CLANCHANNEL_FULL | -2 | carry-over | 0:p1 |
-| 56 | RUNCLIENTSCRIPT | -2 | carry-over | 0:p1 1:p1 6:p1 7:p1 |
+| 56 | RUNCLIENTSCRIPT | -2 | carry-over | 0:p1 1:p1 6:p1 |
 | 57 | UPDATE_INV_FULL | -2 | carry-over | 0:p4 4:p2 6:p2 8:p2Alt1 10:p1Alt1 11:p4Alt3 |
 | 58 | UPDATE_STOCKMARKET_SLOT_V1 | 20 | carry-over | 0:p1 1:p1 |
 | 59 | RESET_INTERACTION_MODE | 2 | carry-over | 0:p2 |
-| 60 | MAP_ANIM | 6 | size | - |
+| 60 | MAP_ANIM | 6 | carry-over | - |
 | 61 | IF_SETPLAYERHEAD | 4 | carry-over | 0:p4Alt1 |
 | 62 | SET_INTERACTION_MODE | 4 | carry-over | 0:p2 |
 | 63 | LOC_MERGE | 14 | size | - |
-| 64 | OP_64 | 2 | dead | - |
+| 64 | PACKET_GROUP_START | 2 | carry-over | - |
 | 65 | IF_RESYNC_V2 | -2 | carry-over | 0:p2 2:p2 4:p4 8:p2 10:p1 11:p4 15:p2 17:p2 19:p4 23:p4 |
 | 66 | UPDATE_ZONE_FULL_FOLLOWS | 3 | carry-over | 0:p1Alt2 1:p1Alt2 2:p1Alt3 |
 | 67 | OP_67 | -2 | dead | - |
@@ -78,16 +78,16 @@
 | 71 | IF_SETANGLE | 10 | widths | 0:p2Alt3 2:p2Alt2 4:p2Alt3 6:p4 |
 | 72 | OBJ_ADD_SPECIFIC | 17 | size | 0:p1Alt1 1:p4Alt3 5:p1Alt2 6:p2Alt3 8:p2Alt3 10:p2Alt3 12:p4 16:p1Alt1 |
 | 73 | LOC_ADD_CHANGE_V2 | -2 | carry-over | - |
-| 74 | IF_SETNPCHEAD_ACTIVE | 6 | carry-over | 0:p4Alt2 4:p2Alt1 |
-| 75 | IF_SETROTATESPEED | 8 | size | 0:p2Alt2 2:p4 6:w2? |
+| 74 | IF_SETNPCHEAD | 6 | by hand | 0:p4Alt2 4:p2Alt1 |
+| 75 | IF_SETROTATESPEED | 8 | carry-over | 0:p2Alt2 2:p4 6:w2? |
 | 76 | IF_SETPLAYERMODEL_BODYTYPE | 5 | carry-over | 0:p4Alt3 4:p1Alt1 |
-| 77 | HIDELOCOPS | 1 | carry-over | 0:p1 |
+| 77 | HIDENPCOPS | 1 | carry-over | 0:p1 |
 | 78 | SYNTH_SOUND | 5 | carry-over | 0:p2 2:p1 3:p2 |
 | 79 | SOUND_AREA | 7 | carry-over | - |
-| 80 | IF_SETNPCHEAD | 6 | carry-over | 0:p2Alt2 |
+| 80 | IF_SETNPCHEAD_ACTIVE | 6 | by hand | 0:p2Alt2 |
 | 81 | URL_OPEN | -2 | carry-over | - |
 | 82 | CAM_ROTATEBY | 7 | carry-over | 0:p2 2:p2 4:p2 6:p1 |
-| 83 | IF_SETCOLOUR | 6 | carry-over | 0:p4Alt3 4:p1 5:p1 |
+| 83 | IF_SETCOLOUR | 6 | carry-over | 0:p4Alt3 4:w2? |
 | 84 | PLAYER_INFO | -2 | carry-over | - |
 | 85 | RESET_ANIMS | 0 | carry-over | - |
 | 86 | LOGOUT_TRANSFER | -1 | carry-over | 0:p2 2:p4 |
@@ -108,10 +108,10 @@
 | 101 | CLANSETTINGS_FULL | -2 | carry-over | 0:p1 |
 | 102 | IF_SETPLAYERMODEL_OBJ | 8 | carry-over | 0:p4Alt3 4:p4Alt3 |
 | 103 | UPDATE_FRIENDCHAT_CHANNEL_SINGLEUSER | -1 | carry-over | - |
-| 104 | CHAT_FILTER_SETTINGS | 2 | widths | 0:p1Alt2 1:p1Alt2 |
+| 104 | CHAT_FILTER_SETTINGS | 2 | size | 0:p1Alt2 1:p1Alt2 |
 | 105 | MESSAGE_FRIENDCHANNEL | -1 | carry-over | 0:w8? 8:p2 10:p3 13:p1 |
 | 106 | VARCLAN | -1 | carry-over | - |
-| 107 | HIDENPCOPS | 1 | carry-over | 0:p1 |
+| 107 | HIDELOCOPS | 1 | carry-over | 0:p1 |
 | 108 | FRIENDLIST_LOADED | 0 | carry-over | - |
 | 109 | SET_NPC_UPDATE_ORIGIN | 2 | carry-over | 0:p1 1:p1 |
 | 110 | OBJ_DEL_SPECIFIC | 10 | carry-over | 0:p4 4:p4Alt1 8:p2 |
@@ -123,87 +123,87 @@
 | 116 | UPDATE_STOCKMARKET_SLOT_V2 | 34 | size | 0:p1 1:p1 |
 | 117 | LOGOUT_WITHREASON | 1 | carry-over | 0:p1 |
 | 118 | MIDI_SONG_WITHSECONDARY | 12 | size | 0:p2Alt2 2:p2 4:p2Alt2 6:p2 8:p2Alt3 10:p2 |
-| 119 | IF_OPENSUB | 7 | size | 0:p1 1:p4Alt2 5:p2Alt1 |
+| 119 | IF_OPENSUB | 7 | carry-over | 0:p1 1:p4Alt2 5:p2Alt1 |
 | 120 | ANIM_SPECIFIC | 3 | carry-over | 0:p2Alt3 2:p1 |
 | 121 | CAM_RESET | 0 | carry-over | - |
 | 122 | SERVER_TICK_END | 0 | carry-over | - |
 | 123 | UPDATE_FRIENDLIST | -2 | carry-over | - |
 | 124 | CHAT_FILTER_SETTINGS_PRIVATECHAT | 1 | carry-over | 0:p1 |
-| 125 | OP_125 | -2 | open | - |
-| 126 | OP_126 | 9 | open | 0:p2Alt1 2:p1Alt1 3:p4Alt1 7:p2Alt2 |
-| 127 | OBJ_CUSTOMISE_SPECIFIC_V1 | 20 | size | 0:p2Alt2 2:p1 3:p1 4:p2Alt2 6:p4Alt2 10:p2Alt1 12:p1 13:p1 14:p4Alt1 18:p2Alt1 |
+| 125 | REBUILD_REGION_V2 | -2 | carry-over | - |
+| 126 | NPC_HEADICON_SPECIFIC | 9 | carry-over | 0:p2Alt1 2:p1Alt1 3:p4Alt1 7:p2Alt2 |
+| 127 | OBJ_CUSTOMISE_SPECIFIC_V1 | 20 | carry-over | 0:p2Alt2 2:p1 3:p1 4:p2Alt2 6:p4Alt2 10:p2Alt1 12:p1 13:p1 14:p4Alt1 18:p2Alt1 |
 | 128 | CAM_MOVETO_ARC_V3 | 15 | size | 0:p1Alt2 1:p2Alt2 3:p2 5:p2Alt3 7:p2 9:p1Alt1 10:p1 11:p2Alt3 13:p2Alt3 |
 | 129 | GROUP_VAR_INT | 9 | carry-over | - |
 | 130 | SET_MAP_FLAG_V2 | 4 | carry-over | 0:p4 |
 | 131 | AMBIENTSOUND_STOP | 1 | carry-over | 0:p1 |
 | 132 | CAM_LOOKAT_CYCLES | 10 | widths | 0:p2Alt1 2:p2Alt3 4:p2Alt1 6:p1 7:p1Alt1 8:p2Alt3 |
-| 133 | CAM_MODE | 1 | carry-over | 0:p1 |
+| 133 | CAM_UNLOCK | 1 | carry-over | 0:p1 |
 | 134 | WORLDENTITY_INFO_V7 | -2 | carry-over | - |
-| 135 | REBUILD_NORMAL_V2 | -2 | carry-over | - |
+| 135 | GROUP_VAR | -2 | carry-over | - |
 | 136 | IF_SETMODEL_V2 | 8 | carry-over | 0:p4 4:p4Alt3 |
 | 137 | OBJ_CUSTOMISE_SPECIFIC_V2 | -2 | carry-over | 0:p4Alt3 4:p1Alt1 5:p1Alt3 6:p2Alt3 8:p4 12:p2Alt2 14:p1 15:p1 16:p2 19:p2Alt3 |
-| 138 | CAM_SKYBOX | 4 | size | 0:p4Alt2 |
-| 139 | GROUP_VAR | -2 | carry-over | - |
+| 138 | CAM_SKYBOX | 4 | carry-over | 0:p4Alt2 |
+| 139 | GROUP_FULL | -2 | carry-over | - |
 | 140 | AMBIENTSOUND_START | 3 | carry-over | 0:p2 2:p1 |
-| 141 | VARCLAN_DISABLE | 0 | carry-over | - |
+| 141 | OBJUNLOCK_RESET | 0 | carry-over | - |
 | 142 | GROUP_VAR_LONG | 13 | size | - |
 | 143 | NPC_INFO_LARGE_V6 | -2 | carry-over | - |
 | 144 | CAM_MOVETO_V3 | 9 | carry-over | 0:p2Alt2 2:p1Alt2 3:p1 4:p2Alt2 6:p2Alt1 8:p1 |
-| 145 | OP_145 | -2 | open | - |
+| 145 | SET_WEBSITE_TOKEN | -2 | by hand | - |
 | 146 | OBJUNLOCK_UPDATE | -2 | carry-over | - |
 | 147 | CAM_ROTATETO_COORDINATE_V3 | 11 | carry-over | 0:p2 2:p1 3:p2Alt2 5:p2Alt3 7:p2Alt1 9:p1 10:p1 |
 | 148 | OP_148 | -2 | dead | - |
 | 149 | OBJ_UNCUSTOMISE_SPECIFIC | 10 | carry-over | 0:p4Alt2 4:p2Alt2 6:p4 |
-| 150 | REBUILD_REGION_V2 | -2 | carry-over | - |
+| 150 | NPC_INFO_SMALL_V6 | -2 | carry-over | - |
 | 151 | CAM_LOOKAT_V3 | 9 | carry-over | 0:p1Alt3 1:p2 3:p1Alt1 4:p2Alt1 6:p2Alt1 8:p1 |
-| 152 | CAM_MOVETO_CYCLES_V3 | 11 | size | 0:p2Alt1 2:p1Alt1 3:p1Alt1 4:p1Alt2 5:p2Alt3 7:p2Alt1 9:p2Alt2 |
+| 152 | CAM_MOVETO_CYCLES_V3 | 11 | carry-over | 0:p2Alt1 2:p1Alt1 3:p1Alt1 4:p1Alt2 5:p2Alt3 7:p2Alt1 9:p2Alt2 |
 
 ## Client->server
 
 | Opcode | Prot | Size | Identified | Client layout |
 |---|---|---|---|---|
-| 0 | OP_0 | 9 | open | 0:p1Alt3 1:p2Alt2 3:p3Alt1 6:p1 |
+| 0 | OPLOC3_V3 | 9 | carry-over | 0:p1Alt3 1:p2Alt2 3:p3Alt1 6:p1 |
 | 1 | OP_1 | -1 | dead | - |
 | 2 | IDLE | 0 | carry-over | - |
 | 3 | EVENT_MOUSE_CLICK_V1 | 6 | carry-over | - |
 | 4 | IF_SCRIPT_TRIGGER | -2 | carry-over | - |
-| 5 | OPLOC6_V1 | 2 | size | - |
-| 6 | OPWORLDENTITY3 | 3 | carry-over | - |
-| 7 | OP_7 | -1 | open | 0:p1 1:p1 4:p1 5:p1 |
+| 5 | OPLOC6_V1 | 2 | carry-over | - |
+| 6 | OPPLAYER5 | 3 | carry-over | - |
+| 7 | AFFINEDCLANSETTINGS_ADDBANNED_FROMCHANNEL | -1 | carry-over | 0:p1 1:p1 4:p1 5:p1 |
 | 8 | EVENT_CAMERA_POSITION | 4 | carry-over | - |
 | 9 | DETECT_MODIFIED_CLIENT | 4 | carry-over | 0:p4Alt1 |
 | 10 | EVENT_MOUSE_MOVE | -1 | carry-over | - |
 | 11 | IF_BUTTONT | 16 | carry-over | - |
-| 12 | OP_12 | 15 | open | - |
+| 12 | OPLOCT_V1 | 15 | size | - |
 | 13 | OP_13 | 11 | dead | - |
 | 14 | MEMBERSHIP_PROMOTION_ELIGIBILITY | 2 | carry-over | - |
 | 15 | RESUME_P_COUNTDIALOG | 4 | carry-over | - |
 | 16 | OP_16 | 15 | dead | - |
 | 17 | OP_17 | 11 | dead | - |
 | 18 | MAP_BUILD_COMPLETE | 0 | carry-over | - |
-| 19 | OPWORLDENTITY1 | 3 | carry-over | 0:p2 2:p1Alt1 |
-| 20 | OP_20 | 3 | dead | - |
+| 19 | OPPLAYER1 | 3 | carry-over | 0:p2 2:p1Alt1 |
+| 20 | OPPLAYER2 | 3 | carry-over | 0:p1Alt2 1:p2 |
 | 21 | EVENT_MOUSE_SCROLL | 2 | carry-over | - |
 | 22 | SOUND_JINGLEEND | 4 | carry-over | 0:p4 |
-| 23 | OP_23 | 8 | open | 0:p2Alt1 2:p1Alt1 3:p1Alt3 4:p2 6:p2Alt2 |
+| 23 | OPOBJ2_V2 | 8 | carry-over | 0:p2Alt1 2:p1Alt1 3:p1Alt3 4:p2 6:p2Alt2 |
 | 24 | MESSAGE_PRIVATE | -2 | carry-over | - |
 | 25 | SEND_SNAPSHOT | -1 | carry-over | - |
 | 26 | OP_26 | 11 | dead | - |
-| 27 | OP_27 | 8 | open | 0:p1Alt3 1:p1Alt1 2:p2Alt3 4:p2Alt3 6:p2Alt1 |
+| 27 | OPOBJ3_V2 | 8 | carry-over | 0:p1Alt3 1:p1Alt1 2:p2Alt3 4:p2Alt3 6:p2Alt1 |
 | 28 | SEND_PING_REPLY | 10 | size | - |
-| 29 | OP_29 | 16 | open | - |
+| 29 | OPLOCT_V2 | 16 | size | - |
 | 30 | CLOSE_MODAL | 0 | carry-over | - |
-| 31 | OP_31 | 3 | open | 0:p1Alt2 1:p2 |
+| 31 | OPWORLDENTITY1 | 3 | carry-over | 0:p1Alt2 1:p2 |
 | 32 | IF_BUTTON | 4 | carry-over | 0:p4 |
-| 33 | OP_33 | 3 | dead | - |
+| 33 | OPPLAYER4 | 3 | carry-over | 0:p2Alt3 2:p1Alt3 |
 | 34 | EVENT_KEYBOARD | -2 | carry-over | - |
-| 35 | OP_35 | 3 | open | 0:p2Alt2 2:p1Alt3 |
+| 35 | OPWORLDENTITY2 | 3 | carry-over | 0:p2Alt2 2:p1Alt3 |
 | 36 | EXIT_FREECAM | 0 | carry-over | - |
 | 37 | FRIENDCHAT_JOIN_LEAVE | -1 | carry-over | 0:p1 1:p1 2:p1 |
 | 38 | FRIENDLIST_ADD | -1 | carry-over | 0:p1 1:p1 2:p1 |
-| 39 | OP_39 | 3 | open | - |
+| 39 | OPPLAYER8 | 3 | carry-over | 0:p2Alt3 2:p1Alt3 |
 | 40 | FRIENDCHAT_SETRANK | -1 | carry-over | 0:p1 1:p1 2:p1 3:p1Alt1 |
-| 41 | OP_41 | 4 | open | 0:p1Alt2 1:p1Alt3 2:p2Alt1 |
+| 41 | OPNPC1_V2 | 4 | carry-over | 0:p1Alt2 1:p1Alt3 2:p2Alt1 |
 | 42 | IF_SUBOP | 10 | carry-over | - |
 | 43 | OPOBJ6 | 6 | carry-over | - |
 | 44 | CLANCHANNEL_KICKUSER | -1 | carry-over | 0:p1 1:p1 4:p1 5:p1 |
@@ -212,60 +212,60 @@
 | 47 | OPNPCT | 11 | carry-over | - |
 | 48 | CLANCHANNEL_FULL_REQUEST | 1 | carry-over | 0:p1 |
 | 49 | SET_CHATFILTERSETTINGS | 3 | carry-over | - |
-| 50 | OP_50 | 8 | open | 0:p1 1:p2 3:p2Alt3 5:p1Alt3 6:p2 |
+| 50 | OPOBJ4_V2 | 8 | carry-over | 0:p1 1:p2 3:p2Alt3 5:p1Alt3 6:p2 |
 | 51 | FRIENDLIST_DEL | -1 | carry-over | 0:p1 1:p1 2:p1 |
 | 52 | IF_BUTTONX | 9 | carry-over | - |
-| 53 | OP_53 | 8 | open | - |
-| 54 | RESUME_P_LONGDIALOG | 8 | carry-over | - |
-| 55 | OP_55 | -1 | dead | - |
-| 56 | OP_56 | 9 | open | 0:p1 1:p1Alt1 2:p1 3:p1Alt1 4:p1 5:p1 6:p1 7:p1 |
-| 57 | OP_57 | 8 | open | 0:p2Alt3 2:p1Alt1 3:p2Alt1 5:p1 6:p2Alt3 |
-| 58 | OP_58 | 8 | open | 0:p2Alt1 2:p2Alt2 4:p2 6:p1 7:p1 |
+| 53 | OPLOC5_V2 | 8 | carry-over | - |
+| 54 | RESUME_P_LONGDIALOG | 8 | size | - |
+| 55 | RESUME_P_NAMEDIALOG | -1 | carry-over | - |
+| 56 | OPLOC4_V3 | 9 | carry-over | 0:p1 1:p1Alt1 2:p1 3:p1Alt1 4:p1 5:p1 6:p1 7:p1 |
+| 57 | OPOBJ5_V2 | 8 | carry-over | 0:p2Alt3 2:p1Alt1 3:p2Alt1 5:p1 6:p2Alt3 |
+| 58 | OPLOC4_V2 | 8 | carry-over | 0:p2Alt1 2:p2Alt2 4:p2 6:p1 7:p1 |
 | 59 | OP_59 | 7 | dead | - |
 | 60 | FRIENDCHAT_KICK | -1 | carry-over | 0:p1 1:p1 2:p1 |
-| 61 | OP_61 | 8 | open | 0:p2 2:p1Alt3 3:p2Alt1 5:p2Alt3 |
-| 62 | OPWORLDENTITY2 | 3 | carry-over | 0:p2 2:p1Alt3 |
+| 61 | OPLOC2_V2 | 8 | carry-over | 0:p2 2:p1Alt3 3:p2Alt1 5:p2Alt3 |
+| 62 | OPPLAYER3 | 3 | carry-over | 0:p2 2:p1Alt3 |
 | 63 | OPWORLDENTITY6 | 2 | carry-over | 0:p1 |
-| 64 | OP_64 | 9 | open | 0:p1 1:p1 2:p1 3:p2Alt1 5:p1Alt2 6:p1Alt1 |
-| 65 | OP_65 | 3 | open | - |
-| 66 | OP_66 | 8 | open | 0:p2Alt3 2:p2 4:p1Alt2 5:p2Alt3 7:p1 |
-| 67 | OP_67 | 3 | open | - |
+| 64 | OPLOC5_V3 | 9 | carry-over | 0:p1 1:p1 2:p1 3:p2Alt1 5:p1Alt2 6:p1Alt1 |
+| 65 | OPPLAYER6 | 3 | carry-over | 0:p1Alt2 1:p2 |
+| 66 | OPOBJ1_V2 | 8 | carry-over | 0:p2Alt3 2:p2 4:p1Alt2 5:p2Alt3 7:p1 |
+| 67 | OPLOC6_V2 | 3 | carry-over | - |
 | 68 | NO_TIMEOUT | 0 | carry-over | - |
 | 69 | CLIENT_CHEAT | -1 | carry-over | 0:p1 1:p1 2:p1 3:p1 |
 | 70 | CLANSETTINGS_FULL_REQUEST | 1 | carry-over | 0:p1 |
 | 71 | IF_CRMVIEW_OP | 22 | size | 0:p4Alt1 4:p4Alt1 |
-| 72 | OP_72 | 9 | open | 0:p1 1:p1Alt1 2:p1Alt3 3:w2? 5:p1 6:p1Alt2 7:p2Alt1 |
-| 73 | OP_73 | 4 | open | 0:p1Alt1 1:p1Alt2 2:p2 |
+| 72 | OPLOC2_V3 | 9 | carry-over | 0:p1 1:p1Alt1 2:p1Alt3 3:w2? 5:p1 6:p1Alt2 7:p2Alt1 |
+| 73 | OPNPC2_V2 | 4 | carry-over | 0:p1Alt1 1:p1Alt2 2:p2 |
 | 74 | MOVE_GAMECLICK | -1 | carry-over | - |
-| 75 | OP_75 | 4 | open | - |
+| 75 | CLICKWORLDMAP | 4 | carry-over | - |
 | 76 | OPPLAYERT | 11 | carry-over | - |
 | 77 | TELEPORT | 9 | carry-over | - |
-| 78 | OP_78 | 3 | open | 0:p1Alt2 1:p2Alt3 |
-| 79 | OP_79 | -1 | open | - |
-| 80 | OP_80 | 4 | open | - |
-| 81 | OP_81 | 4 | open | 0:p2Alt1 2:p1Alt3 |
+| 78 | OPWORLDENTITY4 | 3 | carry-over | 0:p1Alt2 1:p2Alt3 |
+| 79 | MESSAGE_PUBLIC | -1 | carry-over | - |
+| 80 | OPNPC5_V2 | 4 | carry-over | - |
+| 81 | OPNPC4_V2 | 4 | carry-over | 0:p2Alt1 2:p1Alt3 |
 | 82 | IGNORELIST_ADD | -1 | carry-over | 0:p1 1:p1 2:p1 |
-| 83 | OPWORLDENTITY4 | 3 | carry-over | - |
+| 83 | OPPLAYER7 | 3 | carry-over | - |
 | 84 | OP_84 | 11 | dead | - |
 | 85 | HISCORE_REQUEST | -1 | carry-over | 0:p1 1:p1 3:p1 4:p1 |
 | 86 | IGNORELIST_DEL | -1 | carry-over | 0:p1 1:p1 2:p1 |
 | 87 | MOVE_MINIMAPCLICK | -1 | carry-over | 0:p1 8:p1 9:w2? 11:p1 12:p1 |
-| 88 | OP_88 | 9 | open | 0:p2Alt3 2:p2 4:p1Alt2 5:p1 6:p1 7:p1 |
+| 88 | OPLOC1_V3 | 9 | carry-over | 0:p2Alt3 2:p2 4:p1Alt2 5:p1 6:p1 7:p1 |
 | 89 | EVENT_MOUSE_CLICK_V2 | 7 | size | - |
 | 90 | SET_HEADING | 1 | carry-over | 0:p1Alt3 |
 | 91 | AFFINEDCLANSETTINGS_SETMUTED_FROMCHANNEL | -1 | carry-over | - |
 | 92 | OPNPC6 | 2 | carry-over | - |
 | 93 | CONNECTION_TELEMETRY | -1 | carry-over | - |
 | 94 | OP_94 | 1 | dead | - |
-| 95 | OP_95 | -1 | open | - |
-| 96 | OP_96 | 3 | open | 0:p2Alt3 2:p1 |
-| 97 | OP_97 | 4 | open | 0:p2Alt1 2:p1Alt2 |
+| 95 | RESUME_P_STRINGDIALOG | -1 | carry-over | - |
+| 96 | OPWORLDENTITY3 | 3 | carry-over | 0:p2Alt3 2:p1 |
+| 97 | OPNPC3_V2 | 4 | carry-over | 0:p2Alt1 2:p1Alt2 |
 | 98 | EVENT_NATIVE_MOUSE_MOVE | -1 | carry-over | - |
-| 99 | OP_99 | 3 | open | 0:p2 2:p1 |
-| 100 | OP_100 | 8 | open | 0:p2 2:p1Alt1 3:p2 5:p1Alt1 6:p1 |
+| 99 | OPWORLDENTITY5 | 3 | carry-over | 0:p2 2:p1 |
+| 100 | OPLOC3_V2 | 8 | carry-over | 0:p2 2:p1Alt1 3:p2 5:p1Alt1 6:p1 |
 | 101 | UPDATE_PLAYER_MODEL_V2 | 26 | size | - |
 | 102 | OP_102 | 15 | dead | - |
-| 103 | OP_103 | 8 | open | 0:p1 1:p2Alt2 3:p2 5:p2Alt2 |
+| 103 | OPLOC1_V2 | 8 | carry-over | 0:p1 1:p2Alt2 3:p2 5:p2Alt2 |
 | 104 | BUG_REPORT | -2 | carry-over | - |
 | 105 | RSEVEN_STATUS | 1 | carry-over | - |
 | 106 | WINDOW_STATUS | 5 | size | - |

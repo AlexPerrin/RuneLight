@@ -9,7 +9,7 @@ s2c	6	-2
 s2c	7	3	0:p1Alt3 1:p1Alt1 2:p1Alt1
 s2c	8	-2	0:p4 4:p2 6:p1 7:p2 9:p1
 s2c	9	-1	0:p1 1:p2 3:p3
-s2c	10	-2	0:p1 1:p1 6:p1 7:p1
+s2c	10	-2	0:p1 1:p1 6:p1
 s2c	11	1	0:p1
 s2c	12	20	0:p2 2:p2 4:p4 8:p2Alt2 10:p1 11:p1 12:p2Alt2 14:p2Alt2 16:p4
 s2c	13	-2	
@@ -28,7 +28,7 @@ s2c	25	-2
 s2c	26	2	0:p2
 s2c	27	1	0:p1
 s2c	28	6	0:p2Alt1 2:p4
-s2c	29	6	0:p4Alt1 4:p1 5:p1
+s2c	29	6	0:p4Alt1 4:w2?
 s2c	30	2	0:p1 1:p1
 s2c	31	1	0:p1
 s2c	32	-2	0:p4 4:p2 6:p2 8:p2Alt2 10:p1Alt1 11:p4Alt3
@@ -141,7 +141,7 @@ s2c	138	-2
 s2c	139	-2	
 s2c	140	-2	
 s2c	141	13	
-s2c	142	11	0:p2Alt1 2:p1 3:p1 4:p2Alt1 6:p1Alt1 7:p2Alt3 9:p2Alt1
+s2c	142	11	0:p2Alt1 2:p1 3:p1Alt3 4:p2Alt1 6:p1Alt1 7:p2Alt3 9:p2Alt1
 s2c	143	4	0:p4
 s2c	144	10	0:p2Alt1 2:p2Alt1 4:p1Alt3 5:p2Alt2 7:p1 8:p2Alt2
 s2c	145	-2	

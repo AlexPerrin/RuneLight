@@ -28,7 +28,7 @@ s2c	25	8	0:p4Alt2 4:p4Alt2
 s2c	26	-1	0:p1 3:p1
 s2c	27	-2	
 s2c	28	0	
-s2c	29	3	0:p2Alt1 2:p1
+s2c	29	3	0:p2Alt1 2:p1Alt1
 s2c	30	6	
 s2c	31	4	
 s2c	32	5	0:p2
@@ -55,7 +55,7 @@ s2c	52	8	0:p2 2:p2Alt3 4:w2?
 s2c	53	14	0:p2 2:p4 6:p4Alt3 10:p4Alt1
 s2c	54	-2	
 s2c	55	-2	0:p1
-s2c	56	-2	0:p1 1:p1 6:p1 7:p1
+s2c	56	-2	0:p1 1:p1 6:p1
 s2c	57	-2	0:p4 4:p2 6:p2 8:p2Alt1 10:p1Alt1 11:p4Alt3
 s2c	58	20	0:p1 1:p1
 s2c	59	2	0:p2
@@ -82,7 +82,7 @@ s2c	79	7
 s2c	80	6	0:p2Alt2
 s2c	81	-2	
 s2c	82	7	0:p2 2:p2 4:p2 6:p1
-s2c	83	6	0:p4Alt3 4:p1 5:p1
+s2c	83	6	0:p4Alt3 4:w2?
 s2c	84	-2	
 s2c	85	0	
 s2c	86	-1	0:p2 2:p4
@@ -172,7 +172,7 @@ c2s	16	15	no sender
 c2s	17	11	no sender
 c2s	18	0	sender not decompiled
 c2s	19	3	0:p2 2:p1Alt1
-c2s	20	3	no sender
+c2s	20	3	0:p1Alt2 1:p2
 c2s	21	2	sender not decompiled
 c2s	22	4	0:p4
 c2s	23	8	0:p2Alt1 2:p1Alt1 3:p1Alt3 4:p2 6:p2Alt2
@@ -185,13 +185,13 @@ c2s	29	16	sender not decompiled
 c2s	30	0	sender not decompiled
 c2s	31	3	0:p1Alt2 1:p2
 c2s	32	4	0:p4 | 0:p4 | 0:p4
-c2s	33	3	no sender
+c2s	33	3	0:p2Alt3 2:p1Alt3
 c2s	34	-2	sender not decompiled
 c2s	35	3	0:p2Alt2 2:p1Alt3
 c2s	36	0	sender not decompiled
 c2s	37	-1	0:p1 1:p1 2:p1 | 0:p1
 c2s	38	-1	0:p1 1:p1 2:p1
-c2s	39	3	sender not decompiled
+c2s	39	3	0:p2Alt3 2:p1Alt3
 c2s	40	-1	0:p1 1:p1 2:p1 3:p1Alt1
 c2s	41	4	0:p1Alt2 1:p1Alt3 2:p2Alt1
 c2s	42	10	sender not decompiled
@@ -217,7 +217,7 @@ c2s	61	8	0:p2 2:p1Alt3 3:p2Alt1 5:p2Alt3
 c2s	62	3	0:p2 2:p1Alt3
 c2s	63	2	0:p1
 c2s	64	9	0:p1 1:p1 2:p1 3:p2Alt1 5:p1Alt2 6:p1Alt1
-c2s	65	3	sender not decompiled
+c2s	65	3	0:p1Alt2 1:p2
 c2s	66	8	0:p2Alt3 2:p2 4:p1Alt2 5:p2Alt3 7:p1
 c2s	67	3	sender not decompiled
 c2s	68	0	 | 

@@ -33,8 +33,11 @@ def norm(call):
 
 def prots(path):
     """[(name, opcode or None, size)] of an enum file (desktop: id from GameXProtId, opcode None)."""
-    out = []
-    for m in re.finditer(r'^\s+([A-Z][A-Z0-9_]*)\(\s*(?:\w+\.\w+|(\d+))\s*,\s*([\w.-]+)\s*\)', open(path).read(), re.M):
+    out, text = [], open(path).read()
+    gone = set(re.findall(r'@Deprecated\((?:[^()]|\([^()]*\))*\)\s*([A-Z][A-Z0-9_]*)\(', text))  # the client no longer sends it
+    for m in re.finditer(r'^\s+([A-Z][A-Z0-9_]*)\(\s*(?:\w+\.\w+|(\d+))\s*,\s*([\w.-]+)\s*,?\s*\)', text, re.M):
+        if m.group(1) in gone:
+            continue
         sz = VAR.get(m.group(3), None)
         out.append((m.group(1), int(m.group(2)) if m.group(2) else None, sz if sz is not None else int(m.group(3))))
     return out

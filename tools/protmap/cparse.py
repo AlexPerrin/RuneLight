@@ -147,6 +147,8 @@ class Seq:
         if not re.match(r'^\w+$', lhs):
             return
         prevval = self.val.get(lhs, '')
+        if prevval and not self.write and re.search(r'\b%s\b' % lhs, rhs):  # x = -0x80 - x: x's old value
+            rhs = re.sub(r'\b%s\b' % lhs, '(%s)' % prevval, rhs)
         self.ptr.pop(lhs, None)
         self.val.pop(lhs, None)
         mp = re.match(r'^\((\w+) \*\)\((.*)\)$', rhs) or re.match(r'^\((\w+) \*\)(\w+)$', rhs)
@@ -225,6 +227,7 @@ def chr_ints(v):
 def byte_role(expr, tok):
     """(shift, xform) of one byte token inside a combining expression."""
     t = re.escape(tok)
+    expr = re.sub(r'\^\s*0xffffff80\b', '^ 0x80', expr)  # a signed byte xor-ed sign-extended
     expr = re.sub(r'\*\s*0x100\b', '<< 8', re.sub(r'\*\s*0x10000\b', '<< 0x10', re.sub(r'\*\s*0x1000000\b', '<< 0x18', expr)))
     sh = re.search(r'%s\s*\)*\s*<<\s*(0x[0-9a-f]+|\d+)' % t, expr)
     shift = int(sh.group(1), 0) // 8 if sh else 0
@@ -377,28 +380,82 @@ def read_layout(body, sym):
     return fields(s)
 
 
+NE = re.compile(r'if \((\w+) != (0x[0-9a-f]+|\d+)\) (goto|\{|return)')
+EQ = re.compile(r'(?:else )?if \((\w+) == (0x[0-9a-f]+|\d+)\) \{')
+
+
+def guard(prefix):
+    """The constant a selector equals on the way to the code after prefix: the innermost enclosing
+    `if (v == N) {` (or the `else {` of an `if (v != N) {`), or an earlier sibling at the same depth that
+    leaves unless v == N (`if (v != N) goto`, or `if (v != N) { .. goto / return }`). The menu op a sender
+    is selected by, stable across revisions where opcodes are not. None when no such test is found."""
+    lines = [ln.strip() for ln in prefix.split('\n')[:-1]]
+    depth, in_else, exits = 0, False, False
+    for i in range(len(lines) - 1, -1, -1):
+        ln = lines[i]
+        if depth == 0:
+            m = NE.match(ln)
+            if m and m.group(3) == 'goto':
+                return int(m.group(2), 0)
+        if ln.startswith('}') and depth == 0:
+            exits = i > 0 and re.match(r'(goto|return)\b', lines[i - 1]) is not None
+        depth += ln.count('}') - ln.count('{')
+        if depth < 0:  # the opener of the block holding the call
+            m = EQ.match(ln)
+            if m:
+                return int(m.group(2), 0)
+            in_else, depth = ln == 'else {', 0
+            continue
+        if depth == 0 and ln.endswith('{') and ln.startswith('if'):  # a sibling block's opener
+            m = NE.match(ln)
+            if m and (in_else or exits):
+                return int(m.group(2), 0)
+            in_else = exits = False
+    return None
+
+
+def opcodes(parts, k, var):
+    """[(opcode, guard)] of call k whose opcode is a variable: every `var = N;` whose path reaches the call,
+    by falling through to it or by its next `goto L;` where L labels the call (the compiler merges senders
+    that differ only in the opcode)."""
+    flat, before = ''.join(parts), len(''.join(parts[:k]))
+    label = re.search(r'^(\w+):[ \t]*\n[^\n]*\Z', flat[:before], re.M)
+    out = []
+    for m in re.finditer(r'\b%s = (0x[0-9a-f]+|\d+);' % re.escape(var), flat):
+        nxt = re.search(r'\b(goto (\w+)|return)\b', flat[m.end():])
+        falls = m.end() < before and (not nxt or m.end() + nxt.start() > before)
+        jumps = nxt and nxt.group(2) and label and nxt.group(2) == label.group(1)
+        if falls or jumps:
+            out.append((int(m.group(1), 0), guard(flat[:m.start()])))
+    return out
+
+
 def senders(text, ctor):
-    """[(opcode, write fields)] for each literal-opcode call to the packet constructor in one function.
+    """[(opcode, write fields, guard)] for each call to the packet constructor in one function, the
+    opcode a literal or a variable set to literals on the paths reaching the call (opcodes()).
     The buffer's B / P are the pair most stores use after the call (`*(T *)(B + P [+ k]) = v`)."""
     out = []
     parts = re.split(r'\b%s\(' % ctor, text)
-    for part in parts[1:]:
-        m = re.match(r'[^,]*,\s*(0x[0-9a-f]+|\d+)\s*,', part)
+    for k in range(1, len(parts)):
+        part, prefix = parts[k], ''.join(parts[:k])
+        m = re.match(r'[^,]*,\s*(?:(0x[0-9a-f]+|\d+)|(\w+))\s*,', part) or \
+            re.match(r'\s*(0x[0-9a-f]+|\d+)()\s*,', part)  # Ghidra sometimes drops the buffer argument
         if not m:
             continue
+        ops = [(int(m.group(1), 0), guard(prefix))] if m.group(1) else opcodes(parts, k, m.group(2))
         pairs = {}
         for b, p in re.findall(r'\*\(\w+ \*\)\((\w+) \+ (\w+)\) =', part):
             pairs[(b, p)] = pairs.get((b, p), 0) + 1
-        if not pairs:
-            out.append((int(m.group(1), 0), []))
-            continue
-        b, p = max(pairs, key=pairs.get)
-        s = Seq({b: 'B', p: 'P'}, write=True)
-        for st in statements(re.split(r'\b%s\(' % ctor, text)[0] if False else ''.join(parts[:parts.index(part)])):
-            s.step(st)
-        s.stores.clear()
-        s.sym = {b: 'B', p: 'P'}
-        for st in statements(part.split(';', 1)[1] if ';' in part else part):
-            s.step(st)
-        out.append((int(m.group(1), 0), write_fields(s)))
+        fl = []
+        if pairs:
+            b, p = max(pairs, key=pairs.get)
+            s = Seq({b: 'B', p: 'P'}, write=True)
+            for st in statements(prefix):
+                s.step(st)
+            s.stores.clear()
+            s.sym = {b: 'B', p: 'P'}
+            for st in statements(part.split(';', 1)[1] if ';' in part else part):
+                s.step(st)
+            fl = write_fields(s)
+        out += [(op, fl, g) for op, g in ops]
     return out

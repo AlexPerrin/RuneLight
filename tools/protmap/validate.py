@@ -84,6 +84,14 @@ def run(rec, work, rs):
     rs.android = ref or rs.android
     refp = rs.android_prots()
     codec = rs.android_codecs()
+    if refp:  # the hand-made module may keep a prot's older name (OPLOC1 for RSProt's OPLOC1_V2)
+        for side, enum in zip(('s2c', 'c2s'), refp):
+            desk = rs.s2c if side == 's2c' else rs.c2s
+            ren = {n: match.successor(n, sz, desk) or n for n, _, sz in enum}
+            enum[:] = [(ren[n], o, sz) for n, o, sz in enum]
+            for n, d in ren.items():
+                if (side, n) in codec and d != n:
+                    codec[(side, d)] = codec.pop((side, n))
     rnd = random.Random(int(os.path.basename(rec)))
     fails, shapes, bench = [], [], []
     rt = {'pass': 0, 'fail': 0, 'skip': 0}

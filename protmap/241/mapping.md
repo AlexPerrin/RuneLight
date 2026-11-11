@@ -14,7 +14,7 @@
 | 7 | UPDATE_ZONE_PARTIAL_FOLLOWS | 3 | by hand | 0:p1Alt3 1:p1Alt1 2:p1Alt1 |
 | 8 | UPDATE_INV_PARTIAL | -2 | by hand | 0:p4 4:p2 6:p1 7:p2 9:p1 |
 | 9 | MESSAGE_CLANCHANNEL_SYSTEM | -1 | by hand | 0:p1 1:p2 3:p3 |
-| 10 | RUNCLIENTSCRIPT | -2 | by hand | 0:p1 1:p1 6:p1 7:p1 |
+| 10 | RUNCLIENTSCRIPT | -2 | by hand | 0:p1 1:p1 6:p1 |
 | 11 | CHAT_FILTER_SETTINGS_PRIVATECHAT | 1 | by hand | 0:p1 |
 | 12 | OBJ_CUSTOMISE_SPECIFIC_V1 | 20 | by hand | 0:p2 2:p2 4:p4 8:p2Alt2 10:p1 11:p1 12:p2Alt2 14:p2Alt2 16:p4 |
 | 13 | UPDATE_IGNORELIST | -2 | by hand | - |
@@ -33,7 +33,7 @@
 | 26 | UPDATE_RUNWEIGHT | 2 | by hand | 0:p2 |
 | 27 | LOGOUT_WITHREASON | 1 | by hand | 0:p1 |
 | 28 | IF_SETANIM | 6 | by hand | 0:p2Alt1 2:p4 |
-| 29 | IF_SETCOLOUR | 6 | by hand | 0:p4Alt1 4:p1 5:p1 |
+| 29 | IF_SETCOLOUR | 6 | by hand | 0:p4Alt1 4:w2? |
 | 30 | SET_NPC_UPDATE_ORIGIN | 2 | by hand | 0:p1 1:p1 |
 | 31 | MINIMAP_TOGGLE | 1 | by hand | 0:p1 |
 | 32 | UPDATE_INV_FULL | -2 | by hand | 0:p4 4:p2 6:p2 8:p2Alt2 10:p1Alt1 11:p4Alt3 |
@@ -146,7 +146,7 @@
 | 139 | OBJUNLOCK_UPDATE | -2 | by hand | - |
 | 140 | GROUP_FULL | -2 | by hand | - |
 | 141 | GROUP_VAR_LONG | 13 | size | - |
-| 142 | CAM_ROTATETO_COORDINATE_V3 | 11 | by hand | 0:p2Alt1 2:p1 3:p1 4:p2Alt1 6:p1Alt1 7:p2Alt3 9:p2Alt1 |
+| 142 | CAM_ROTATETO_COORDINATE_V3 | 11 | by hand | 0:p2Alt1 2:p1 3:p1Alt3 4:p2Alt1 6:p1Alt1 7:p2Alt3 9:p2Alt1 |
 | 143 | SET_MAP_FLAG_V2 | 4 | by hand | 0:p4 |
 | 144 | CAM_LOOKAT_CYCLES | 10 | widths | 0:p2Alt1 2:p2Alt1 4:p1Alt3 5:p2Alt2 7:p1 8:p2Alt2 |
 | 145 | NPC_INFO_LARGE_V6 | -2 | by hand | - |
@@ -163,13 +163,13 @@
 | 0 | IGNORELIST_DEL | -1 | by hand | 0:p1 1:p1 2:p1 |
 | 1 | OP_1 | 11 | dead | - |
 | 2 | OPNPCT | 11 | by hand | - |
-| 3 | OPLOC4 | 8 | by hand | 0:p2 2:p2 4:p1Alt2 5:p2Alt1 |
+| 3 | OPLOC4_V2 | 8 | by hand | 0:p2 2:p2 4:p1Alt2 5:p2Alt1 |
 | 4 | RESUME_P_COUNTDIALOG | 4 | by hand | - |
 | 5 | OPPLAYERT | 11 | by hand | - |
 | 6 | OPOBJ6 | 6 | by hand | - |
-| 7 | OPLOC1 | 8 | by hand | 0:p2Alt2 2:p1Alt3 3:p2Alt2 5:p2 |
+| 7 | OPLOC1_V2 | 8 | by hand | 0:p2Alt2 2:p1Alt3 3:p2Alt2 5:p2 |
 | 8 | IF_SCRIPT_TRIGGER | -2 | by hand | - |
-| 9 | OPNPC5 | 4 | by hand | 0:p1 1:p1Alt1 2:p1Alt2 3:p1Alt1 |
+| 9 | OPNPC5_V2 | 4 | by hand | 0:p1 1:p1Alt1 2:p1Alt2 3:p1Alt1 |
 | 10 | WINDOW_STATUS | 5 | size | - |
 | 11 | OPWORLDENTITY3 | 3 | by hand | - |
 | 12 | OP_12 | -1 | dead | - |
@@ -184,7 +184,7 @@
 | 21 | EVENT_MOUSE_CLICK_V1 | 6 | by hand | - |
 | 22 | RESUME_P_STRINGDIALOG | -1 | by hand | - |
 | 23 | EXIT_FREECAM | 0 | by hand | - |
-| 24 | OPOBJ2 | 8 | by hand | 0:p2Alt2 2:p1Alt2 3:p2Alt3 5:p1Alt1 6:p1 |
+| 24 | OPOBJ2_V2 | 8 | by hand | 0:p2Alt2 2:p1Alt2 3:p2Alt3 5:p1Alt1 6:p1 |
 | 25 | OPPLAYER5 | 3 | by hand | - |
 | 26 | OPPLAYER6 | 3 | by hand | 0:p1Alt1 |
 | 27 | OP_27 | 7 | dead | - |
@@ -193,18 +193,18 @@
 | 30 | CLOSE_MODAL | 0 | by hand | - |
 | 31 | MOVE_GAMECLICK | -1 | by hand | - |
 | 32 | EVENT_NATIVE_MOUSE_MOVE | -1 | by hand | - |
-| 33 | OPNPC4 | 4 | by hand | 0:p1Alt1 1:p1Alt3 2:p1Alt1 3:p1 |
-| 34 | OPOBJ4 | 8 | by hand | 0:p1Alt1 1:p1Alt2 2:p2Alt3 4:p2 6:p1 |
+| 33 | OPNPC4_V2 | 4 | by hand | 0:p1Alt1 1:p1Alt3 2:p1Alt1 3:p1 |
+| 34 | OPOBJ4_V2 | 8 | by hand | 0:p1Alt1 1:p1Alt2 2:p2Alt3 4:p2 6:p1 |
 | 35 | TELEPORT | 9 | by hand | - |
 | 36 | RESUME_P_OBJDIALOG | 2 | by hand | - |
 | 37 | EVENT_KEYBOARD | -2 | by hand | - |
 | 38 | OPLOC6 | 2 | by hand | 0:p2 |
 | 39 | MOVE_MINIMAPCLICK | -1 | by hand | 0:p1 1:p2Alt3 3:p2Alt2 5:p1 6:p1 7:p1 8:p1 9:w2? 11:p1 12:p1 |
-| 40 | OPOBJ5 | 8 | by hand | 0:p2Alt2 2:p1Alt3 3:p2Alt3 5:p2Alt2 |
+| 40 | OPOBJ5_V2 | 8 | by hand | 0:p2Alt2 2:p1Alt3 3:p2Alt3 5:p2Alt2 |
 | 41 | FRIENDLIST_DEL | -1 | by hand | 0:p1 1:p1 2:p1 |
 | 42 | BUG_REPORT | -2 | by hand | - |
 | 43 | IF_BUTTOND | 16 | by hand | - |
-| 44 | OPNPC2 | 4 | by hand | 0:p2 2:p1 3:p1Alt1 |
+| 44 | OPNPC2_V2 | 4 | by hand | 0:p2 2:p1 3:p1Alt1 |
 | 45 | SET_HEADING | 1 | by hand | 0:p1Alt2 |
 | 46 | SOUND_JINGLEEND | 4 | by hand | 0:p4 |
 | 47 | SET_CHATFILTERSETTINGS | 3 | by hand | - |
@@ -215,10 +215,10 @@
 | 52 | OPWORLDENTITY4 | 3 | by hand | 0:p1Alt3 1:p2 |
 | 53 | OPPLAYER4 | 3 | by hand | 0:p1 1:p2Alt3 |
 | 54 | OPWORLDENTITY2 | 3 | by hand | 0:p2 2:p1Alt2 |
-| 55 | OPLOC2 | 8 | by hand | 0:p1 1:p1Alt1 2:p2 4:p1Alt1 5:p2Alt2 |
+| 55 | OPLOC2_V2 | 8 | by hand | 0:p1 1:p1Alt1 2:p2 4:p1Alt1 5:p2Alt2 |
 | 56 | CLANCHANNEL_FULL_REQUEST | 1 | by hand | 0:p1 |
 | 57 | CLANCHANNEL_KICKUSER | -1 | by hand | 0:p1 1:p1 4:p1 5:p1 |
-| 58 | OPLOC3 | 8 | by hand | 0:p1 1:p2 3:p2Alt3 5:p1 6:p1Alt1 |
+| 58 | OPLOC3_V2 | 8 | by hand | 0:p1 1:p2 3:p2Alt3 5:p1 6:p1Alt1 |
 | 59 | OPWORLDENTITY5 | 3 | by hand | 0:p1Alt3 1:p2Alt1 |
 | 60 | FRIENDLIST_ADD | -1 | by hand | 0:p1 1:p1 2:p1 |
 | 61 | FRIENDCHAT_JOIN_LEAVE | -1 | by hand | 0:p1 1:p1 2:p1 |
@@ -226,12 +226,12 @@
 | 63 | OPLOCT | 15 | by hand | - |
 | 64 | MESSAGE_PUBLIC | -1 | by hand | - |
 | 65 | OPPLAYER3 | 3 | by hand | 0:p1 2:p1Alt3 |
-| 66 | OPLOC5 | 8 | by hand | 0:p1Alt3 1:p1Alt1 2:p2Alt3 4:p2Alt1 6:p1 7:p1Alt1 |
+| 66 | OPLOC5_V2 | 8 | by hand | 0:p1Alt3 1:p1Alt1 2:p2Alt3 4:p2Alt1 6:p1 7:p1Alt1 |
 | 67 | MAP_BUILD_COMPLETE | 0 | by hand | - |
 | 68 | OPPLAYER7 | 3 | by hand | 0:p2 2:p1 |
 | 69 | OPWORLDENTITY6 | 2 | by hand | 0:p1Alt1 |
 | 70 | IF_SUBOP | 10 | by hand | - |
-| 71 | OPNPC3 | 4 | by hand | 0:p1 1:p1 2:p2 |
+| 71 | OPNPC3_V2 | 4 | by hand | 0:p1 1:p1 2:p2 |
 | 72 | CLANSETTINGS_FULL_REQUEST | 1 | by hand | 0:p1 |
 | 73 | OP_73 | 15 | dead | - |
 | 74 | OPOBJT | 15 | by hand | - |
@@ -239,10 +239,10 @@
 | 76 | OP_76 | 11 | dead | - |
 | 77 | EVENT_MOUSE_CLICK_V2 | 7 | by hand | - |
 | 78 | OPWORLDENTITY1 | 3 | by hand | 0:p2Alt3 2:p1Alt2 |
-| 79 | OPOBJ1 | 8 | by hand | 0:p2 2:p1Alt1 3:p2Alt2 5:p2 |
+| 79 | OPOBJ1_V2 | 8 | by hand | 0:p2 2:p1Alt1 3:p2Alt2 5:p2 |
 | 80 | HISCORE_REQUEST | -1 | by hand | 0:p1 1:p1 3:p1 4:p1 |
 | 81 | CLIENT_CHEAT | -1 | by hand | 0:p1 1:p1 2:p1 3:p1 |
-| 82 | OPOBJ3 | 8 | by hand | 0:p2Alt2 2:p2Alt1 4:p1Alt1 5:w2? |
+| 82 | OPOBJ3_V2 | 8 | by hand | 0:p2Alt2 2:p2Alt1 4:p1Alt1 5:w2? |
 | 83 | OP_83 | 15 | dead | - |
 | 84 | IF_CRMVIEW_OP | 22 | size | - |
 | 85 | OP_85 | 11 | dead | - |
@@ -252,7 +252,7 @@
 | 89 | EVENT_MOUSE_SCROLL | 2 | by hand | - |
 | 90 | UPDATE_PLAYER_MODEL_V2 | 26 | size | - |
 | 91 | OPPLAYER1 | 3 | by hand | 0:p2Alt1 2:p1Alt1 |
-| 92 | OPNPC1 | 4 | by hand | 0:p2Alt3 2:p1 |
+| 92 | OPNPC1_V2 | 4 | by hand | 0:p2Alt3 2:p1 |
 | 93 | NO_TIMEOUT | 0 | by hand | - |
 | 94 | IGNORELIST_ADD | -1 | by hand | 0:p1 1:p1 2:p1 |
 | 95 | IF_BUTTON | 4 | by hand | 0:p4 |

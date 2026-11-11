@@ -10,6 +10,7 @@
 import difflib
 import json
 import os
+import re
 from collections import defaultdict
 
 SIDES = ('s2c', 'c2s')
@@ -33,7 +34,8 @@ def client_fields(e):
 
 def fps(e):
     if 'senders' in e:
-        return ['%d %s' % (s['idx'], s['fp']) for s in e['senders']]
+        return ['%s %s' % ('i%d' % s['idx'] if s.get('guard') is None else 'g%d' % s['guard'], s['fp'])
+                for s in e['senders']]
     return [e['fp']] if e.get('fp') else []
 
 
@@ -42,12 +44,22 @@ def similarity(a, b):
     for x in a:
         for y in b:
             ta, tb = x.split(), y.split()
-            if abs(len(ta) - len(tb)) > 0.5 * max(len(ta), len(tb), 1):
-                continue
+            if ta[0] != tb[0] and ta[0][0] == tb[0][0] == 'g':
+                continue  # senders selected by different menu ops (cparse.guard) are different packets
             sm = difflib.SequenceMatcher(None, ta, tb, autojunk=False)
-            if sm.quick_ratio() > best:
+            if sm.real_quick_ratio() > best and sm.quick_ratio() > best:
                 best = max(best, sm.ratio())
     return best
+
+
+def successor(prot, size, pool):
+    """prot's name in pool ({name: size}) at this size: itself, else the one prot of its base name
+    (RSProt versions a prot whose layout changes: OPLOC1 -> OPLOC1_V2, and adds OPLOC1_V3 beside it)."""
+    if pool.get(prot) == size:
+        return prot
+    base = re.sub(r'_V\d+$', '', prot)
+    c = [p for p, sz in pool.items() if sz == size and re.sub(r'_V\d+$', '', p) == base]
+    return c[0] if len(c) == 1 else None
 
 
 def read_tsv(path):
@@ -78,13 +90,14 @@ def run(rec, work, rs, prev):
         for op in ops:  # a hand row wins: applied first, its prot leaves the pool
             if (side, op) in hand:
                 prot, note = hand[(side, op)]
+                prot = successor(prot, ops[op]['size'], desk) or prot
                 take(op, prot if prot != 'dead' else 'OP_%d' % op, 'by hand' if prot != 'dead' else 'dead', note)
         changed = True
         while changed:
             changed = False
             by_size, dsz = defaultdict(list), defaultdict(list)
             for op, e in ops.items():
-                if op not in got and not e.get('nocase') and not ('senders' in e and not e['sites']):
+                if op not in got and not e.get('nocase') and not ('senders' in e and not e['senders'] and not e['sites']):
                     by_size[e['size']].append(op)  # an opcode the client never handles / sends stays dead
             for prot, sz in free.items():
                 dsz[sz].append(prot)
@@ -106,6 +119,44 @@ def run(rec, work, rs, prev):
                 if len(c) == 1 and not rivals:
                     take(op, c[0], 'widths')
                     changed = True
+            if px and not changed and side == 'c2s':
+                # carry-over by menu op: a function that picks its sender by menu op (cparse.guard) is the
+                # previous revision's function whose prots, at the same menu ops, all have a free successor
+                pfun, cur = defaultdict(dict), defaultdict(list)
+                for pop, pe in px[side].items():
+                    r = pmap.get((side, int(pop)))
+                    for snd in pe['senders']:
+                        if r and snd.get('guard') is not None:
+                            pfun[snd['func']][snd['guard']] = (r[2], int(pop))
+                for op, e in ops.items():
+                    for snd in e['senders'] if op not in got else []:
+                        if snd.get('guard') is not None:
+                            cur[snd['func']].append((snd['guard'], op))
+                for f, sel in sorted(cur.items()):
+                    if len({g for g, _ in sel}) < 2:
+                        continue
+                    fits = []
+                    for pf, gp in pfun.items():
+                        names = [successor(gp[g][0], ops[op]['size'], free) if g in gp else None for g, op in sel]
+                        if all(names) and len(set(names)) == len(names):
+                            fits.append((pf, names))
+                    if len(fits) == 1:
+                        pf, names = fits[0]
+                        for (g, op), prot in zip(sel, names):
+                            take(op, prot, 'carry-over', 'from %s %s %d (menu op %d)' % (prev, side, pfun[pf][g][1], g))
+                        changed = True
+                        break
+            if px and not changed:  # a prot both revisions handle outside the dispatcher (PACKET_GROUP_START)
+                for pop, pe in sorted(px[side].items()):
+                    r = pmap.get((side, int(pop)))
+                    if not pe.get('nocase') or not r or r[4] == 'dead':
+                        continue
+                    c = [op for op, e in ops.items() if op not in got and e.get('nocase') and
+                         successor(r[2], e['size'], free)]
+                    if len(c) == 1:
+                        take(c[0], successor(r[2], ops[c[0]]['size'], free), 'carry-over',
+                             'from %s %s %s (no dispatcher case in either)' % (prev, side, pop))
+                        changed = True
             if px and not changed:
                 pops = {int(k): v for k, v in px[side].items()}
                 cand = []
@@ -114,13 +165,14 @@ def run(rec, work, rs, prev):
                         continue
                     for pop, pe in pops.items():
                         r = pmap.get((side, pop))
-                        if not r or r[2] not in free or pe['size'] != ops[op]['size'] or not fps(pe):
+                        prot = r and successor(r[2], ops[op]['size'], free)
+                        if not prot or not fps(pe):
                             continue
-                        cand.append((similarity(fps(ops[op]), fps(pe)), op, pop, r[2]))
+                        cand.append((similarity(fps(ops[op]), fps(pe)), op, pop, prot))
                 cand.sort(reverse=True)
                 used_op, used_prot = set(got), set()
                 for sc, op, pop, prot in cand:
-                    if sc < 0.6 or op in used_op or prot in used_prot:
+                    if sc < 0.5 or op in used_op or prot in used_prot:
                         continue
                     used_op.add(op)
                     used_prot.add(prot)
@@ -129,7 +181,7 @@ def run(rec, work, rs, prev):
         for op, e in ops.items():
             if op in got:
                 continue
-            if e.get('nocase') or ('senders' in e and not e['sites']):
+            if e.get('nocase') or ('senders' in e and not e['senders'] and not e['sites']):
                 got[op] = ('OP_%d' % op, 'dead', 'no dispatcher case' if side == 's2c' else 'no sender')
             else:
                 c = sorted(p for p, sz in free.items() if sz == e['size'])

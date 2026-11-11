@@ -105,11 +105,16 @@ def buffer_vars(text):
 
 
 def fingerprint(text):
-    """Code with addresses, numbers and local names erased: the carry-over key."""
-    t = re.sub(r'(FUN|DAT|PTR|LAB|switchD|caseD|code)_[0-9a-f_A-Za-z]+', 'X', text)
-    t = re.sub(r'0x[0-9a-f]+|\b\d+\b', 'N', t)
+    """Code with addresses, large numbers and local names erased: the carry-over key. Numbers below 0x100
+    stay (a model type, a flag's byte offset: what tells twin handlers apart); struct offsets and addresses
+    shift between revisions. Comments, declarations and register shuffles (`v = v;`, CONCAT44) are dropped."""
+    t = re.sub(r'/\*.*?\*/', '', text, flags=re.S)  # Ghidra's warnings
+    t = re.sub(r'(FUN|DAT|PTR|LAB|switchD|caseD|code)_[0-9a-f_A-Za-z]+', 'X', t)
+    t = re.sub(r'0x[0-9a-f]+|\b\d+\b', lambda m: m.group(0) if int(m.group(0), 16 if m.group(0).startswith('0x') else 10) < 0x100 else 'N', t)
     t = re.sub(r'\b[a-zA-Z]+Var\d+|\b[a-zA-Z]+Stack_[0-9a-f]+|\blocal_[0-9a-f]+|\bparam_\d+|\bp+[a-zA-Z]+\d+', 'v', t)
-    return ' '.join(t.split())
+    t = re.sub(r'\b(?!goto\b|return\b)[a-zA-Z_]\w*\s+\**\s*\w+(?:\s*\[\w+\])?;', '', t)  # declarations
+    t = ' '.join(t.split())
+    return re.sub(r'v = (v|[^;]*CONCAT44\([^;]*\));\s?', '', t)
 
 
 def extract(rev_dir, so, project, program, dispatcher, desktop_s2c, desktop_c2s, decomp=None):
@@ -128,10 +133,19 @@ def extract(rev_dir, so, project, program, dispatcher, desktop_s2c, desktop_c2s,
     s_sizes, c_sizes = table(so, s_off, s_n), table(so, c_off, c_n)
     b, p = buffer_vars(text)
     sym = cparse.prologue_sym(text, b, p)
-    s2c = {}
-    for op, body in cparse.cases(text).items():
-        if op < s_n:
-            s2c[op] = {'size': s_sizes[op], 'fields': cparse.read_layout(body, sym), 'fp': fingerprint(body)}
+    s2c, own = {}, {op: body.split('joined_r')[0] for op, body in cparse.cases(text).items() if op < s_n}
+    callees = {op: re.findall(r'\bFUN_([0-9a-f]+)\(', body) for op, body in own.items()}
+    cdec = os.path.join(rev_dir, 'callees', 're', 'decomp')
+    need = sorted({a for c in callees.values() for a in c if not os.path.exists(os.path.join(cdec, a + '.c'))})
+    if need:
+        decompile(os.path.join(rev_dir, 'callees'), project, program, so, [int(a, 16) for a in need])
+
+    def callee_fp(a):  # a stub case (`FUN_x(buf, len)`) differs from its twin only in what it calls
+        f = os.path.join(cdec, a + '.c')
+        return ' '.join(fingerprint(open(f).read()).split()[:300]) if os.path.exists(f) else ''
+    for op, body in own.items():  # the tail after a joined_r label is code shared with other cases
+        s2c[op] = {'size': s_sizes[op], 'fields': cparse.read_layout(body, sym),
+                   'fp': ' | '.join([fingerprint(body)] + [callee_fp(a) for a in callees[op]])}
     for op in range(s_n):
         s2c.setdefault(op, {'size': s_sizes[op], 'fields': [], 'fp': '', 'nocase': True})
     ctor_name = 'FUN_%08x' % (ctor + GBASE)
@@ -141,9 +155,9 @@ def extract(rev_dir, so, project, program, dispatcher, desktop_s2c, desktop_c2s,
         if ctor_name + '(' not in t or f == '%08x.c' % (ctor + GBASE):
             continue
         fp = fingerprint(t)
-        for i, (op, fl) in enumerate(cparse.senders(t, ctor_name)):
+        for i, (op, fl, g) in enumerate(cparse.senders(t, ctor_name)):
             if op < c_n:
-                c2s[op]['senders'].append({'func': f[:-2], 'idx': i, 'fields': fl, 'fp': fp})
+                c2s[op]['senders'].append({'func': f[:-2], 'idx': i, 'fields': fl, 'fp': fp, 'guard': g})
     site_ops = Counter(op for _, op in sites[ctor])
     for op in range(c_n):
         c2s[op]['sites'] = site_ops.get(op, 0)
