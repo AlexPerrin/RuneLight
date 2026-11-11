@@ -1,0 +1,8 @@
+{
+ "so": "~/osrs-plugins-reverse/re/osclient.so",
+ "project": "~/osrs-plugins-reverse/re/ghidra/osclient",
+ "dispatcher": "0x541dd4",
+ "rsprot": "~/src/rsprot-242",
+ "prev": null,
+ "reference": "~/osrs-harness/evidence/local-android-rsprot-token-gjstr/rsprot.patch"
+}

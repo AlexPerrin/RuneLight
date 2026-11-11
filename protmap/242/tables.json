@@ -1,0 +1,21 @@
+{
+ "buffer": [
+  "lStack_1c0",
+  "local_1b8"
+ ],
+ "c2s_table": [
+  1095896,
+  110,
+  2
+ ],
+ "constructor": 8039404,
+ "dispatcher": 5539796,
+ "nonliteral_sites": 0,
+ "s2c_table": [
+  1077436,
+  153,
+  1
+ ],
+ "size": 11196464,
+ "so": "osclient.so"
+}

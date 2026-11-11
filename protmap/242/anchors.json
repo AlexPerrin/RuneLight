@@ -1,0 +1,8 @@
+{
+ "so": "~/osrs-plugins-reverse/re/242/osclient.so",
+ "project": "~/osrs-plugins-reverse/re/242/ghidra/osclient",
+ "dispatcher": "0x5487d4",
+ "rsprot": "~/src/rsprot-242",
+ "prev": "241",
+ "reference": "~/src/rsprot-242/protocol/osrs-242/osrs-242-android"
+}

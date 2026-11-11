@@ -1,0 +1,264 @@
+# side	opcode	prot	size	identified	client layout (offset:transform)	note
+c2s	0	OP_0	9	open	0:p1Alt3 1:p2Alt2 3:p3Alt1 6:p1	candidates: OPLOC1_V3 OPLOC2_V3 OPLOC3_V3 OPLOC4_V3 OPLOC5_V3
+c2s	1	OP_1	-1	dead		no sender
+c2s	2	IDLE	0	carry-over		from 241 c2s 97 (0.99)
+c2s	3	EVENT_MOUSE_CLICK_V1	6	carry-over		from 241 c2s 21 (0.99)
+c2s	4	IF_SCRIPT_TRIGGER	-2	carry-over		from 241 c2s 8 (0.97)
+c2s	5	OPLOC6_V1	2	size		
+c2s	6	OPWORLDENTITY3	3	carry-over		from 241 c2s 11 (0.72)
+c2s	7	OP_7	-1	open	0:p1 1:p1 4:p1 5:p1	candidates: MESSAGE_PUBLIC REFLECTION_CHECK_REPLY RESUME_P_NAMEDIALOG RESUME_P_STRINGDIALOG
+c2s	8	EVENT_CAMERA_POSITION	4	carry-over		from 241 c2s 16 (0.99)
+c2s	9	DETECT_MODIFIED_CLIENT	4	carry-over	0:p4Alt1	from 241 c2s 75 (0.94)
+c2s	10	EVENT_MOUSE_MOVE	-1	carry-over		from 241 c2s 18 (0.99)
+c2s	11	IF_BUTTONT	16	carry-over		from 241 c2s 15 (0.80)
+c2s	12	OP_12	15	open		candidates: OPLOCT_V1 OPLOCU_V1 OPOBJU
+c2s	13	OP_13	11	dead		no sender
+c2s	14	MEMBERSHIP_PROMOTION_ELIGIBILITY	2	carry-over		from 241 c2s 98 (0.98)
+c2s	15	RESUME_P_COUNTDIALOG	4	carry-over		from 241 c2s 4 (1.00)
+c2s	16	OP_16	15	dead		no sender
+c2s	17	OP_17	11	dead		no sender
+c2s	18	MAP_BUILD_COMPLETE	0	carry-over		from 241 c2s 67 (0.94)
+c2s	19	OPWORLDENTITY1	3	carry-over	0:p2 2:p1Alt1	from 241 c2s 78 (0.72)
+c2s	20	OP_20	3	dead		no sender
+c2s	21	EVENT_MOUSE_SCROLL	2	carry-over		from 241 c2s 89 (0.99)
+c2s	22	SOUND_JINGLEEND	4	carry-over	0:p4	from 241 c2s 46 (1.00)
+c2s	23	OP_23	8	open	0:p2Alt1 2:p1Alt1 3:p1Alt3 4:p2 6:p2Alt2	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	24	MESSAGE_PRIVATE	-2	carry-over		from 241 c2s 50 (0.84)
+c2s	25	SEND_SNAPSHOT	-1	carry-over		from 241 c2s 14 (0.84)
+c2s	26	OP_26	11	dead		no sender
+c2s	27	OP_27	8	open	0:p1Alt3 1:p1Alt1 2:p2Alt3 4:p2Alt3 6:p2Alt1	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	28	SEND_PING_REPLY	10	size		
+c2s	29	OP_29	16	open		candidates: OPLOCT_V2 OPLOCU_V2
+c2s	30	CLOSE_MODAL	0	carry-over		from 241 c2s 30 (0.99)
+c2s	31	OP_31	3	open	0:p1Alt2 1:p2	candidates: OPLOC6_V2 OPPLAYER1 OPPLAYER2 OPPLAYER3 OPPLAYER4 OPPLAYER5 OPPLAYER6 OPPLAYER7 OPPLAYER8 OPWORLDENTITY5
+c2s	32	IF_BUTTON	4	carry-over	0:p4	from 241 c2s 95 (1.00)
+c2s	33	OP_33	3	dead		no sender
+c2s	34	EVENT_KEYBOARD	-2	carry-over		from 241 c2s 37 (0.99)
+c2s	35	OP_35	3	open	0:p2Alt2 2:p1Alt3	candidates: OPLOC6_V2 OPPLAYER1 OPPLAYER2 OPPLAYER3 OPPLAYER4 OPPLAYER5 OPPLAYER6 OPPLAYER7 OPPLAYER8 OPWORLDENTITY5
+c2s	36	EXIT_FREECAM	0	carry-over		from 241 c2s 23 (0.99)
+c2s	37	FRIENDCHAT_JOIN_LEAVE	-1	carry-over	0:p1 1:p1 2:p1	from 241 c2s 61 (1.00)
+c2s	38	FRIENDLIST_ADD	-1	carry-over	0:p1 1:p1 2:p1	from 241 c2s 60 (1.00)
+c2s	39	OP_39	3	open		candidates: OPLOC6_V2 OPPLAYER1 OPPLAYER2 OPPLAYER3 OPPLAYER4 OPPLAYER5 OPPLAYER6 OPPLAYER7 OPPLAYER8 OPWORLDENTITY5
+c2s	40	FRIENDCHAT_SETRANK	-1	carry-over	0:p1 1:p1 2:p1 3:p1Alt1	from 241 c2s 88 (0.94)
+c2s	41	OP_41	4	open	0:p1Alt2 1:p1Alt3 2:p2Alt1	candidates: CLICKWORLDMAP OPNPC1_V2 OPNPC2_V2 OPNPC3_V2 OPNPC4_V2 OPNPC5_V2
+c2s	42	IF_SUBOP	10	carry-over		from 241 c2s 70 (1.00)
+c2s	43	OPOBJ6	6	carry-over		from 241 c2s 6 (0.73)
+c2s	44	CLANCHANNEL_KICKUSER	-1	carry-over	0:p1 1:p1 4:p1 5:p1	from 241 c2s 57 (1.00)
+c2s	45	RESUME_PAUSEBUTTON	6	carry-over		from 241 c2s 48 (0.84)
+c2s	46	OPOBJT	15	carry-over		from 241 c2s 74 (0.66)
+c2s	47	OPNPCT	11	carry-over		from 241 c2s 2 (0.77)
+c2s	48	CLANCHANNEL_FULL_REQUEST	1	carry-over	0:p1	from 241 c2s 56 (1.00)
+c2s	49	SET_CHATFILTERSETTINGS	3	carry-over		from 241 c2s 47 (0.84)
+c2s	50	OP_50	8	open	0:p1 1:p2 3:p2Alt3 5:p1Alt3 6:p2	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	51	FRIENDLIST_DEL	-1	carry-over	0:p1 1:p1 2:p1	from 241 c2s 41 (1.00)
+c2s	52	IF_BUTTONX	9	carry-over		from 241 c2s 99 (1.00)
+c2s	53	OP_53	8	open		candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	54	RESUME_P_LONGDIALOG	8	carry-over		from 241 c2s 86 (1.00)
+c2s	55	OP_55	-1	dead		no sender
+c2s	56	OP_56	9	open	0:p1 1:p1Alt1 2:p1 3:p1Alt1 4:p1 5:p1 6:p1 7:p1	candidates: OPLOC1_V3 OPLOC2_V3 OPLOC3_V3 OPLOC4_V3 OPLOC5_V3
+c2s	57	OP_57	8	open	0:p2Alt3 2:p1Alt1 3:p2Alt1 5:p1 6:p2Alt3	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	58	OP_58	8	open	0:p2Alt1 2:p2Alt2 4:p2 6:p1 7:p1	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	59	OP_59	7	dead		no sender
+c2s	60	FRIENDCHAT_KICK	-1	carry-over	0:p1 1:p1 2:p1	from 241 c2s 51 (1.00)
+c2s	61	OP_61	8	open	0:p2 2:p1Alt3 3:p2Alt1 5:p2Alt3	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	62	OPWORLDENTITY2	3	carry-over	0:p2 2:p1Alt3	from 241 c2s 54 (0.72)
+c2s	63	OPWORLDENTITY6	2	carry-over	0:p1	from 241 c2s 69 (0.92)
+c2s	64	OP_64	9	open	0:p1 1:p1 2:p1 3:p2Alt1 5:p1Alt2 6:p1Alt1	candidates: OPLOC1_V3 OPLOC2_V3 OPLOC3_V3 OPLOC4_V3 OPLOC5_V3
+c2s	65	OP_65	3	open		candidates: OPLOC6_V2 OPPLAYER1 OPPLAYER2 OPPLAYER3 OPPLAYER4 OPPLAYER5 OPPLAYER6 OPPLAYER7 OPPLAYER8 OPWORLDENTITY5
+c2s	66	OP_66	8	open	0:p2Alt3 2:p2 4:p1Alt2 5:p2Alt3 7:p1	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	67	OP_67	3	open		candidates: OPLOC6_V2 OPPLAYER1 OPPLAYER2 OPPLAYER3 OPPLAYER4 OPPLAYER5 OPPLAYER6 OPPLAYER7 OPPLAYER8 OPWORLDENTITY5
+c2s	68	NO_TIMEOUT	0	carry-over		from 241 c2s 93 (1.00)
+c2s	69	CLIENT_CHEAT	-1	carry-over	0:p1 1:p1 2:p1 3:p1	from 241 c2s 81 (0.73)
+c2s	70	CLANSETTINGS_FULL_REQUEST	1	carry-over	0:p1	from 241 c2s 72 (1.00)
+c2s	71	IF_CRMVIEW_OP	22	size	0:p4Alt1 4:p4Alt1	
+c2s	72	OP_72	9	open	0:p1 1:p1Alt1 2:p1Alt3 3:w2? 5:p1 6:p1Alt2 7:p2Alt1	candidates: OPLOC1_V3 OPLOC2_V3 OPLOC3_V3 OPLOC4_V3 OPLOC5_V3
+c2s	73	OP_73	4	open	0:p1Alt1 1:p1Alt2 2:p2	candidates: CLICKWORLDMAP OPNPC1_V2 OPNPC2_V2 OPNPC3_V2 OPNPC4_V2 OPNPC5_V2
+c2s	74	MOVE_GAMECLICK	-1	carry-over		from 241 c2s 31 (0.92)
+c2s	75	OP_75	4	open		candidates: CLICKWORLDMAP OPNPC1_V2 OPNPC2_V2 OPNPC3_V2 OPNPC4_V2 OPNPC5_V2
+c2s	76	OPPLAYERT	11	carry-over		from 241 c2s 5 (0.73)
+c2s	77	TELEPORT	9	carry-over		from 241 c2s 35 (0.70)
+c2s	78	OP_78	3	open	0:p1Alt2 1:p2Alt3	candidates: OPLOC6_V2 OPPLAYER1 OPPLAYER2 OPPLAYER3 OPPLAYER4 OPPLAYER5 OPPLAYER6 OPPLAYER7 OPPLAYER8 OPWORLDENTITY5
+c2s	79	OP_79	-1	open		candidates: MESSAGE_PUBLIC REFLECTION_CHECK_REPLY RESUME_P_NAMEDIALOG RESUME_P_STRINGDIALOG
+c2s	80	OP_80	4	open		candidates: CLICKWORLDMAP OPNPC1_V2 OPNPC2_V2 OPNPC3_V2 OPNPC4_V2 OPNPC5_V2
+c2s	81	OP_81	4	open	0:p2Alt1 2:p1Alt3	candidates: CLICKWORLDMAP OPNPC1_V2 OPNPC2_V2 OPNPC3_V2 OPNPC4_V2 OPNPC5_V2
+c2s	82	IGNORELIST_ADD	-1	carry-over	0:p1 1:p1 2:p1	from 241 c2s 94 (1.00)
+c2s	83	OPWORLDENTITY4	3	carry-over		from 241 c2s 52 (0.72)
+c2s	84	OP_84	11	dead		no sender
+c2s	85	HISCORE_REQUEST	-1	carry-over	0:p1 1:p1 3:p1 4:p1	from 241 c2s 80 (0.96)
+c2s	86	IGNORELIST_DEL	-1	carry-over	0:p1 1:p1 2:p1	from 241 c2s 0 (1.00)
+c2s	87	MOVE_MINIMAPCLICK	-1	carry-over	0:p1 8:p1 9:w2? 11:p1 12:p1	from 241 c2s 39 (0.91)
+c2s	88	OP_88	9	open	0:p2Alt3 2:p2 4:p1Alt2 5:p1 6:p1 7:p1	candidates: OPLOC1_V3 OPLOC2_V3 OPLOC3_V3 OPLOC4_V3 OPLOC5_V3
+c2s	89	EVENT_MOUSE_CLICK_V2	7	size		
+c2s	90	SET_HEADING	1	carry-over	0:p1Alt3	from 241 c2s 45 (0.96)
+c2s	91	AFFINEDCLANSETTINGS_SETMUTED_FROMCHANNEL	-1	carry-over		from 241 c2s 20 (1.00)
+c2s	92	OPNPC6	2	carry-over		from 241 c2s 49 (0.88)
+c2s	93	CONNECTION_TELEMETRY	-1	carry-over		from 241 c2s 13 (0.99)
+c2s	94	OP_94	1	dead		no sender
+c2s	95	OP_95	-1	open		candidates: MESSAGE_PUBLIC REFLECTION_CHECK_REPLY RESUME_P_NAMEDIALOG RESUME_P_STRINGDIALOG
+c2s	96	OP_96	3	open	0:p2Alt3 2:p1	candidates: OPLOC6_V2 OPPLAYER1 OPPLAYER2 OPPLAYER3 OPPLAYER4 OPPLAYER5 OPPLAYER6 OPPLAYER7 OPPLAYER8 OPWORLDENTITY5
+c2s	97	OP_97	4	open	0:p2Alt1 2:p1Alt2	candidates: CLICKWORLDMAP OPNPC1_V2 OPNPC2_V2 OPNPC3_V2 OPNPC4_V2 OPNPC5_V2
+c2s	98	EVENT_NATIVE_MOUSE_MOVE	-1	carry-over		from 241 c2s 32 (0.99)
+c2s	99	OP_99	3	open	0:p2 2:p1	candidates: OPLOC6_V2 OPPLAYER1 OPPLAYER2 OPPLAYER3 OPPLAYER4 OPPLAYER5 OPPLAYER6 OPPLAYER7 OPPLAYER8 OPWORLDENTITY5
+c2s	100	OP_100	8	open	0:p2 2:p1Alt1 3:p2 5:p1Alt1 6:p1	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	101	UPDATE_PLAYER_MODEL_V2	26	size		
+c2s	102	OP_102	15	dead		no sender
+c2s	103	OP_103	8	open	0:p1 1:p2Alt2 3:p2 5:p2Alt2	candidates: OPLOC1_V2 OPLOC2_V2 OPLOC3_V2 OPLOC4_V2 OPLOC5_V2 OPOBJ1_V2 OPOBJ2_V2 OPOBJ3_V2 OPOBJ4_V2 OPOBJ5_V2
+c2s	104	BUG_REPORT	-2	carry-over		from 241 c2s 42 (1.00)
+c2s	105	RSEVEN_STATUS	1	carry-over		from 241 c2s 100 (0.98)
+c2s	106	WINDOW_STATUS	5	size		
+c2s	107	RESUME_P_OBJDIALOG	2	carry-over		from 241 c2s 36 (1.00)
+c2s	108	OP_108	16	dead		no sender
+c2s	109	IF_BUTTOND	16	carry-over		from 241 c2s 43 (0.65)
+s2c	0	MESSAGE_CLANCHANNEL_SYSTEM	-1	carry-over	0:p1 1:p2 3:p3	from 241 s2c 9 (0.97)
+s2c	1	IF_SETPLAYERMODEL_BASECOLOUR	6	carry-over	0:p1Alt1 1:p4Alt3 5:p1Alt2	from 241 s2c 63 (0.86)
+s2c	2	IF_OPENTOP	2	carry-over	0:p2	from 241 s2c 75 (0.73)
+s2c	3	MESSAGE_PRIVATE_ECHO	-2	carry-over		from 241 s2c 36 (0.94)
+s2c	4	VARP_RESET	0	carry-over		from 241 s2c 22 (0.97)
+s2c	5	IF_SETPLAYERMODEL_SELF	5	carry-over	0:p4Alt2 4:p1	from 241 s2c 100 (0.72)
+s2c	6	OP_6	5	open	0:p1Alt1 1:p4Alt1	candidates: CAM_TARGET_V4 MIDI_JINGLE
+s2c	7	UPDATE_ZONE_PARTIAL_ENCLOSED	-2	carry-over	0:p1Alt2 1:p1Alt3 2:p1Alt3 3:p1	from 241 s2c 23 (0.88)
+s2c	8	IF_SETOBJECT	10	carry-over	0:p4Alt1 4:p4Alt3 8:p2Alt3	from 241 s2c 127 (0.84)
+s2c	9	OP_9	-2	open		candidates: GROUP_FULL LOC_ADD_CHANGE_V3 NPC_INFO_SMALL_V6 REFLECTION_CHECKER SET_WEBSITE_TOKEN
+s2c	10	UPDATE_INV_STOPTRANSMIT	2	carry-over	0:p2Alt2	from 241 s2c 18 (0.90)
+s2c	11	OBJ_ENABLED_OPS_SPECIFIC	7	carry-over	0:p2Alt3 2:p4 6:p1Alt1	from 241 s2c 95 (0.93)
+s2c	12	UNKNOWN_STRING	-1	size		
+s2c	13	NPC_SPOTANIM_SPECIFIC	9	carry-over	0:p4Alt1 4:p2Alt1 6:p1Alt2 7:p2	from 241 s2c 37 (0.69)
+s2c	14	MESSAGE_CLANCHANNEL	-1	carry-over	0:p1 1:p2 3:p3 6:p1	from 241 s2c 117 (0.95)
+s2c	15	UPDATE_RUNENERGY	2	carry-over	0:p2	from 241 s2c 102 (0.89)
+s2c	16	UPDATE_REBOOT_TIMER_V2	-1	carry-over	0:p2Alt3	from 241 s2c 61 (0.68)
+s2c	17	CLANSETTINGS_DELTA	-2	carry-over	0:p1	from 241 s2c 87 (1.00)
+s2c	18	CAM_TARGET_V3	5	carry-over	0:p1	from 241 s2c 89 (0.94)
+s2c	19	IF_SETEVENTS_V2	16	size	0:p4 4:p4 8:p2 10:p4 14:p2Alt3	
+s2c	20	LOC_DEL	2	carry-over		from 241 s2c 16 (1.00)
+s2c	21	TRIGGER_ONDIALOGABORT	0	carry-over		from 241 s2c 107 (0.83)
+s2c	22	VARP_LONG	10	size	0:p2Alt3	
+s2c	23	OP_23	9	open	0:p2Alt3 2:p2Alt3 4:p4 8:p1Alt2	candidates: NPC_HEADICON_SPECIFIC PLAYER_SPOTANIM_SPECIFIC
+s2c	24	UPDATE_INV_PARTIAL	-2	carry-over	0:p4 4:p2 6:p1 7:p2 9:p1	from 241 s2c 8 (0.99)
+s2c	25	IF_MOVESUB	8	carry-over	0:p4Alt2 4:p4Alt2	from 241 s2c 126 (0.71)
+s2c	26	MESSAGE_GAME	-1	carry-over	0:p1 3:p1	from 241 s2c 81 (0.87)
+s2c	27	REBUILD_WORLDENTITY_V4	-2	carry-over		from 241 s2c 70 (0.87)
+s2c	28	VARCLAN_ENABLE	0	carry-over		from 241 s2c 67 (0.70)
+s2c	29	VARP_SMALL	3	carry-over	0:p2Alt1 2:p1	from 241 s2c 34 (0.86)
+s2c	30	HINT_ARROW	6	carry-over		from 241 s2c 3 (0.78)
+s2c	31	LOC_ANIM	4	carry-over		from 241 s2c 17 (0.67)
+s2c	32	OP_32	5	open	0:p2	candidates: CAM_TARGET_V4 MIDI_JINGLE
+s2c	33	IF_SETSCROLLPOS	6	carry-over	0:p2 2:p4Alt3	from 241 s2c 125 (0.82)
+s2c	34	CAM_UNLOCK	1	widths	0:p1	
+s2c	35	IF_CLEARINV	4	carry-over	0:p4Alt3	from 241 s2c 52 (0.83)
+s2c	36	SET_ACTIVE_WORLD_V2	3	carry-over	0:p2 2:p1	from 241 s2c 99 (0.98)
+s2c	37	LOGOUT	0	size		
+s2c	38	UPDATE_RUNWEIGHT	2	carry-over	0:p2	from 241 s2c 26 (0.93)
+s2c	39	UPDATE_TRADINGPOST_V2	-2	carry-over	0:p1 1:w8?	from 241 s2c 39 (1.00)
+s2c	40	MESSAGE_PRIVATE	-2	carry-over	0:p2 2:p3 5:p1	from 241 s2c 93 (0.97)
+s2c	41	MINIMAP_TOGGLE	1	carry-over	0:p1	from 241 s2c 31 (0.91)
+s2c	42	UPDATE_ZONE_PARTIAL_FOLLOWS	3	size	0:p1Alt1 1:p1 2:p1Alt2	
+s2c	43	OP_43	-2	open		candidates: GROUP_FULL LOC_ADD_CHANGE_V3 NPC_INFO_SMALL_V6 REFLECTION_CHECKER SET_WEBSITE_TOKEN
+s2c	44	ACCOUNT_FLAGS	8	carry-over	0:w8?	from 241 s2c 38 (0.98)
+s2c	45	CAM_ROTATETO	7	carry-over	0:p2 2:p2 4:p2 6:p1	from 241 s2c 73 (0.97)
+s2c	46	OBJUNLOCK_RESET	0	carry-over		from 241 s2c 135 (0.82)
+s2c	47	CLANCHANNEL_DELTA	-2	carry-over	0:p1	from 241 s2c 88 (1.00)
+s2c	48	VARP_SYNC	0	carry-over		from 241 s2c 96 (0.98)
+s2c	49	SET_PLAYER_OP	-1	carry-over	0:p1Alt1 1:p1Alt1	from 241 s2c 112 (0.63)
+s2c	50	UPDATE_STAT_V2	7	widths	0:p1Alt3 1:p1 2:p1 3:p4Alt1	
+s2c	51	IF_SETTEXT	-2	carry-over	0:p4	from 241 s2c 122 (0.69)
+s2c	52	IF_SETPOSITION	8	carry-over	0:p2 2:p2Alt3 4:w2?	from 241 s2c 45 (0.75)
+s2c	53	OBJ_COUNT_SPECIFIC	14	widths	0:p2 2:p4 6:p4Alt3 10:p4Alt1	
+s2c	54	HISCORE_REPLY	-2	carry-over		from 241 s2c 82 (1.00)
+s2c	55	CLANCHANNEL_FULL	-2	carry-over	0:p1	from 241 s2c 19 (0.99)
+s2c	56	RUNCLIENTSCRIPT	-2	carry-over	0:p1 1:p1 6:p1 7:p1	from 241 s2c 10 (0.97)
+s2c	57	UPDATE_INV_FULL	-2	carry-over	0:p4 4:p2 6:p2 8:p2Alt1 10:p1Alt1 11:p4Alt3	from 241 s2c 32 (0.98)
+s2c	58	UPDATE_STOCKMARKET_SLOT_V1	20	carry-over	0:p1 1:p1	from 241 s2c 54 (0.98)
+s2c	59	RESET_INTERACTION_MODE	2	carry-over	0:p2	from 241 s2c 114 (0.92)
+s2c	60	MAP_ANIM	6	size		
+s2c	61	IF_SETPLAYERHEAD	4	carry-over	0:p4Alt1	from 241 s2c 79 (0.79)
+s2c	62	SET_INTERACTION_MODE	4	carry-over	0:p2	from 241 s2c 85 (0.96)
+s2c	63	LOC_MERGE	14	size		
+s2c	64	OP_64	2	dead		no dispatcher case
+s2c	65	IF_RESYNC_V2	-2	carry-over	0:p2 2:p2 4:p4 8:p2 10:p1 11:p4 15:p2 17:p2 19:p4 23:p4	from 241 s2c 121 (0.99)
+s2c	66	UPDATE_ZONE_FULL_FOLLOWS	3	carry-over	0:p1Alt2 1:p1Alt2 2:p1Alt3	from 241 s2c 68 (0.89)
+s2c	67	OP_67	-2	dead		no dispatcher case
+s2c	68	IF_SETHIDE	5	carry-over	0:p4 4:p1Alt2	from 241 s2c 77 (0.78)
+s2c	69	OP_69	1	dead		no dispatcher case
+s2c	70	MIDI_SONG_V2	10	widths	0:p2 2:p2 4:p2Alt1 6:p2Alt3 8:p2Alt3	
+s2c	71	IF_SETANGLE	10	widths	0:p2Alt3 2:p2Alt2 4:p2Alt3 6:p4	
+s2c	72	OBJ_ADD_SPECIFIC	17	size	0:p1Alt1 1:p4Alt3 5:p1Alt2 6:p2Alt3 8:p2Alt3 10:p2Alt3 12:p4 16:p1Alt1	
+s2c	73	LOC_ADD_CHANGE_V2	-2	carry-over		from 241 s2c 14 (0.75)
+s2c	74	IF_SETNPCHEAD_ACTIVE	6	carry-over	0:p4Alt2 4:p2Alt1	from 241 s2c 47 (0.88)
+s2c	75	IF_SETROTATESPEED	8	size	0:p2Alt2 2:p4 6:w2?	
+s2c	76	IF_SETPLAYERMODEL_BODYTYPE	5	carry-over	0:p4Alt3 4:p1Alt1	from 241 s2c 103 (0.72)
+s2c	77	HIDELOCOPS	1	carry-over	0:p1	from 241 s2c 20 (0.83)
+s2c	78	SYNTH_SOUND	5	carry-over	0:p2 2:p1 3:p2	from 241 s2c 71 (0.97)
+s2c	79	SOUND_AREA	7	carry-over		from 241 s2c 48 (0.75)
+s2c	80	IF_SETNPCHEAD	6	carry-over	0:p2Alt2	from 241 s2c 62 (0.73)
+s2c	81	URL_OPEN	-2	carry-over		from 241 s2c 24 (0.92)
+s2c	82	CAM_ROTATEBY	7	carry-over	0:p2 2:p2 4:p2 6:p1	from 241 s2c 56 (0.96)
+s2c	83	IF_SETCOLOUR	6	carry-over	0:p4Alt3 4:p1 5:p1	from 241 s2c 29 (0.73)
+s2c	84	PLAYER_INFO	-2	carry-over		from 241 s2c 90 (0.83)
+s2c	85	RESET_ANIMS	0	carry-over		from 241 s2c 49 (0.98)
+s2c	86	LOGOUT_TRANSFER	-1	carry-over	0:p2 2:p4	from 241 s2c 35 (0.93)
+s2c	87	UPDATE_UID192	28	size		
+s2c	88	VARP_LARGE	6	carry-over	0:p2Alt3 2:p4	from 241 s2c 64 (0.92)
+s2c	89	SITE_SETTINGS	-1	carry-over		from 241 s2c 65 (0.72)
+s2c	90	MIDI_SONG_STOP	4	widths	0:p2Alt3 2:p2Alt2	
+s2c	91	CAM_SMOOTHRESET	4	carry-over	0:p1 1:p1 2:p1 3:p1	from 241 s2c 94 (0.97)
+s2c	92	NPC_ANIM_SPECIFIC	5	carry-over	0:p2 2:p2 4:p1Alt3	from 241 s2c 91 (0.94)
+s2c	93	LOC_ANIM_SPECIFIC	6	carry-over	0:p2Alt2 2:p1Alt3 3:p1 4:p1 5:p1	from 241 s2c 104 (0.81)
+s2c	94	MAP_ANIM_SPECIFIC	8	carry-over	0:p2Alt2 2:p1 4:p1 5:p1Alt2 6:p2Alt1	from 241 s2c 111 (0.69)
+s2c	95	IF_CLOSESUB	4	carry-over	0:p4	from 241 s2c 101 (0.97)
+s2c	96	PROJANIM_SPECIFIC_V4	27	size	0:p2Alt2 2:p2Alt3 4:p1 5:p1 6:p1 7:p1 8:p2Alt2 10:p1Alt2 11:p2Alt2 15:p3Alt3 18:p3Alt2 21:p2 23:p4Alt3	
+s2c	97	IF_SETANIM	6	carry-over	0:p4Alt3 4:p2Alt2	from 241 s2c 28 (0.73)
+s2c	98	UPDATE_IGNORELIST	-2	carry-over		from 241 s2c 13 (0.96)
+s2c	99	UPDATE_TRADINGPOST_V1	-2	carry-over	0:p1 1:w8?	from 241 s2c 58 (0.98)
+s2c	100	SEND_PING	8	carry-over	0:p4 4:p4	from 241 s2c 92 (0.84)
+s2c	101	CLANSETTINGS_FULL	-2	carry-over	0:p1	from 241 s2c 84 (0.99)
+s2c	102	IF_SETPLAYERMODEL_OBJ	8	carry-over	0:p4Alt3 4:p4Alt3	from 241 s2c 83 (0.80)
+s2c	103	UPDATE_FRIENDCHAT_CHANNEL_SINGLEUSER	-1	carry-over		from 241 s2c 33 (0.76)
+s2c	104	CHAT_FILTER_SETTINGS	2	widths	0:p1Alt2 1:p1Alt2	
+s2c	105	MESSAGE_FRIENDCHANNEL	-1	carry-over	0:w8? 8:p2 10:p3 13:p1	from 241 s2c 43 (0.96)
+s2c	106	VARCLAN	-1	carry-over		from 241 s2c 119 (0.91)
+s2c	107	HIDENPCOPS	1	carry-over	0:p1	from 241 s2c 113 (0.93)
+s2c	108	FRIENDLIST_LOADED	0	carry-over		from 241 s2c 69 (1.00)
+s2c	109	SET_NPC_UPDATE_ORIGIN	2	carry-over	0:p1 1:p1	from 241 s2c 30 (1.00)
+s2c	110	OBJ_DEL_SPECIFIC	10	carry-over	0:p4 4:p4Alt1 8:p2	from 241 s2c 109 (0.70)
+s2c	111	MIDI_SWAP	8	widths	0:p2Alt2 2:p2 4:p2 6:p2Alt3	
+s2c	112	UPDATE_FRIENDCHAT_CHANNEL_FULL_V2	-2	carry-over		from 241 s2c 40 (0.67)
+s2c	113	CAM_SHAKE	4	carry-over	0:p1 1:p1 2:p1 3:p1	from 241 s2c 51 (1.00)
+s2c	114	HIDEOBJOPS	1	carry-over	0:p1	from 241 s2c 115 (0.93)
+s2c	115	OCULUS_SYNC	4	carry-over	0:p4	from 241 s2c 44 (0.95)
+s2c	116	UPDATE_STOCKMARKET_SLOT_V2	34	size	0:p1 1:p1	
+s2c	117	LOGOUT_WITHREASON	1	carry-over	0:p1	from 241 s2c 27 (0.93)
+s2c	118	MIDI_SONG_WITHSECONDARY	12	size	0:p2Alt2 2:p2 4:p2Alt2 6:p2 8:p2Alt3 10:p2	
+s2c	119	IF_OPENSUB	7	size	0:p1 1:p4Alt2 5:p2Alt1	
+s2c	120	ANIM_SPECIFIC	3	carry-over	0:p2Alt3 2:p1	from 241 s2c 50 (0.67)
+s2c	121	CAM_RESET	0	carry-over		from 241 s2c 1 (0.94)
+s2c	122	SERVER_TICK_END	0	carry-over		from 241 s2c 55 (1.00)
+s2c	123	UPDATE_FRIENDLIST	-2	carry-over		from 241 s2c 25 (0.69)
+s2c	124	CHAT_FILTER_SETTINGS_PRIVATECHAT	1	carry-over	0:p1	from 241 s2c 11 (1.00)
+s2c	125	OP_125	-2	open		candidates: GROUP_FULL LOC_ADD_CHANGE_V3 NPC_INFO_SMALL_V6 REFLECTION_CHECKER SET_WEBSITE_TOKEN
+s2c	126	OP_126	9	open	0:p2Alt1 2:p1Alt1 3:p4Alt1 7:p2Alt2	candidates: NPC_HEADICON_SPECIFIC PLAYER_SPOTANIM_SPECIFIC
+s2c	127	OBJ_CUSTOMISE_SPECIFIC_V1	20	size	0:p2Alt2 2:p1 3:p1 4:p2Alt2 6:p4Alt2 10:p2Alt1 12:p1 13:p1 14:p4Alt1 18:p2Alt1	
+s2c	128	CAM_MOVETO_ARC_V3	15	size	0:p1Alt2 1:p2Alt2 3:p2 5:p2Alt3 7:p2 9:p1Alt1 10:p1 11:p2Alt3 13:p2Alt3	
+s2c	129	GROUP_VAR_INT	9	carry-over		from 241 s2c 134 (0.62)
+s2c	130	SET_MAP_FLAG_V2	4	carry-over	0:p4	from 241 s2c 143 (0.93)
+s2c	131	AMBIENTSOUND_STOP	1	carry-over	0:p1	from 241 s2c 149 (0.89)
+s2c	132	CAM_LOOKAT_CYCLES	10	widths	0:p2Alt1 2:p2Alt3 4:p2Alt1 6:p1 7:p1Alt1 8:p2Alt3	
+s2c	133	CAM_MODE	1	carry-over	0:p1	from 241 s2c 15 (0.81)
+s2c	134	WORLDENTITY_INFO_V7	-2	carry-over		from 241 s2c 146 (0.67)
+s2c	135	REBUILD_NORMAL_V2	-2	carry-over		from 241 s2c 6 (0.84)
+s2c	136	IF_SETMODEL_V2	8	carry-over	0:p4 4:p4Alt3	from 241 s2c 130 (0.66)
+s2c	137	OBJ_CUSTOMISE_SPECIFIC_V2	-2	carry-over	0:p4Alt3 4:p1Alt1 5:p1Alt3 6:p2Alt3 8:p4 12:p2Alt2 14:p1 15:p1 16:p2 19:p2Alt3	from 241 s2c 132 (0.80)
+s2c	138	CAM_SKYBOX	4	size	0:p4Alt2	
+s2c	139	GROUP_VAR	-2	carry-over		from 241 s2c 138 (0.77)
+s2c	140	AMBIENTSOUND_START	3	carry-over	0:p2 2:p1	from 241 s2c 147 (0.68)
+s2c	141	VARCLAN_DISABLE	0	carry-over		from 241 s2c 124 (0.70)
+s2c	142	GROUP_VAR_LONG	13	size		
+s2c	143	NPC_INFO_LARGE_V6	-2	carry-over		from 241 s2c 145 (1.00)
+s2c	144	CAM_MOVETO_V3	9	carry-over	0:p2Alt2 2:p1Alt2 3:p1 4:p2Alt2 6:p2Alt1 8:p1	from 241 s2c 136 (0.66)
+s2c	145	OP_145	-2	open		candidates: GROUP_FULL LOC_ADD_CHANGE_V3 NPC_INFO_SMALL_V6 REFLECTION_CHECKER SET_WEBSITE_TOKEN
+s2c	146	OBJUNLOCK_UPDATE	-2	carry-over		from 241 s2c 139 (0.68)
+s2c	147	CAM_ROTATETO_COORDINATE_V3	11	carry-over	0:p2 2:p1 3:p2Alt2 5:p2Alt3 7:p2Alt1 9:p1 10:p1	from 241 s2c 142 (0.61)
+s2c	148	OP_148	-2	dead		no dispatcher case
+s2c	149	OBJ_UNCUSTOMISE_SPECIFIC	10	carry-over	0:p4Alt2 4:p2Alt2 6:p4	from 241 s2c 97 (0.78)
+s2c	150	REBUILD_REGION_V2	-2	carry-over		from 241 s2c 41 (0.90)
+s2c	151	CAM_LOOKAT_V3	9	carry-over	0:p1Alt3 1:p2 3:p1Alt1 4:p2Alt1 6:p2Alt1 8:p1	from 241 s2c 131 (0.72)
+s2c	152	CAM_MOVETO_CYCLES_V3	11	size	0:p2Alt1 2:p1Alt1 3:p1Alt1 4:p1Alt2 5:p2Alt3 7:p2Alt1 9:p2Alt2	

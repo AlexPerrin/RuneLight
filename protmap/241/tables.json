@@ -1,0 +1,21 @@
+{
+ "buffer": [
+  "lStack_1a0",
+  "uStack_198"
+ ],
+ "c2s_table": [
+  1086776,
+  102,
+  2
+ ],
+ "constructor": 7982224,
+ "dispatcher": 5512660,
+ "nonliteral_sites": 0,
+ "s2c_table": [
+  1068108,
+  151,
+  1
+ ],
+ "size": 11135144,
+ "so": "osclient.so"
+}
