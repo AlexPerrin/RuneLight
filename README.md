@@ -1,16 +1,34 @@
-# osrs-plugins-reverse
+# <img src="docs/assets/logo.svg" width="44" align="center" alt=""> RuneLight
 
-RuneLite plugins running inside the official Old School RuneScape Android app, against a test server.
+**RuneLite's plugins, on the Old School RuneScape mobile app.**
 
-The project repacks the official Android client (build 241.4) so that it loads a native hook library,
-`libosrsrl.so`. The library hooks the game's own native code, reads the game state, and starts a Java plugin host
-inside the same process. The host implements a subset of the RuneLite client API on Android's runtime (ART), so
-RuneLite plugins that were written for the desktop client run on the phone without changes. There is no emulated
-desktop client and no rewritten game client: the plugins draw on, and read from, the real Android game.
+On desktop, RuneLite plugins add overlays, highlights, trackers and helpers to the game. On Android there is nothing
+like it. RuneLight changes that: it adds a plugin host to the official Android app, so the plugins you know from
+RuneLite (Quest Helper, Ground Items, XP Tracker, Loot Tracker and more) run on the phone, drawing over the real game.
 
-> **Read the [Legal and safety](#legal-and-safety) section before you install anything.** This is a research and
-> interoperability project. It is built for an OpenRune-compatible **test server**, it is not for Jagex's live servers,
-> and it is not affiliated with or endorsed by Jagex or RuneLite.
+![Progress map](docs/progress.svg)
+
+**89 of 90** tracked core plugins run on Android, and **85 of 110** tracked Plugin Hub plugins
+([the numbers and what they mean](#what-works-today), as of 2026-10-24).
+
+> **For a test server only.** RuneLight is a research and interoperability project built for an OpenRune-compatible
+> private server. It is not for Jagex's live servers and is not affiliated with or endorsed by Jagex or RuneLite.
+> Read [Legal and safety](#legal-and-safety) before you install anything.
+
+## See it
+
+Quest Helper guiding Cook's Assistant, Sheep Shearer and Romeo & Juliet on a phone, with its sidebar, step overlay
+and minimap arrows, is recorded in [What was observed on a device](#what-was-observed-on-a-device).
+Screenshots and a demo video are not in the repository yet; they will be added under `docs/media/` once recorded.
+
+## Who it is for
+
+- **Players** who want RuneLite's helpers on mobile: [install it](#requirements-and-install) against an OpenRune
+  test server and load the plugins you want.
+- **Plugin authors** who want their RuneLite plugin on Android: the host implements the client API on Android's
+  runtime, so an unchanged plugin jar can run. See [docs/plugin-host.md](docs/plugin-host.md) for what is covered.
+- **Server and tools developers** working on the Android protocol: the project maps it (240 of 240 live opcodes) in
+  [docs/android-protocol.md](docs/android-protocol.md).
 
 ## Contents
 
@@ -141,7 +159,7 @@ installed for play.
 
 ## Requirements and install
 
-**Download.** The release page is [releases/latest](https://github.com/AlexPerrin/osrs-plugins-reverse/releases/latest).
+**Download.** The release page is [releases/latest](https://github.com/AlexPerrin/RuneLight/releases/latest).
 A release of this project carries two files and the sha256 of each in its notes: **one universal APK** and
 `THIRD_PARTY_NOTICES.md`. Check the APK against the sha256 on the release page before you install it. At the time of
 writing the newest published release, `v0.1.1`, lists no files and `v0.1.0` lists the older two-file split APK; a
