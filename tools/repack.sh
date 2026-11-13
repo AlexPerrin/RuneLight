@@ -25,7 +25,8 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 RE=$ROOT/re
 OUT=$RE/out
-APKTOOL="java -jar $HOME/tools/apktool.jar"
+. "$ROOT/tools/env.sh"
+APKTOOL="java -jar $APKTOOL_JAR"
 HOOK_SO=$RE/build/libosrsrl.so
 KEYSTORE=$RE/debug.keystore
 KS_PASS=android
@@ -170,7 +171,6 @@ echo "built $OUT/osrs-runelite.apk (single) and $OUT/base.apk $OUT/split.apk (sp
 
 if [[ ${1:-} == --install || ${1:-} == --install-split ]]; then
     # Under WSL the emulator is only visible to Windows adb: ADB=/mnt/c/.../adb.exe
-    ADB=${ADB:-adb}
     SERIAL_ARGS=(); [[ -n ${ANDROID_SERIAL:-} ]] && SERIAL_ARGS=(-s "$ANDROID_SERIAL")
     apk_path() { [[ $ADB == *.exe ]] && wslpath -w "$1" || echo "$1"; }
     # Update in place so app data (the Jagex sign-in) survives. Only when the installed app has a

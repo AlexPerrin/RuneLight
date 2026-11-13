@@ -63,7 +63,7 @@ Suggested minimal set if the user wants it off: **A + C + D**. All three are in 
 manifest meta-data lines. Each can be verified on the device by the absence of the `Singular:` /
 `FA` / `FirebaseCrashlytics` log lines at start.
 
-## Applied and verified (gen 37, 2026-10-18)
+## Applied and verified
 
 The user chose **A + C + D**. `tools/patch_telemetry.py` runs as step 1b of `tools/repack.sh` for every
 build, normal and LOCAL_AUTH; normal builds now decode resources too, so that the manifest is text. A
@@ -152,7 +152,7 @@ Recommended: **S1** (same patch step as the telemetry switches, applied to every
 | B3. both B1 and B2 | belt and braces | low |
 | B4. leave it | device data, the account-derived user id and the push token keep going to Braze | — |
 
-### Consent sync fix: applied and verified (gen 37, 2026-10-18 15:29-15:34)
+### Consent sync fix: applied and verified
 
 The user approved "Patch it out". `tools/patch_telemetry.py` (commit e986782) makes `za.l.a` return at
 once and zeroes both native sync URLs; it runs for every build. Verified on the emulator with the
@@ -232,7 +232,7 @@ Fix options for the builder paths (not applied): patch `runescape.com` at 0xd681
 with an exactly-one-match assert like the GIM rewrite. That would cover 0x4101d4, 0x47b548 and 0x3ec1a0/0x3ec558 at once.
 The gedigesturl fix is server-side (sidecar).
 
-### runescape.com builder patch: applied and verified (gen 38, 16:05-16:11)
+### runescape.com builder patch: applied and verified
 
 Approved by the orchestrator under the user's "patch it out" decision; commit 85f7d62. `patch_telemetry.py --native`
 rewrites `"\0runescape.com\0"` (ELF 0xd6812) to `"\0x.invalid"` plus NULs, with an exactly-one-match assert. Safety:
@@ -281,14 +281,14 @@ Always, even without QA: every build goes through `tools/repack.sh` (with `patch
    - `mobile-data.onetrust.io` / `cdn-ukwest.onetrust.com` (172.64.155.231, 104.18.32.25): the consent banner GET;
    - one Google 443 address (e.g. 172.217.116.4): most likely FCM for Braze's push token;
    - a netd lookup of `dns.google` (**system, not app: Private DNS validation**). Android Pie's opportunistic Private DNS (DoT)
-     validates the 8.8.8.8 resolver. Evidence (gen 40): netd logs no uid; `dumpsys connectivity` shows `UsePrivateDns: true`,
+     validates the 8.8.8.8 resolver. Evidence: netd logs no uid; `dumpsys connectivity` shows `UsePrivateDns: true`,
      `DnsAddresses: [8.8.8.8,10.0.2.3]`, `private_dns_mode` unset (the default, opportunistic); no app-uid socket goes to it.
 5. Must not appear: any `*.jagex.com`, `*.runescape.com`, `*.singular.net`, `app-measurement.com`, `pp-*.x.invalid`,
    `secure.x.invalid` / `services.x.invalid` lookups; no `ConsentSync` or `Singular` log lines; no socket to Jagex addresses
    (104.18.40.92, 172.64.147.164, 104.18.35.117, 18.67.39.x).
 6. Record the build, the time window, the DNS list and the distinct socket addresses here, under a dated heading.
 
-### Plugins and java.net (gen 39)
+### Plugins and java.net
 
 NetGuard only guards the host's shared OkHttp client. Plugin code that uses `java.net` directly (`URL.openConnection`/`openStream`,
 `HttpURLConnection`, `Socket`, `InetAddress`, `java.net.http.HttpClient`, `javax.net.*`) would bypass it. The case that showed this:
@@ -302,12 +302,11 @@ It reads each class's constant pool and gives a verdict per jar:
 - `NET-OKHTTP`: okhttp3 only. Requests go through the injected client, so NetGuard applies, but the plugin still counts as a network plugin (Network QA).
 - `LINKS`: only `LinkBrowser` (a browser opens on a tap). `clean`: none of these.
 
-Scan of all 99 built hub jars (gen 39): 85 clean, 7 LINKS, 5 NET-OKHTTP (c-engineer-completed, collection-log, dropsounds,
+Scan of all 99 built hub jars: 85 clean, 7 LINKS, 5 NET-OKHTTP (c-engineer-completed, collection-log, dropsounds,
 equipment-inspector, resource-packs), and 2 NET-RAW:
 - multi-lines: dropped.
 - loot-lookup: the raw references are only in its bundled jsoup (`org/jsoup/Connection`, `HttpConnection`). The plugin fetches through the
-  injected OkHttp client and parses with jsoup, so it doesn't call `Jsoup.connect`. Rebuilt with `ALLOW_NET=1`; **approved by the orchestrator
-  (gen 40)** and on R1's vetted list for that reason.
+  injected OkHttp client and parses with jsoup, so it doesn't call `Jsoup.connect`. Rebuilt with `ALLOW_NET=1`; **approved by the orchestrator** and on R1's vetted list for that reason.
 
 **Runtime guard for java.net: proposal (not implemented).** Options, rated by risk to the game process:
 
@@ -323,7 +322,7 @@ The game's own networking is native (libc sockets in the game library). None of 
 Java SDKs, including the AppAuth sign-in. **Recommended: R1** (deny by default, allow-list per plugin), plus the build-time netcheck.
 R2 only if a plugin that needs java.net is wanted. R3-R5 are not recommended.
 
-### R1 load-time gate: implemented (gen 40)
+### R1 load-time gate: implemented
 
 Approved by the orchestrator. `Host.loadJar` copies each plugin jar to the cache dir as before, then calls
 `NetScan.refusal(copy)` on that copy (so the checked bytes are the loaded bytes) before `new DexClassLoader`. It searches every
@@ -339,7 +338,7 @@ deleted, and the host logs `W osrsrl-host: netscan: refused <jar>: java.net outs
   synthetic jars (clean, Socket, java.net.http, URL as a value vs. URL+openStream, a reference only in classes2.dex, allow-list
   matching, vetted name), then prints `load` / `REFUSE <reason>` per jar. On gen 40's 189 dexed jars (`re/host/plugins`, `re/host/plugins-extra`)
   all load (loot-lookup and devtools through the vetted list; copies of either under another name are refused).
-- **Device check (gen 40, 17:20-17:34)**: with `hub-netscan-test.jar` (an inert dex holding one uncalled `new java.net.Socket()`, empty plugin
+- **Device check**: with `hub-netscan-test.jar` (an inert dex holding one uncalled `new java.net.Socket()`, empty plugin
   list) pushed, the host logged `W osrsrl-host: netscan: refused hub-netscan-test.jar: java.net outside NetGuard: [Ljava/net/Socket;] (vet it, or list it in debug.osrsrl.netallow)`
   and started the default 3 plugins. With `debug.osrsrl.netallow hub-netscan-test`, the next start had no netscan line. That run also loaded `devtools`
   (vetted) and `hub-max-hit-calculator`: 5 plugins running.

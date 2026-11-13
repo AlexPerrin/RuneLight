@@ -7,7 +7,7 @@
 # Assumes the repack (OPENRUNE=1 LOCAL_AUTH=1 build) is installed.
 set -u
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-ADB=${ADB:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platform-tools/adb.exe}
+. "$(dirname "$0")/env.sh"
 S="-s ${ANDROID_SERIAL:?set ANDROID_SERIAL to your emulator (emulator-<port>)}"
 PKG=com.jagex.oldscape.android
 P=/sdcard/Android/data/$PKG/files/plugins

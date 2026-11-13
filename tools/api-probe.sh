@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runtime probe of the RuneLite API in the Android app (goal client-api):
-#   ANDROID_SERIAL=<your own instance> tools/api-probe.sh [out-dir]   (default ~/osrs-harness/evidence/client-api)
+#   ANDROID_SERIAL=<your own instance> tools/api-probe.sh [out-dir]   (default re/out/api-probe)
 # The app must run this repo's build (host.jar carries osrsrl-build.txt and api-native.txt) and be logged in on
 # the test server. Builds the probe jar (host/plugins/api-probe), pushes it to plugins/, has the running host
 # load it (`debug.osrsrl.set 'load api-probe.jar <n>'`), waits for its report, pulls it to
@@ -22,9 +22,9 @@
 # setGameState(LOADING) reloads the scene (a ground object it removed comes back). The session and world stay as they are.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-OUT=${1:-$HOME/osrs-harness/evidence/client-api}
+OUT=${1:-$ROOT/re/out/api-probe}
 : "${ANDROID_SERIAL:?set ANDROID_SERIAL to your own instance (127.0.0.1:<adb port>)}"
-ADB=${ADB:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platform-tools/adb.exe}
+. "$(dirname "$0")/env.sh"
 PKG=com.jagex.oldscape.android
 F=/sdcard/Android/data/$PKG/files
 adb() { "$ADB" -s "$ANDROID_SERIAL" "$@"; }

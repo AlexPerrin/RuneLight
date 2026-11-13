@@ -27,8 +27,9 @@ if [[ ${1:-} == --core ]]; then
     ls -la "$OUT"
     exit 0
 fi
-SDK=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}
-ANDROID_JAR=$SDK/platforms/android-37.0/android.jar
+. "$(dirname "$0")/env.sh"
+SDK=$ANDROID_SDK
+ANDROID_JAR=${ANDROID_JAR:-$SDK/platforms/android-37.0/android.jar}
 IN=$(realpath "$1")
 OUT=$(realpath -m "$2")
 WORK=$(mktemp -d)
@@ -46,7 +47,7 @@ for j in "$RL"/runelite-api-1.13.1.jar "$RL"/client-1.13.1.jar "$RL"/guice-4.1.0
          "$RL"/javax.inject-1.jar "$RL"/slf4j-api-1.7.25.jar "$RL"/commons-text-1.2.jar "$RL"/commons-lang3-3.7.jar "$RL"/gson-2.8.5.jar "$RL"/jopt-simple-5.0.1.jar; do
     CLASSPATH_ARGS+=(--classpath "$j")
 done
-java -cp "$SDK/build-tools/36.0.0/lib/d8.jar" com.android.tools.r8.D8 --release --min-api 26 \
+java -cp "${D8_JAR:-$SDK/build-tools/36.0.0/lib/d8.jar}" com.android.tools.r8.D8 --release --min-api 26 \
     --lib "$ANDROID_JAR" "${CLASSPATH_ARGS[@]}" --output "$WORK/dex.zip" "$IN" 2>&1 \
     | grep -v -E "^Warning|Missing class|referenced from" | head -20 || true
 

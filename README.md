@@ -51,14 +51,19 @@ holds the native hooks and the embedded plugin host.
 **Build from source**
 
 ```sh
-host/build.sh             # Java plugin host -> host.jar
-ninja -C re/build         # native hooks -> libosrsrl.so
-tools/repack.sh           # patch + repack the official APK -> re/out/osrs-runelite.apk
-tools/repack.sh --install # ...and install it on the connected device
+tools/setup.sh                    # once: checks the toolchain, fetches the pinned jars, configures re/build
+host/build.sh                     # Java plugin host -> host.jar
+ninja -C re/build                 # native hooks -> libosrsrl.so
+tools/repack.sh                   # patch + repack the official APK -> re/out/osrs-runelite.apk
+tools/repack.sh --install         # ...and install it on the connected device
 ```
 
-You supply the official APK (`base.apk` and `split_config.arm64_v8a.apk`, build 241.4) in the repo root. A correct build
-prints 7 `telemetry:` lines, confirming the privacy patches applied.
+You supply the official APK (`base.apk` and `split_config.arm64_v8a.apk`, build 241.4) in the repo root. Toolchain: JDK 17+,
+Python 3, CMake, Ninja, the Android NDK (r27) and SDK (platform android-37.0, build-tools 36.0.0, zipalign, apksigner) and
+`apktool`. `tools/setup.sh` checks all of it and tells you what is missing; paths come from `ANDROID_SDK`, `ANDROID_NDK`,
+`APKTOOL_JAR` and `ADB` (see `tools/env.sh`). A server build also needs the server's public login modulus
+(`MODULUS=<256 hex digits> OPENRUNE=1 LOCAL_AUTH=1 tools/repack.sh`). A correct build prints 7 `telemetry:` lines,
+confirming the privacy patches applied.
 
 **Measure API coverage**
 
@@ -102,8 +107,8 @@ Issues and PRs are welcome. To get oriented:
 1. Read [docs/android-protocol.md](docs/android-protocol.md) for the protocol,
    [docs/offsets.md](docs/offsets.md) for reverse-engineered addresses and [docs/plugin-host.md](docs/plugin-host.md)
    for plugin status.
-2. Run the three build commands above and check for the 7 `telemetry:` lines.
-3. Put reverse-engineering evidence in `re/evidence/<slug>/`, so findings can be reproduced.
+2. Build as above and check for the 7 `telemetry:` lines.
+3. Back reverse-engineering findings with evidence (a Ghidra address, a decompile, a logcat line) in the PR so they can be reproduced.
 4. Never add code or tests that contact Jagex or RuneScape servers, and keep personal identifiers out of requests.
 
 Server-side work (game content, protocol handlers) belongs in the OpenRune fork, not here.

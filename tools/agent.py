@@ -10,7 +10,7 @@ Setup on the device:  adb shell setprop debug.osrsrl.agent 1  (then restart the 
   agent.py findptr <value> [--all]   addresses holding a u64 (e.g. a vtable lib+a69fe0)
   agent.py watch <addr> [n]          print a u32 (and neighbours) once a second
 
-Env: ADB (default: Windows adb.exe under WSL), ANDROID_SERIAL (required: your emulator, emulator-<port>).
+Env: ADB (default: the SDK's platform-tools adb, see tools/env.sh), ANDROID_SERIAL (required: your emulator, emulator-<port>).
 """
 import os
 import re
@@ -21,7 +21,18 @@ import time
 
 import numpy as np
 
-ADB = os.environ.get("ADB", "/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platform-tools/adb.exe")
+def _find_adb():
+    # ANDROID_SDK / ANDROID_HOME / ~/Android/Sdk / the Windows SDK under WSL, as tools/env.sh
+    import glob, shutil
+    for d in [os.environ.get("ANDROID_SDK"), os.environ.get("ANDROID_HOME"), os.path.expanduser("~/Android/Sdk")] + glob.glob("/mnt/c/Users/*/AppData/Local/Android/Sdk"):
+        for n in ("adb.exe", "adb"):
+            p = os.path.join(d or "", "platform-tools", n)
+            if d and os.access(p, os.X_OK):
+                return p
+    return shutil.which("adb") or "adb"
+
+
+ADB = os.environ.get("ADB") or _find_adb()
 SERIAL = os.environ.get("ANDROID_SERIAL") or sys.exit("set ANDROID_SERIAL to your emulator")
 PORT = 27183
 GAME_LIB = "liblibs.hal.system.osclient.so"

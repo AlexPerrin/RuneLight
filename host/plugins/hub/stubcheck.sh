@@ -6,7 +6,8 @@
 # Needs host/build.sh output (re/host/classes). Prints "GAP Iface.method impls=[...]" per gap.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
-SDK=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}
+. "$(dirname "$0")/../../../tools/env.sh"
+SDK=$ANDROID_SDK
 AJ=$(ls "$SDK"/platforms/*/android.jar | tail -1)
 OUT=$ROOT/re/hub-build/stubcheck
 mkdir -p "$OUT"

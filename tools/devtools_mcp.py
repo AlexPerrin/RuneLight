@@ -17,7 +17,18 @@ import re
 import subprocess
 import sys
 
-ADB = os.environ.get("ADB", "/mnt/c/Users/Alex/AppData/Local/Android/Sdk/platform-tools/adb.exe")
+def _find_adb():
+    # ANDROID_SDK / ANDROID_HOME / ~/Android/Sdk / the Windows SDK under WSL, as tools/env.sh
+    import glob, shutil
+    for d in [os.environ.get("ANDROID_SDK"), os.environ.get("ANDROID_HOME"), os.path.expanduser("~/Android/Sdk")] + glob.glob("/mnt/c/Users/*/AppData/Local/Android/Sdk"):
+        for n in ("adb.exe", "adb"):
+            p = os.path.join(d or "", "platform-tools", n)
+            if d and os.access(p, os.X_OK):
+                return p
+    return shutil.which("adb") or "adb"
+
+
+ADB = os.environ.get("ADB") or _find_adb()
 SERIAL = os.environ.get("ANDROID_SERIAL") or sys.exit("devtools-mcp: set ANDROID_SERIAL to your emulator")
 _auth = None
 

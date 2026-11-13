@@ -1,0 +1,17 @@
+5b8705f3d8f2a78de059ed43b4d7343b9b6e23ae69245a887e14268424660af9  https://repo.runelite.net/net/runelite/runelite-api/1.13.1/runelite-api-1.13.1.jar
+5abed7c968a8eb81c0c2d534e58369c875129ee2c246b03cfbe84ccd891c8dc6  https://repo.runelite.net/net/runelite/client/1.13.1/client-1.13.1.jar
+a334b96dba3a37bfeffda4481e86120ca933c7c983027fe23edb276c0c9199f6  https://repo.runelite.net/net/runelite/arn/http-api/1.2.25/http-api-1.2.25.jar
+9264c6931c431e928dc64adc842584d5f57d17b2f3aff29221f2b3fdea673dad  https://repo1.maven.org/maven2/com/google/inject/guice/4.1.0/guice-4.1.0-no_aop.jar
+5be9a7d05ba0ccd74708bc8018ae412255f85843c0b92302e9b9befa6ed52564  https://repo1.maven.org/maven2/com/google/guava/guava/23.2-jre/guava-23.2-jre.jar
+91c77044a50c481636c32d916fd89c9118a72195390452c81065080f957de7ff  https://repo1.maven.org/maven2/javax/inject/javax.inject/1/javax.inject-1.jar
+0addec670fedcd3f113c5c8091d783280d23f75e3acb841b61a9cdb079376a08  https://repo1.maven.org/maven2/aopalliance/aopalliance/1.0/aopalliance-1.0.jar
+18c4a0095d5c1da6b817592e767bb23d29dd2f560ad74df75ff3961dbde25b79  https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar
+0966e86fffa5be52d3d9e7b89dd674d98a03eed0a454fbaf7c1bd9493bd9d874  https://repo1.maven.org/maven2/org/slf4j/slf4j-simple/1.7.25/slf4j-simple-1.7.25.jar
+766ad2a0783f2687962c8ad74ceecc38a28b9f72a2d085ee438b7813e928d0c7  https://repo1.maven.org/maven2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar
+d4a57bbc1627da7c391308fd0fe910b83170fb66afd117236a5b111d2db1590b  https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.2/commons-text-1.2.jar
+6e8dc31e046508d9953c96534edf0c2e0bfe6f468966b5b842b3f87e43b6a847  https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.7/commons-lang3-3.7.jar
+233a0149fc365c9f6edbd683cfe266b19bdc773be98eabdaf6b3c924b48e7d81  https://repo1.maven.org/maven2/com/google/code/gson/gson/2.8.5/gson-2.8.5.jar
+2570fab55515cbf881d7a4ceef49fc515490bc027057e666776a2832465aeca0  https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp/3.14.9/okhttp-3.14.9.jar
+f80ce42d2ffac47ad4c47e1d6f980d604d247ceb1a886705cf4581ab0c9fe2b8  https://repo1.maven.org/maven2/com/squareup/okio/okio/1.17.2/okio-1.17.2.jar
+cf678ab3fbc992f4b4654a86c03557c21904d635202b67688fcb2eca442c2d40  https://repo1.maven.org/maven2/com/google/protobuf/protobuf-javalite/3.21.12/protobuf-javalite-3.21.12.jar
+9f0c8d50fa4b79b6ff1502dbec8502179d6b9497cacbe17a13074001aed537ec  https://repo1.maven.org/maven2/net/sf/jopt-simple/jopt-simple/5.0.1/jopt-simple-5.0.1.jar

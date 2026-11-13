@@ -7,9 +7,10 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 RL=$ROOT/re/runelite
 OUT=$ROOT/re/host
-SDK=${ANDROID_SDK:-/mnt/c/Users/Alex/AppData/Local/Android/Sdk}
-ANDROID_JAR=$SDK/platforms/android-37.0/android.jar
-D8="java -cp $SDK/build-tools/36.0.0/lib/d8.jar com.android.tools.r8.D8"
+. "$ROOT/tools/env.sh"
+SDK=$ANDROID_SDK
+ANDROID_JAR=${ANDROID_JAR:-$SDK/platforms/android-37.0/android.jar}
+D8="java -cp ${D8_JAR:-$SDK/build-tools/36.0.0/lib/d8.jar} com.android.tools.r8.D8"
 
 API=$RL/runelite-api-1.13.1.jar
 DEPS=($RL/guice-4.1.0-no_aop.jar $RL/guava-23.2-jre.jar $RL/javax.inject-1.jar $RL/aopalliance-1.0.jar
@@ -42,9 +43,13 @@ done
 #     reference but the hand-written shim lacks (plugins build Swing panels in startUp).
 #     Regenerated only when an input changes.
 HUB_JARS=$(ls "$ROOT"/re/hub/*.jar "$ROOT"/re/hub-build/*.jar "$ROOT"/re/devtools-build/devtools.jar 2>/dev/null || true)
-STAMP=$( (cat "$RL/client-1.13.1.jar" $HUB_JARS "$ROOT/host/gen/GenHeadless.java" "$ROOT/host/tools/awt_refs.py"; find "$ROOT/host/awt" -name '*.java' | sort) | md5sum | cut -d' ' -f1)
+# host/gen/awt-baseline-*.txt: the refs and classes of the full set of core and Hub plugins this host supports. They are
+# merged into what the jars above reference, so the host compiles the same with or without the Hub jars present.
+STAMP=$( (cat "$RL/client-1.13.1.jar" $HUB_JARS "$ROOT/host/gen/GenHeadless.java" "$ROOT/host/tools/awt_refs.py" "$ROOT"/host/gen/awt-baseline-*.txt; find "$ROOT/host/awt" -name '*.java' | sort) | md5sum | cut -d' ' -f1)
 if [[ ! -f $OUT/headless/.stamp || $(cat "$OUT/headless/.stamp") != "$STAMP" ]]; then
     python3 "$ROOT/host/tools/awt_refs.py" "$OUT/swing-refs.txt" "$OUT/swing-classes.txt" "$RL/client-1.13.1.jar" "$API" $HUB_JARS
+    LC_ALL=C sort -u "$OUT/swing-refs.txt" "$ROOT/host/gen/awt-baseline-refs.txt" -o "$OUT/swing-refs.txt"
+    LC_ALL=C sort -u "$OUT/swing-classes.txt" "$ROOT/host/gen/awt-baseline-classes.txt" -o "$OUT/swing-classes.txt"
     rm -rf "$OUT/headless"
     java "$ROOT/host/gen/GenHeadless.java" "$OUT/swing-refs.txt" "$OUT/swing-classes.txt" "$ROOT/host/awt" \
         "$OUT/headless" "$ANDROID_JAR" 2>&1 | grep -v "^skipped" || true
