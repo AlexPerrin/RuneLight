@@ -76,9 +76,11 @@ Client goal: **RuneLite compatibility on mobile.**
 |---|---|
 | RuneLite API methods working on device (api-probe) | **94.1%** (1178 / 1252) |
 | Zone sub-protocols implemented | 15 / 15 |
-| Core plugins running | 89 / 90 at last full run |
-| Plugin Hub plugins running | 84 / 109 at last full run |
+| Core plugins running | 89 / 90 |
+| Plugin Hub plugins running | 85 / 110 |
 | Release | v0.1.2 |
+
+Plugin and packet counts as of 2026-11-13, generated into [docs/progress.md](docs/progress.md).
 
 Per-plugin status is in [docs/plugin-host.md](docs/plugin-host.md). The remaining API gaps are mostly rows the probe
 cannot exercise without a specific game state, such as clan chat or world entities, plus a few engine-side setters.
