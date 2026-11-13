@@ -103,7 +103,7 @@ public class AndroidWidget extends WidgetBag {
     @Override public Widget setItemId(int v) { return set(0xb38, v); }
     @Override public Widget setItemQuantity(int v) { return set(0xb3c, v); }
     /**
-     * Item quantity mode, Widget +0x13c. The mobile client's values (CC_SETOBJECT handler 0x4e06dc):
+     * Item quantity mode, Widget +0x13c. The mobile client's values (CC_SETOBJECT handler 0x589b20):
      * 1205 setobject_nonum stores 0, 1212 setobject_alwaysnum 3, 1200 setobject 3 for stackable items
      * and 1 otherwise; so RuneLite's NEVER 0 / ALWAYS 1 / STACKABLE 2 map to 0 / 3 / 1.
      * Verified on the device (2026-10-17 gen 27, probe `wqty 15:3 <slot> <mode>`): NEVER hid coins'
@@ -186,7 +186,7 @@ public class AndroidWidget extends WidgetBag {
     @Override public void setNoScrollThrough(boolean v) { set(0xb99, v ? 1 : 0); }
     @Override public void revalidate() { Native.widgetRevalidate(id, childIndex()); geometryChanged(); }
     // Desktop re-lays out the children and the scroll bounds; here the same layout pass as
-    // revalidate() (0x45ebf4 walks a layer's children). // unverified: scroll bounds on the device
+    // revalidate() (0x464b38 walks a layer's children). // unverified: scroll bounds on the device
     @Override public void revalidateScroll() { Native.widgetRevalidate(id, childIndex()); geometryChanged(); }
     @Override public int getIndex() { return childIndex(); }
     // Script-visible properties read from the game widget (Native.widgetProps).

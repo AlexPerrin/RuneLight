@@ -10,7 +10,7 @@ import net.runelite.api.Perspective;
  * face colours (colours3 -1 = flat, -2 = hidden) and the per-face arrays the game keeps. Built from the
  * game's posed actor Model (Native.actorMesh, NPC/Player.getModel) or by AndroidModelData.light
  * (Client.loadModel). Bounds and the per-orientation AABB follow the game's own code (bounds in the
- * renderer 0x72db3c, AABB 0x71ae98; layout notes at game.cpp pack_mesh).
+ * renderer 0x73ba8c, AABB 0x71ae98; layout notes at game.cpp pack_mesh).
  */
 final class AndroidModel implements Model {
     int verts, faces;
@@ -237,7 +237,7 @@ final class AndroidModel implements Model {
     @Override public Model getUnskewedModel() { return this; }  // never skewed: no ground contouring here
     @Override public boolean useBoundingBox() { return singleTile; }
 
-    /** Bounds as the game's renderer computes them (0x72db3c): height, bottomY, xz magnitude, radius, diameter. */
+    /** Bounds as the game's renderer computes them (0x73ba8c): height, bottomY, xz magnitude, radius, diameter. */
     @Override public void calculateBoundsCylinder() {
         if (bounds) return;
         bounds = true;

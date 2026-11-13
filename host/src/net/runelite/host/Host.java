@@ -901,7 +901,7 @@ public final class Host {
             }
             case AREA_SOUND_EFFECT: {
                 // SOUND_AREA zone prots and actor/loc animation frame sounds with a range, before the
-                // game queues them (inline hook on 0x4ae650); consume() drops the sound. Source: the
+                // game queues them (inline hook on 0x4b9170); consume() drops the sound. Source: the
                 // NPC/player at the animated position (animation sounds), else null as desktop's
                 // packet sounds. // unverified: on the device
                 if (!bus.hasSubscribers(net.runelite.api.events.AreaSoundEffectPlayed.class)) break;

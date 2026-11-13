@@ -44,9 +44,10 @@ t=$(grep -c '^telemetry:' "$work/repack.log" || true)
 mkdir -p "$work/x/base" "$work/x/split" "$work/x/single" "$work/o/base" "$work/o/split" "$work/o/single"
 unzip -q re/out/base.apk -d "$work/x/base"; unzip -q re/out/split.apk -d "$work/x/split"
 unzip -q re/out/osrs-runelite.apk -d "$work/x/single"
-unzip -q base.apk -d "$work/o/base"; unzip -q split_config.arm64_v8a.apk -d "$work/o/split"
+base=re/$(sed -n '1s/^[0-9a-f]*  //p' store.sha256); split=re/$(sed -n '2s/^[0-9a-f]*  //p' store.sha256)
+unzip -q "$base" -d "$work/o/base"; unzip -q "$split" -d "$work/o/split"
 # the single APK is the base's files plus the split's lib/: its "official" counterpart is the two merged
-unzip -q base.apk -d "$work/o/single"; unzip -q -o split_config.arm64_v8a.apk -d "$work/o/single"
+unzip -q "$base" -d "$work/o/single"; unzip -q -o "$split" -d "$work/o/single"
 patterns=("PRIVATE KEY" "privateExponent" "alexperrin" "Alex Perrin" "@gmail.com" 'C:\Users' "/home/alex" "/mnt/c/Users")
 d=$(openssl pkey -in ${SERVER_TOOLS:-$HOME/src/openrune-work/server-tools}/src/.data/game.key -text -noout 2>/dev/null | awk '/privateExponent:/{f=1;next} /^[a-zA-Z]/{f=0} f' | tr -d ' :\n' | sed 's/^00//' | cut -c1-24)
 [[ -n $d ]] && patterns+=("$d")
@@ -88,7 +89,7 @@ Automated dev build of \`master\` at \`${sha:0:9}\`. Not a gated release: the of
 are checked by client QA on a device; dev builds pass only the build's machine checks (telemetry patches
 present, no secrets in the APKs).
 
-**What it is.** The official Old School RuneScape Android app (build 241.4), repacked to load this repo's
+**What it is.** The official Old School RuneScape Android app (build 242.3), repacked to load this repo's
 \`libosrsrl.so\` and RuneLite plugin host. It connects only to an OpenRune test server
 (\`10.0.2.2:43594\`, the host as seen from an Android emulator) and signs in with the server's local
 sign-in (LOCAL_AUTH); it cannot sign in to Jagex. The app's analytics (Singular, Firebase, Crashlytics) and the

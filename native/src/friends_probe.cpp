@@ -1,10 +1,10 @@
 // Opt-in friends-list probe (setprop debug.osrsrl.friendprobe 1, then restart the game), for the
 // mobile friends tab stuck at "Loading friends list" after login (state 1, FRIENDLIST_LOADED,
 // never followed by state 2 from UPDATE_FRIENDLIST although the server sends both in order).
-// Inline hooks (ELF vaddrs, build 241.4):
-//   0x441dd4 server packet dispatcher (client, ...): logs every change of the state across a call;
-//   0x3fbd30 UPDATE_FRIENDLIST reader (FriendSystem*, buf, len, ...) (case 0x19): entry/exit;
-//   0x3fc0d8 friends clear (FriendSystem*, ...) (writes state 0): entry, with its caller.
+// Inline hooks (ELF vaddrs, build 242):
+//   0x4487d4 server packet dispatcher (client, ...): logs every change of the state across a call;
+//   0x401174 UPDATE_FRIENDLIST reader (FriendSystem*, buf, len, ...) (case 0x19): entry/exit;
+//   0x40151c friends clear (FriendSystem*, ...) (writes state 0): entry, with its caller.
 // FriendSystem = *(Client +0x46c0); state +0x150 (0 none, 1 loaded, 2 list received).
 // Off unless the property is set at startup, so normal builds run these unhooked.
 #include "friends_probe.h"
@@ -18,12 +18,12 @@
 
 namespace {
 
-constexpr uintptr_t kDispatch = 0x441dd4;
+constexpr uintptr_t kDispatch = 0x4487d4;
 constexpr uint32_t kDispatchCode[4] = {0xfc190fe8, 0xa9017bfd, 0xa9026ffc, 0xa90367fa};
-constexpr uintptr_t kUpdateFriends = 0x3fbd30;
-constexpr uintptr_t kClearFriends = 0x3fc0d8;
+constexpr uintptr_t kUpdateFriends = 0x401174;
+constexpr uintptr_t kClearFriends = 0x40151c;
 constexpr uint32_t kSmallPrologue[4] = {0xa9be7bfd, 0xf9000bf3, 0x910003fd, 0xaa0003f3};
-constexpr uint32_t kFriendSystem = 0x46c0;
+constexpr uint32_t kFriendSystem = 0x4700;
 constexpr uint32_t kState = 0x150;
 
 using Fn = __uint128_t (*)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);

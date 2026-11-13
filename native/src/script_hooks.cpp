@@ -25,16 +25,16 @@ void osrsrl_script_swap_cb(const uint64_t* regs, uintptr_t lr);
 namespace script_hooks {
 namespace {
 
-// ELF vaddrs, build 241.4 (docs/offsets.md "Script VM").
-constexpr uintptr_t kRunScriptEvent = 0x4df54c;
-constexpr uintptr_t kScriptLookup = 0x3f5658;
-constexpr uintptr_t kSwapLocals = 0x4dfd5c;
-constexpr uintptr_t kGosubLookupRet = 0x4dd988;  // bl kScriptLookup in case 0x28 (GOSUB)
-constexpr uintptr_t kReturnSwapRet = 0x4de0e0;   // bl kSwapLocals in case 0x15 (RETURN)
+// ELF vaddrs, build 242 (docs/offsets.md "Script VM").
+constexpr uintptr_t kRunScriptEvent = 0x588988;
+constexpr uintptr_t kScriptLookup = 0x3faa9c;
+constexpr uintptr_t kSwapLocals = 0x5891a0;
+constexpr uintptr_t kGosubLookupRet = 0x586d80;  // bl kScriptLookup in case 0x28 (GOSUB)
+constexpr uintptr_t kReturnSwapRet = 0x587590;   // bl kSwapLocals in case 0x15 (RETURN)
 constexpr uint32_t kRunScriptEventCode[4] = {0xd10343ff, 0xa9077bfd, 0xa9086ffc, 0xa90967fa};
 constexpr uint32_t kScriptLookupCode[4] = {0xd10243ff, 0xa9047bfd, 0xf9002bf9, 0xa9065ff8};
 constexpr uint32_t kSwapLocalsCode[4] = {0xd101c3ff, 0xa9017bfd, 0xf90013fb, 0xa90367fa};
-constexpr uintptr_t kOpDispatch = 0x4e06dc;  // opcodes >= 100: (vm, opcode, ...)
+constexpr uintptr_t kOpDispatch = 0x589b20;  // opcodes >= 100: (vm, opcode, ...)
 constexpr uint32_t kOpDispatchCode[4] = {0xd10583ff, 0xa9107bfd, 0xa9116ffc, 0xa91267fa};
 
 using RunScriptEventFn = void (*)(uintptr_t vm, uintptr_t ev, int max_ops);

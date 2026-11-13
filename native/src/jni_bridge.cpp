@@ -1030,11 +1030,11 @@ jboolean n_widget_clear_listener(JNIEnv*, jclass, jint id, jint index, jint offs
 // int argument, script id script_hooks::kJavaListener | kind, and the widget's hasListener byte +0x348,
 // so the game's own event dispatch (0x44ae24 for the mouse kinds, 0x45f5dc for onDialogAbort) queues it
 // as it would a CS2 listener; script_hooks runs the Java listener instead of a script. The argument
-// array comes from the game's operator new (0x9f4454), which the game frees when it rewrites the slot
+// array comes from the game's operator new (0xa025f4), which the game frees when it rewrites the slot
 // or deletes the widget. The slot's previous arguments are leaked, as clearing does. kind < 0 clears.
 jboolean n_widget_set_java_listener(JNIEnv*, jclass, jint id, jint index, jint offset, jint kind) {
     static constexpr int kSlots[] = {0x380, 0x3e0, 0x410, 0x440, 0x470, 0x4a0, 0x6f8, 0x8d8};
-    static auto game_new = reinterpret_cast<void* (*)(size_t)>(module_base("liblibs.hal.system.osclient.so") + 0x9f4454);
+    static auto game_new = reinterpret_cast<void* (*)(size_t)>(module_base("liblibs.hal.system.osclient.so") + 0xa025f4);
     if (!client_thread::on_client_thread()) return false;
     bool ok = false;
     for (int o : kSlots) ok |= o == offset;

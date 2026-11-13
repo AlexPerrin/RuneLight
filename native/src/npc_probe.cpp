@@ -1,5 +1,5 @@
 // Opt-in NPC_INFO probe (setprop debug.osrsrl.npcprobe 1, then restart the game): an inline hook
-// on the client's NPC info reader (ELF 0x469778, build 241.4) logs every packet's bit payload as
+// on the client's NPC info reader (ELF 0x46f4c8, build 242) logs every packet's bit payload as
 // hex, plus the world view's high-res NPC count before and after. Off unless the property is set
 // at startup, so normal builds run the reader unhooked.
 #include "npc_probe.h"
@@ -16,7 +16,7 @@
 
 namespace {
 
-constexpr uintptr_t kNpcInfoReader = 0x469778;
+constexpr uintptr_t kNpcInfoReader = 0x46f4c8;
 constexpr uint32_t kNpcInfoReaderCode[4] = {0xfc190fe8, 0xa9017bfd, 0xa9026ffc, 0xa90367fa};
 
 // reader(client, world view, large-distance flag, packet buffer)

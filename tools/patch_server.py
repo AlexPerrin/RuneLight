@@ -13,10 +13,10 @@ Usage: patch_server.py IN.so OUT.so --server HOST:PORT --modulus HEX
 import argparse
 import sys
 
-ORIG_MODULUS = (
-    b"8094586bf7a3e7d9e8afb5a9de28542e1bef242b85c3e08c731e50c5292240ca1e934c22a79acc59ca5bf57690e74e66"
-    b"56c8f9081285825d79e89f8898e272bcbe245905839a0e41f430b074e5418af3ab508f3f74e68a939a4a0cce116b4ee6"
-    b"ac5863561b519baf9608c2b07bed62d7b87432f694068ae4072cfacd03cc7ecb"
+ORIG_MODULUS = (  # build 242
+    b"bd19de446b73406a240bba065c8ed63398f499cbf59187c68acb6fa31647bebebd83d893ac132a602f1eb45d66ec377c"
+    b"c005da7480fd6bec8ca737712d2c5e83ee13dcf5cbcf7de64e57794043eb11fb57efde72b910b66e6350c0f7c5a056ee"
+    b"c6358d239f15e54ed15687877b3daea4edaeed128c8ac1bac23eb9e45b4438e1"
 )
 URLS = {
     b"https://oldschool.config.runescape.com/jav_config.ws?m=0": "/jav_config.ws?m=0",
