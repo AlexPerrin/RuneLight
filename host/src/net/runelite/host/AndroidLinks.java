@@ -20,7 +20,7 @@ import java.lang.reflect.Method;
  * the dialog, then Chrome; Cancel stays in game).
  *
  * While the browser is in front the game reconnects every ~16 s (OpenRune 6ab7d07 accepts the reconnect
- * login), so returning within the server's 60 s grace comes back in place (gen 33, docs/client-handoff.md).
+ * login), so returning within the server's 60 s grace comes back in place (gen 33).
  */
 public final class AndroidLinks {
     private AndroidLinks() {}

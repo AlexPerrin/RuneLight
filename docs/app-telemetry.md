@@ -173,7 +173,7 @@ a second Play Now, and about a minute of play:
 
 **History**: the consent sync is part of the CMP flow, which runs at every Play Now once an SSO identity
 exists. On LOCAL_AUTH builds (the only kind we install), it most likely ran at every Play Now
-since LOCAL_AUTH sign-in was first used on the device (2026-10-16, docs/client-handoff.md), sending the
+since LOCAL_AUTH sign-in was first used on the device (2026-10-16), sending the
 test server's unsigned token described above. No earlier logcat captures were kept to confirm a
 per-day count.
 
@@ -371,8 +371,7 @@ and back, `::drop` relog, force-stop + launch, Play Now, a minute of walking.
 
 ### Network QA, v0.1.0 release gate (2026-10-18 22:22:02-22:27:38)
 
-Run by client-qa for the v0.1.0 release gate; full record in qa/client-0.1.0.md section 6 (evidence `netqa-logcat.txt`,
-`sockets.txt`, `sockets-plugins.txt` in that session's scratchpad). Build: master 09c05c9, `OPENRUNE=1 SERVER=10.0.2.2:8080
+Run for the v0.1.0 release gate (the full record is kept in the harness). Build: master 09c05c9, `OPENRUNE=1 SERVER=10.0.2.2:8080
 GAME_PORT=43594 LOCAL_AUTH=1 tools/repack.sh` (7 `telemetry:` lines), default plugins + devtools (and briefly an R1 test jar,
 refused). Sampler: ESTABLISHED uid-10071 rows every ~0.6 s, 469 samples. Run: app start, Sign out -> "Sign in with Email /
 Username" -> Play Now -> LOGGED_IN, walk, `::tele` Varrock, tabs, `::drop` relog, force-stop + launch, "Try again" after ~45 s,
