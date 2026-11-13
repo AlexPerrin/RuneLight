@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="RuneLight: a phone with a glowing light">
+  <title>RuneLight</title>
+  <!-- glow rays -->
+  <g stroke="#e8c46a" stroke-width="7" stroke-linecap="round" opacity=".9">
+    <path d="M100 6 V22 M42 30 L53 41 M158 30 L147 41 M16 88 H32 M184 88 H168"/>
+  </g>
+  <!-- phone body and screen -->
+  <rect x="58" y="40" width="84" height="150" rx="14" fill="#2fb5c4" stroke="#0f2a33" stroke-width="6"/>
+  <rect x="68" y="56" width="64" height="112" rx="5" fill="#0f2a33"/>
+  <!-- light: a bulb on the screen -->
+  <circle cx="100" cy="100" r="22" fill="#e8c46a" stroke="#0f2a33" stroke-width="4"/>
+  <path d="M91 128 H109 M93 136 H107" stroke="#e8c46a" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="100" cy="179" r="3.5" fill="#0f2a33"/>
+</svg>

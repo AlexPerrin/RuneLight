@@ -276,6 +276,9 @@ game, is held and read back as the sprites will take it; the GraphicsObject and 
 
 ## Gotchas
 
+- The live cache carries the server's custom clientscripts above stock, the spawn menu's 10199..10209 included (the
+  fork's local/skip-cs2-packs no longer leaves them out): the mobile's cache update completes on it with no error_game
+  line and no JS5 refusal, and play works (evidence client-mobile-live-spawn-cs2). `::spawn` on mobile is untested.
 - Device: start your own client (harness skill `test-instances`); no lock. The osrs-devtools MCP drives the Android device. It needs `devtools.jar` in plugins/ and `setprop debug.osrsrl.devtools 1` plus an app restart. If the MCP server
   failed to connect at session start, `python3 -I tools/devtools_mcp.py --call tools/call '{"name":...,"arguments":{}}'`
   reaches the same tools. adb.exe from WSL fails now and then (`UtilAcceptVsock accept4 failed 110`): retry in an
