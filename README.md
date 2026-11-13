@@ -44,24 +44,24 @@ overrides, and the status tables in [docs/plugin-host.md](docs/plugin-host.md));
 The block below was last regenerated on 2026-10-24.
 
 <!-- progress:start -->
-![Mobile packets mapped](https://img.shields.io/badge/Mobile%20packets%20mapped-94.9%25-blue) ![Mobile packets implemented](https://img.shields.io/badge/Mobile%20packets%20implemented-92.1%25-blue) ![RuneLite API implemented](https://img.shields.io/badge/RuneLite%20API%20implemented-76.3%25-blue) ![Plugins running on Android](https://img.shields.io/badge/Plugins%20running%20on%20Android-98.9%25-blue) ![Plugin Hub plugins running](https://img.shields.io/badge/Plugin%20Hub%20plugins%20running-77.3%25-blue)
+![Mobile packets mapped](https://img.shields.io/badge/Mobile%20packets%20mapped-94.7%25-blue) ![Mobile packets implemented](https://img.shields.io/badge/Mobile%20packets%20implemented-92.0%25-blue) ![RuneLite API implemented](https://img.shields.io/badge/RuneLite%20API%20implemented-99.0%25-blue) ![Plugins running on Android](https://img.shields.io/badge/Plugins%20running%20on%20Android-98.9%25-blue) ![Plugin Hub plugins running](https://img.shields.io/badge/Plugin%20Hub%20plugins%20running-77.3%25-blue)
 
 [![Progress map](docs/progress.svg)](docs/progress.md)
 
-- **Mobile packets mapped**: 240/253 (94.9%)
-- **Live packets mapped**: 240/240 (100.0%)
-- **Mobile packets mapped, verified**: 239/253 (94.5%)
-- **Mobile packets implemented**: 233/253 (92.1%)
-- **Server→client mapped**: 147/151 (97.4%)
-- **Client→server mapped**: 93/102 (91.2%)
+- **Mobile packets mapped**: 249/263 (94.7%)
+- **Live packets mapped**: 249/250 (99.6%)
+- **Mobile packets mapped, verified**: 248/263 (94.3%)
+- **Mobile packets implemented**: 242/263 (92.0%)
+- **Server→client mapped**: 149/153 (97.4%)
+- **Client→server mapped**: 100/110 (90.9%)
 - **Zone sub-prots implemented**: 15/15 (100.0%)
-- **RuneLite API implemented**: 661/866 (76.3%)
+- **RuneLite API implemented**: 857/866 (99.0%)
 - **Plugins running on Android**: 89/90 (98.9%)
 - **Plugin Hub plugins running**: 85/110 (77.3%)
 
 \* RuneLite API: abstract methods of the API interfaces the plugin host backs so far, not of the whole RuneLite API. Mobile packets count the opcodes in the client's own size tables.
 
-Details: [docs/progress.md](docs/progress.md) (as of 2026-10-24, `bce8d50+`).
+Details: [docs/progress.md](docs/progress.md) (as of 2026-11-13, `d0cc374`).
 <!-- progress:end -->
 
 What these numbers mean:
