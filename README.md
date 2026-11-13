@@ -76,13 +76,16 @@ Client goal: **RuneLite compatibility on mobile.**
 |---|---|
 | RuneLite API methods working on device (api-probe) | **94.1%** (1178 / 1252) |
 | Zone sub-protocols implemented | 15 / 15 |
-| Core plugins running | 89 / 90 at last full run |
-| Plugin Hub plugins running | 84 / 109 at last full run |
+| Core plugins running | 89 / 90 |
+| Plugin Hub plugins running | 85 / 110 |
 | Release | v0.1.2 |
+
+Plugin and packet counts as of 2026-11-13, generated into [docs/progress.md](docs/progress.md).
 
 Per-plugin status is in [docs/plugin-host.md](docs/plugin-host.md). The remaining API gaps are mostly rows the probe
 cannot exercise without a specific game state, such as clan chat or world entities, plus a few engine-side setters.
-Current state and evidence live in [docs/client-state.md](docs/client-state.md).
+The protocol spec ([docs/android-protocol.md](docs/android-protocol.md)) and offset map
+([docs/offsets.md](docs/offsets.md)) are attached to every release.
 
 ## Roadmap
 
@@ -96,8 +99,9 @@ Current state and evidence live in [docs/client-state.md](docs/client-state.md).
 
 Issues and PRs are welcome. To get oriented:
 
-1. Read [docs/client-state.md](docs/client-state.md) for the current state and
-   [docs/offsets.md](docs/offsets.md) for reverse-engineered addresses.
+1. Read [docs/android-protocol.md](docs/android-protocol.md) for the protocol,
+   [docs/offsets.md](docs/offsets.md) for reverse-engineered addresses and [docs/plugin-host.md](docs/plugin-host.md)
+   for plugin status.
 2. Run the three build commands above and check for the 7 `telemetry:` lines.
 3. Put reverse-engineering evidence in `re/evidence/<slug>/`, so findings can be reproduced.
 4. Never add code or tests that contact Jagex or RuneScape servers, and keep personal identifiers out of requests.

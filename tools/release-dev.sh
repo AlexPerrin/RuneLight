@@ -4,7 +4,7 @@
 #   tools/release-dev.sh --dry    the same build and checks, without tagging or publishing
 # VERSION (repo root) holds the next official version; N counts the dev builds of it (1, 2, ...).
 # Dev builds are automated (user, 2026-10-19); official releases vX.Y.Z need the release gate record
-# qa/client-X.Y.Z.md (checked by the osrs-harness repo's hooks/publish_gate.py). The checks here are machine checks only:
+# kept in the osrs-harness repo (checked by its hooks/publish_gate.py). The checks here are machine checks only:
 #   - master is clean and equal to origin/main (the build is of a pushed commit);
 #   - the APK is not debuggable (tools/not-debuggable.sh; DEBUGGABLE=1 is the agents' dev builds only);
 #   - the repack log has all 7 `telemetry:` lines (patch_telemetry.py asserts exactly one match each);
@@ -12,7 +12,8 @@
 #     user's name or email, home paths, keystores).
 # The release attaches the single universal repacked APK (re/out/osrs-runelite.apk; user's decisions 2026-10-19 and
 # 2026-10-24) and THIRD_PARTY_NOTICES.md (the licence notices for the third-party code in libosrsrl.so and its
-# host.jar; also embedded in the APK as assets/THIRD_PARTY_NOTICES.md). The split pair stays buildable, not attached.
+# host.jar; also embedded in the APK as assets/THIRD_PARTY_NOTICES.md), plus docs/offsets.md and docs/android-protocol.md
+# (the mapping of this build, published with every release). The split pair stays buildable, not attached.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
@@ -75,11 +76,13 @@ echo "release-dev: secrets check on $scanned added or changed files"
 
 tools/not-debuggable.sh re/out/osrs-runelite.apk || die "the APK is debuggable (DEBUGGABLE=1 is the agents' dev builds only)"
 [[ -s THIRD_PARTY_NOTICES.md ]] || die "THIRD_PARTY_NOTICES.md is missing"
+[[ -s docs/offsets.md && -s docs/android-protocol.md ]] || die "docs/offsets.md or docs/android-protocol.md is missing"
 # The single universal APK is the release artifact (user, 2026-10-24); the split pair is no longer attached.
 unzip -p re/out/osrs-runelite.apk assets/THIRD_PARTY_NOTICES.md | cmp -s - THIRD_PARTY_NOTICES.md \
     || die "the single APK does not carry this THIRD_PARTY_NOTICES.md as assets/THIRD_PARTY_NOTICES.md"
-assets=("$work/osrs-plugins-$tag.apk" "$work/THIRD_PARTY_NOTICES.md")
+assets=("$work/osrs-plugins-$tag.apk" "$work/THIRD_PARTY_NOTICES.md" "$work/offsets.md" "$work/android-protocol.md")
 cp re/out/osrs-runelite.apk "${assets[0]}"; cp THIRD_PARTY_NOTICES.md "${assets[1]}"
+cp docs/offsets.md "${assets[2]}"; cp docs/android-protocol.md "${assets[3]}"
 sums=$(cd "$work" && sha256sum "$(basename "${assets[0]}")" "$(basename "${assets[1]}")")
 prev=$(git tag -l 'v*' --sort=-creatordate | sed -n 1p)
 changes=$(git log -n 40 --no-merges --format='- %s (%h)' ${prev:+"$prev"..}HEAD)
@@ -98,6 +101,9 @@ consent sync are patched out (docs/app-telemetry.md). Signed with the repo's deb
 embedded plugin host (Dear ImGui, the RuneLite client subset and API, Guice, Guava, OkHttp, protobuf-javalite, ...)
 with their copyright notices and licence texts. The rest of the APK is Jagex's Old School RuneScape app, which
 those licences don't cover.
+
+**Mapping.** \`offsets.md\` (the game's addresses and struct layouts for this build) and \`android-protocol.md\`
+(the Android game protocol) are attached; they are the reverse-engineering map the client was built from.
 
 **Install** (one universal APK, arm64-v8a only: a 64-bit ARM device, or an emulator with ARM translation):
 \`\`\`
