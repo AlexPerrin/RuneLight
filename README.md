@@ -6,11 +6,6 @@ On desktop, RuneLite plugins add overlays, highlights, trackers and helpers to t
 like it. RuneLight changes that: it adds a plugin host to the official Android app, so the plugins you know from
 RuneLite (Quest Helper, Ground Items, XP Tracker, Loot Tracker and more) run on the phone, drawing over the real game.
 
-![Progress map](docs/progress.svg)
-
-**89 of 90** tracked core plugins run on Android, and **85 of 110** tracked Plugin Hub plugins
-([the numbers and what they mean](#what-works-today), as of 2026-10-24).
-
 > **For a test server only.** RuneLight is a research and interoperability project built for an OpenRune-compatible
 > private server. It is not for Jagex's live servers and is not affiliated with or endorsed by Jagex or RuneLite.
 > Read [Legal and safety](#legal-and-safety) before you install anything.
